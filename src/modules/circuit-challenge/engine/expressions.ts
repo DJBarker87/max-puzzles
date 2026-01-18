@@ -186,14 +186,28 @@ const MAX_DIVISION_ANSWER = 13
 
 /**
  * Generate an arithmetic expression that evaluates to the target value
+ * @param prioritizeDivision - If true, give 80% chance to use division (for division-seeded cells)
  */
 export function generateExpression(
   target: number,
-  difficulty: DifficultySettings
+  difficulty: DifficultySettings,
+  prioritizeDivision: boolean = false
 ): Expression {
   // Try up to 10 times to generate a valid expression
   for (let attempt = 0; attempt < 10; attempt++) {
-    const operation = selectOperation(difficulty.weights, difficulty)
+    let operation: Operation
+
+    // If this cell is marked for division priority and division is enabled
+    if (prioritizeDivision && difficulty.divisionEnabled && target <= MAX_DIVISION_ANSWER) {
+      // 80% chance to use division for division-seeded cells
+      if (Math.random() < 0.8) {
+        operation = '÷'
+      } else {
+        operation = selectOperation(difficulty.weights, difficulty)
+      }
+    } else {
+      operation = selectOperation(difficulty.weights, difficulty)
+    }
 
     let expression: Expression | null = null
 
@@ -246,10 +260,12 @@ export function generateExpression(
 /**
  * Apply expressions to all cells in the grid
  * Mutates cells in place
+ * @param divisionCells - Set of cell keys (row,col) that should prioritize division expressions
  */
 export function applyExpressions(
   cells: Cell[][],
-  difficulty: DifficultySettings
+  difficulty: DifficultySettings,
+  divisionCells: Set<string> = new Set()
 ): void {
   for (const row of cells) {
     for (const cell of row) {
@@ -257,8 +273,11 @@ export function applyExpressions(
         // FINISH cell doesn't need an expression - it shows "FINISH"
         cell.expression = ''
       } else if (cell.answer !== null) {
+        // Check if this cell should prioritize division
+        const cellKey = `${cell.row},${cell.col}`
+        const prioritizeDivision = divisionCells.has(cellKey)
         // Generate math expression for all cells including START
-        const expression = generateExpression(cell.answer, difficulty)
+        const expression = generateExpression(cell.answer, difficulty, prioritizeDivision)
         cell.expression = expression.text
       } else {
         cell.expression = ''

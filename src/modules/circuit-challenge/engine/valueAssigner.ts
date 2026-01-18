@@ -8,6 +8,8 @@ import { coordToKey } from './pathfinder'
 export interface ValueAssignmentResult {
   success: boolean
   connectors: Connector[]
+  /** Indices of connectors reserved for division (have values 1-13) */
+  divisionConnectorIndices: number[]
   error?: string
 }
 
@@ -208,6 +210,7 @@ export function assignConnectorValues(
           return {
             success: false,
             connectors: [],
+            divisionConnectorIndices: [],
             error: `No available values for division connector between ${coordToKey(connector.cellA)} and ${coordToKey(connector.cellB)}`,
           }
         }
@@ -242,6 +245,7 @@ export function assignConnectorValues(
       return {
         success: false,
         connectors: [],
+        divisionConnectorIndices: [],
         error: `No available values for connector between ${coordToKey(connector.cellA)} and ${coordToKey(connector.cellB)}`,
       }
     }
@@ -257,5 +261,6 @@ export function assignConnectorValues(
   return {
     success: true,
     connectors,
+    divisionConnectorIndices,
   }
 }
