@@ -147,17 +147,20 @@ export default function GameScreen() {
       />
 
       {/* Puzzle Grid */}
-      <div className="flex-1 flex items-center justify-center p-4 relative z-10">
+      <div className="flex-1 flex items-center justify-center p-2 relative z-10 overflow-hidden">
         {state.puzzle ? (
-          <PuzzleGrid
-            puzzle={state.puzzle}
-            currentPosition={state.currentPosition}
-            visitedCells={state.visitedCells}
-            traversedConnectors={state.traversedConnectors}
-            onCellClick={canMove ? makeMove : undefined}
-            disabled={!canMove}
-            showSolution={state.showingSolution}
-          />
+          <div className="w-full h-full max-w-[90vw] max-h-[calc(100vh-180px)] flex items-center justify-center">
+            <PuzzleGrid
+              puzzle={state.puzzle}
+              currentPosition={state.currentPosition}
+              visitedCells={state.visitedCells}
+              traversedConnectors={state.traversedConnectors}
+              onCellClick={canMove ? makeMove : undefined}
+              disabled={!canMove}
+              showSolution={state.showingSolution}
+              className="max-w-full max-h-full"
+            />
+          </div>
         ) : state.error ? (
           <div className="text-center">
             <div className="text-4xl mb-4">⚠️</div>
