@@ -6,9 +6,16 @@ interface PuzzlePreviewProps {
   showSolution?: boolean
 }
 
+// Hexagon path (pointy-top, centered at origin)
+const HEX_PATH = 'M 0,-20 L 17,-10 L 17,10 L 0,20 L -17,10 L -17,-10 Z'
+
+// Cell spacing for preview
+const CELL_SPACING_X = 70
+const CELL_SPACING_Y = 60
+
 /**
  * Renders a preview of a single printable puzzle.
- * Used in the Puzzle Maker screen.
+ * Uses hexagon cells matching the print template.
  */
 export default function PuzzlePreview({
   puzzle,
@@ -18,13 +25,10 @@ export default function PuzzlePreview({
   const { gridRows, gridCols, cells, connectors, targetSum } = puzzle
 
   // Calculate dimensions
-  const cellSize = 40 // px for preview
-  const gridWidth = gridCols * cellSize
-  const gridHeight = gridRows * cellSize
-  const padding = 30
-
-  const svgWidth = gridWidth + padding * 2
-  const svgHeight = gridHeight + padding * 2
+  const firstCellX = 35
+  const firstCellY = 35
+  const svgWidth = firstCellX + (gridCols - 1) * CELL_SPACING_X + 35
+  const svgHeight = firstCellY + (gridRows - 1) * CELL_SPACING_Y + 35
 
   // Create solution set for highlighting
   const solutionSet = new Set(puzzle.solution)
@@ -39,6 +43,12 @@ export default function PuzzlePreview({
     solutionEdges.add(`${fromRow},${fromCol}-${toRow},${toCol}`)
     solutionEdges.add(`${toRow},${toCol}-${fromRow},${fromCol}`)
   }
+
+  // Helper to get cell center
+  const getCellCenter = (row: number, col: number) => ({
+    x: firstCellX + col * CELL_SPACING_X,
+    y: firstCellY + row * CELL_SPACING_Y,
+  })
 
   return (
     <div className="flex flex-col items-center">
@@ -60,19 +70,33 @@ export default function PuzzlePreview({
         viewBox={`0 0 ${svgWidth} ${svgHeight}`}
         className="border border-gray-200 rounded bg-white"
       >
+        <defs>
+          <path id="hex-preview" d={HEX_PATH} />
+        </defs>
+
         {/* Connectors */}
         {connectors.map((connector, i) => {
-          const x1 = padding + connector.fromCol * cellSize + cellSize / 2
-          const y1 = padding + connector.fromRow * cellSize + cellSize / 2
-          const x2 = padding + connector.toCol * cellSize + cellSize / 2
-          const y2 = padding + connector.toRow * cellSize + cellSize / 2
+          const from = getCellCenter(connector.fromRow, connector.fromCol)
+          const to = getCellCenter(connector.toRow, connector.toCol)
 
           const edgeKey = `${connector.fromRow},${connector.fromCol}-${connector.toRow},${connector.toCol}`
           const isInSolution = showSolution && solutionEdges.has(edgeKey)
 
-          // Calculate midpoint for value label
-          const midX = (x1 + x2) / 2
-          const midY = (y1 + y2) / 2
+          // Shorten lines to not overlap with hexagons
+          const dx = to.x - from.x
+          const dy = to.y - from.y
+          const len = Math.sqrt(dx * dx + dy * dy)
+          const shortenBy = 17 // Hexagon radius
+          const ratio = shortenBy / len
+
+          const x1 = from.x + dx * ratio
+          const y1 = from.y + dy * ratio
+          const x2 = to.x - dx * ratio
+          const y2 = to.y - dy * ratio
+
+          // Calculate midpoint for value badge
+          const midX = (from.x + to.x) / 2
+          const midY = (from.y + to.y) / 2
 
           return (
             <g key={`connector-${i}`}>
@@ -81,25 +105,29 @@ export default function PuzzlePreview({
                 y1={y1}
                 x2={x2}
                 y2={y2}
-                stroke={isInSolution ? '#000' : '#ccc'}
-                strokeWidth={isInSolution ? 3 : 1.5}
+                stroke={isInSolution ? '#000' : '#888'}
+                strokeWidth={isInSolution ? 2.5 : 1.5}
                 strokeLinecap="round"
               />
-              {/* Connector value */}
+              {/* Connector value badge */}
               <rect
                 x={midX - 10}
                 y={midY - 7}
                 width={20}
                 height={14}
+                rx={2}
                 fill="white"
+                stroke="#000"
+                strokeWidth={0.75}
               />
               <text
                 x={midX}
                 y={midY}
                 textAnchor="middle"
                 dominantBaseline="central"
-                fontSize={10}
-                fill="#666"
+                fontSize={9}
+                fontWeight="bold"
+                fill="#000"
               >
                 {connector.value}
               </text>
@@ -109,66 +137,64 @@ export default function PuzzlePreview({
 
         {/* Cells */}
         {cells.map((cell) => {
-          const cx = padding + cell.col * cellSize + cellSize / 2
-          const cy = padding + cell.row * cellSize + cellSize / 2
-          const radius = cellSize * 0.35
-
+          const center = getCellCenter(cell.row, cell.col)
           const isInSolution = showSolution && solutionSet.has(cell.index)
 
           // Determine fill color
           let fill = 'white'
-          if (cell.isStart || cell.isEnd) {
-            fill = '#e5e5e5'
-          } else if (isInSolution) {
-            fill = '#f0f0f0'
+          if (isInSolution) {
+            fill = '#e8e8e8'
           }
 
           return (
-            <g key={`cell-${cell.index}`}>
-              {/* Cell circle */}
-              <circle
-                cx={cx}
-                cy={cy}
-                r={radius}
+            <g key={`cell-${cell.index}`} transform={`translate(${center.x}, ${center.y})`}>
+              {/* Hexagon */}
+              <use
+                href="#hex-preview"
                 fill={fill}
                 stroke="#000"
                 strokeWidth={cell.isStart || cell.isEnd ? 2 : 1.5}
               />
 
-              {/* Cell expression */}
-              <text
-                x={cx}
-                y={cy}
-                textAnchor="middle"
-                dominantBaseline="central"
-                fontSize={11}
-                fontWeight="bold"
-                fill="#000"
-              >
-                {cell.expression}
-              </text>
-
-              {/* Start/End labels */}
+              {/* START label above cell */}
               {cell.isStart && (
                 <text
-                  x={cx}
-                  y={cy - radius - 8}
+                  x={0}
+                  y={-9}
                   textAnchor="middle"
-                  fontSize={8}
-                  fill="#666"
+                  dominantBaseline="hanging"
+                  fontSize={7}
+                  fontWeight="bold"
+                  fill="#000"
                 >
                   START
                 </text>
               )}
-              {cell.isEnd && (
+
+              {/* Cell content */}
+              {cell.isEnd ? (
                 <text
-                  x={cx}
-                  y={cy + radius + 10}
+                  x={0}
+                  y={2}
                   textAnchor="middle"
-                  fontSize={8}
-                  fill="#666"
+                  dominantBaseline="middle"
+                  fontSize={9}
+                  fontWeight="600"
+                  fill="#000"
                 >
-                  END
+                  FINISH
+                </text>
+              ) : (
+                <text
+                  x={0}
+                  y={cell.isStart ? 3 : 2}
+                  textAnchor="middle"
+                  dominantBaseline="middle"
+                  fontSize={9}
+                  fontWeight="600"
+                  fill="#000"
+                >
+                  {cell.expression}
                 </text>
               )}
             </g>

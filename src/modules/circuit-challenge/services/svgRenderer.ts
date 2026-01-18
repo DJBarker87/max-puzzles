@@ -16,148 +16,179 @@ function getPageLayout(config: PrintConfig): PageLayout {
 }
 
 /**
- * Renders a single puzzle as an SVG string.
- * Optimised for black & white printing.
+ * Hexagon cell dimensions (matching the exemplar template)
+ */
+const HEX = {
+  // Pointy-top hexagon path centered at origin
+  path: 'M 0,-26 L 22.5,-13 L 22.5,13 L 0,26 L -22.5,13 L -22.5,-13 Z',
+  width: 45,
+  height: 52,
+  // Spacing between cell centers
+  spacingX: 90,
+  spacingY: 80,
+}
+
+/**
+ * Connector badge dimensions
+ */
+const BADGE = {
+  width: 22,
+  height: 18,
+  rx: 3,
+}
+
+/**
+ * Determines the connector type based on cell positions
+ */
+function getConnectorType(
+  fromRow: number,
+  fromCol: number,
+  toRow: number,
+  toCol: number
+): 'horizontal' | 'vertical' | 'diagonal' {
+  if (fromRow === toRow) return 'horizontal'
+  if (fromCol === toCol) return 'vertical'
+  return 'diagonal'
+}
+
+/**
+ * Renders a single puzzle as an SVG string matching the print template exemplar.
+ * Uses hexagon cells with math expressions and connector value badges.
  */
 export function renderPuzzleSVG(
   puzzle: PrintablePuzzle,
-  config: PrintConfig,
+  _config: PrintConfig,
   showSolution: boolean = false
 ): string {
-  const { gridRows, gridCols, cells, connectors, targetSum } = puzzle
-  const cellSize = config.cellSize
-  const lineWidth = config.lineWidth
+  const { gridRows, gridCols, cells, connectors } = puzzle
 
-  // Calculate dimensions
-  const gridWidth = gridCols * cellSize
-  const gridHeight = gridRows * cellSize
-  const padding = cellSize * 1.5 // Padding around grid for START/END labels
-  const headerHeight = 12 // Space for puzzle number and target
-
-  const svgWidth = gridWidth + padding * 2
-  const svgHeight = gridHeight + padding * 2 + headerHeight
+  // Calculate SVG dimensions based on grid size
+  // Using exemplar positioning: cells at x=45,135,225,315,405 and y=45,125,205,285
+  const firstCellX = 45
+  const firstCellY = 45
+  const svgWidth = firstCellX + (gridCols - 1) * HEX.spacingX + 45
+  const svgHeight = firstCellY + (gridRows - 1) * HEX.spacingY + 45
 
   // Start SVG
-  let svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${svgWidth} ${svgHeight}" width="${svgWidth}mm" height="${svgHeight}mm">`
+  let svg = `<svg class="puzzle-grid" viewBox="0 0 ${svgWidth} ${svgHeight}" preserveAspectRatio="xMidYMid meet">`
 
-  // Add styles
+  // Add defs with hexagon path
   svg += `
-    <style>
-      .cell-text {
-        font-family: Arial, Helvetica, sans-serif;
-        font-size: ${config.fontSize * 0.8}pt;
-        font-weight: bold;
-        text-anchor: middle;
-        dominant-baseline: central;
-        fill: #000;
-      }
-      .header-text {
-        font-family: Arial, Helvetica, sans-serif;
-        font-size: ${config.fontSize - 1}pt;
-        fill: #000;
-      }
-      .target-text {
-        font-family: Arial, Helvetica, sans-serif;
-        font-size: ${config.fontSize + 1}pt;
-        font-weight: bold;
-        fill: #000;
-      }
-      .label-text {
-        font-family: Arial, Helvetica, sans-serif;
-        font-size: ${config.fontSize * 0.6}pt;
-        text-anchor: middle;
-        fill: #000;
-      }
-      .connector {
-        stroke: #000;
-        stroke-width: ${lineWidth}mm;
-        stroke-linecap: round;
-        fill: none;
-      }
-      .connector-solution {
-        stroke: #000;
-        stroke-width: ${lineWidth * 2.5}mm;
-        stroke-linecap: round;
-        fill: none;
-      }
-      .connector-value {
-        font-family: Arial, Helvetica, sans-serif;
-        font-size: ${config.fontSize * 0.65}pt;
-        text-anchor: middle;
-        dominant-baseline: central;
-        fill: #000;
-      }
-    </style>
+    <defs>
+      <path id="hex" d="${HEX.path}"/>
+    </defs>
   `
 
-  // Grid offset (accounting for padding and header)
-  const gridOffsetX = padding
-  const gridOffsetY = padding + headerHeight
-
-  // Header: Puzzle number and target sum
-  if (config.showPuzzleNumber) {
-    svg += `<text x="${padding}" y="${headerHeight - 2}" class="header-text">Puzzle ${puzzle.puzzleNumber}</text>`
+  // Create solution edge set for highlighting
+  const solutionEdges = new Set<string>()
+  if (showSolution) {
+    for (let i = 0; i < puzzle.solution.length - 1; i++) {
+      const fromIdx = puzzle.solution[i]
+      const toIdx = puzzle.solution[i + 1]
+      solutionEdges.add(`${fromIdx}-${toIdx}`)
+      solutionEdges.add(`${toIdx}-${fromIdx}`)
+    }
   }
 
-  svg += `<text x="${svgWidth - padding}" y="${headerHeight - 2}" class="target-text" text-anchor="end">Target: ${targetSum}</text>`
+  // Helper to get cell center coordinates
+  const getCellCenter = (row: number, col: number) => ({
+    x: firstCellX + col * HEX.spacingX,
+    y: firstCellY + row * HEX.spacingY,
+  })
 
-  if (config.showDifficulty) {
-    svg += `<text x="${padding}" y="${headerHeight + 5}" class="header-text" style="font-size: ${config.fontSize * 0.7}pt; fill: #666;">${puzzle.difficultyName}</text>`
-  }
+  // Helper to get cell index
+  const getCellIndex = (row: number, col: number) => row * gridCols + col
 
   // Draw connectors first (under cells)
   for (const connector of connectors) {
-    const x1 = gridOffsetX + connector.fromCol * cellSize + cellSize / 2
-    const y1 = gridOffsetY + connector.fromRow * cellSize + cellSize / 2
-    const x2 = gridOffsetX + connector.toCol * cellSize + cellSize / 2
-    const y2 = gridOffsetY + connector.toRow * cellSize + cellSize / 2
+    const from = getCellCenter(connector.fromRow, connector.fromCol)
+    const to = getCellCenter(connector.toRow, connector.toCol)
+    const connType = getConnectorType(
+      connector.fromRow,
+      connector.fromCol,
+      connector.toRow,
+      connector.toCol
+    )
 
-    // Determine if this connector should be highlighted (solution mode)
-    const isSolutionConnector = showSolution && connector.inSolution
-    const connectorClass = isSolutionConnector ? 'connector-solution' : 'connector'
+    // Check if this connector is in solution path
+    const fromIdx = getCellIndex(connector.fromRow, connector.fromCol)
+    const toIdx = getCellIndex(connector.toRow, connector.toCol)
+    const isInSolution = solutionEdges.has(`${fromIdx}-${toIdx}`)
 
-    svg += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" class="${connectorClass}" />`
+    // Calculate line endpoints (shortened to not overlap with cells)
+    let x1 = from.x
+    let y1 = from.y
+    let x2 = to.x
+    let y2 = to.y
 
-    // Add connector value (midpoint)
-    const midX = (x1 + x2) / 2
-    const midY = (y1 + y2) / 2
+    // Shorten lines based on connector type
+    if (connType === 'horizontal') {
+      x1 += 22
+      x2 -= 22
+    } else if (connType === 'vertical') {
+      y1 += 26
+      y2 -= 26
+    } else {
+      // Diagonal - shorten both dimensions
+      const dx = to.x > from.x ? 18 : -18
+      const dy = to.y > from.y ? 18 : -18
+      x1 += dx
+      y1 += dy
+      x2 -= dx
+      y2 -= dy
+    }
 
-    // Small white background for readability
-    const bgSize = cellSize * 0.28
-    svg += `<rect x="${midX - bgSize}" y="${midY - bgSize * 0.7}" width="${bgSize * 2}" height="${bgSize * 1.4}" fill="white" />`
-    svg += `<text x="${midX}" y="${midY}" class="connector-value">${connector.value}</text>`
+    // Draw connector line
+    const lineClass = isInSolution ? 'connector-line-solution' : 'connector-line'
+    svg += `<line class="${lineClass}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>`
+
+    // Calculate badge position (midpoint of the line)
+    const midX = (from.x + to.x) / 2
+    const midY = (from.y + to.y) / 2
+
+    // Draw connector badge (white rectangle with value)
+    const badgeX = midX - BADGE.width / 2
+    const badgeY = midY - BADGE.height / 2
+    svg += `<rect class="connector-badge" x="${badgeX}" y="${badgeY}" width="${BADGE.width}" height="${BADGE.height}" rx="${BADGE.rx}"/>`
+    svg += `<text class="connector-text" x="${midX}" y="${midY}">${connector.value}</text>`
   }
 
-  // Draw cells (circles for print)
+  // Draw cells
   for (const cell of cells) {
-    const cx = gridOffsetX + cell.col * cellSize + cellSize / 2
-    const cy = gridOffsetY + cell.row * cellSize + cellSize / 2
-    const radius = cellSize * 0.38
+    const center = getCellCenter(cell.row, cell.col)
+    const isInSolution = showSolution && cell.inSolution
 
-    // Determine cell fill
-    let fill = 'white'
-    let strokeWidth = lineWidth
-    if (cell.isStart || cell.isEnd) {
-      fill = '#e0e0e0'
-      strokeWidth = lineWidth * 1.5
-    } else if (showSolution && cell.inSolution) {
-      fill = '#f0f0f0'
-    }
+    // Determine cell class
+    let cellClass = 'cell'
+    if (cell.isStart) cellClass += ' cell-start'
+    if (cell.isEnd) cellClass += ' cell-finish'
+    if (isInSolution && !cell.isStart && !cell.isEnd) cellClass += ' cell-solution'
 
-    // Draw cell circle
-    svg += `<circle cx="${cx}" cy="${cy}" r="${radius}" fill="${fill}" stroke="#000" stroke-width="${strokeWidth}mm" />`
+    // Draw cell group
+    svg += `<g class="${cellClass}" transform="translate(${center.x}, ${center.y})">`
 
-    // Draw start/end markers
+    // Draw hexagon
+    const outlineClass = isInSolution ? 'cell-outline-solution' : 'cell-outline'
+    svg += `<use href="#hex" class="${outlineClass}"/>`
+
+    // Draw START label above cell
     if (cell.isStart) {
-      svg += `<text x="${cx}" y="${cy - radius - 3}" class="label-text">START</text>`
-    }
-    if (cell.isEnd) {
-      svg += `<text x="${cx}" y="${cy + radius + 4.5}" class="label-text">END</text>`
+      svg += `<text class="cell-label" y="-11">START</text>`
     }
 
-    // Draw cell expression (for START cell we show the expression, not the answer)
-    const displayText = cell.expression || ''
-    svg += `<text x="${cx}" y="${cy}" class="cell-text">${escapeXml(displayText)}</text>`
+    // Draw cell content
+    if (cell.isEnd) {
+      // FINISH cell shows "FINISH" text
+      svg += `<text class="cell-text" y="2">FINISH</text>`
+    } else if (cell.isStart) {
+      // START cell shows expression below the START label
+      svg += `<text class="cell-text" y="4">${escapeXml(cell.expression)}</text>`
+    } else {
+      // Normal cells show expression
+      svg += `<text class="cell-text" y="2">${escapeXml(cell.expression)}</text>`
+    }
+
+    svg += '</g>'
   }
 
   svg += '</svg>'
@@ -166,7 +197,27 @@ export function renderPuzzleSVG(
 }
 
 /**
+ * Renders a puzzle section (bordered container) for print layout
+ */
+function renderPuzzleSection(
+  puzzle: PrintablePuzzle,
+  config: PrintConfig,
+  showSolution: boolean = false
+): string {
+  const puzzleSVG = renderPuzzleSVG(puzzle, config, showSolution)
+
+  return `
+    <section class="puzzle-section">
+      <div class="puzzle-container">
+        ${puzzleSVG}
+      </div>
+    </section>
+  `
+}
+
+/**
  * Renders a full A4/Letter page with 1 or 2 puzzles.
+ * Outputs complete HTML matching the print template exemplar.
  */
 export function renderPageSVG(
   puzzles: PrintablePuzzle[],
@@ -177,106 +228,285 @@ export function renderPageSVG(
 ): string {
   const layout = getPageLayout(config)
 
-  // SVG dimensions in mm
-  const svgWidth = layout.width
-  const svgHeight = layout.height
+  // Build page HTML with embedded CSS
+  let html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>${escapeXml(config.title)} - Page ${pageNumber}</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
 
-  let svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${svgWidth} ${svgHeight}" width="${svgWidth}mm" height="${svgHeight}mm">`
+    @page {
+      size: ${config.pageSize} ${config.orientation};
+      margin: 10mm;
+    }
 
-  // White background
-  svg += `<rect width="100%" height="100%" fill="white" />`
+    body {
+      font-family: Arial, Helvetica, sans-serif;
+      background: white;
+      color: black;
+    }
 
-  // Page styles
-  svg += `
-    <style>
-      .page-title {
-        font-family: Arial, Helvetica, sans-serif;
-        font-size: 14pt;
-        font-weight: bold;
-        fill: #000;
+    .page {
+      width: ${layout.width - 20}mm;
+      height: ${layout.height - 20}mm;
+      display: flex;
+      flex-direction: column;
+      gap: 5mm;
+    }
+
+    .page-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      padding-bottom: 3mm;
+      border-bottom: 1pt solid #ccc;
+    }
+
+    .page-title {
+      font-size: 14pt;
+      font-weight: bold;
+    }
+
+    .page-date {
+      font-size: 10pt;
+      color: #666;
+    }
+
+    .puzzle-section {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      border: 1.5pt solid black;
+      padding: 3mm;
+    }
+
+    .puzzle-container {
+      flex: 1;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .puzzle-grid {
+      width: 100%;
+      height: 100%;
+    }
+
+    /* Cell styles */
+    .cell-outline {
+      fill: white;
+      stroke: black;
+      stroke-width: 1.5;
+    }
+
+    .cell-outline-solution {
+      fill: #e8e8e8;
+      stroke: black;
+      stroke-width: 2;
+    }
+
+    .cell-start .cell-outline,
+    .cell-finish .cell-outline {
+      stroke-width: 2.5;
+    }
+
+    .cell-text {
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 11px;
+      font-weight: 600;
+      fill: black;
+      text-anchor: middle;
+      dominant-baseline: middle;
+    }
+
+    .cell-label {
+      font-size: 8px;
+      font-weight: 700;
+      fill: black;
+      text-anchor: middle;
+      dominant-baseline: hanging;
+    }
+
+    /* Connector styles */
+    .connector-line {
+      stroke: black;
+      stroke-width: 1.5;
+      fill: none;
+    }
+
+    .connector-line-solution {
+      stroke: black;
+      stroke-width: 3;
+      fill: none;
+    }
+
+    .connector-badge {
+      fill: white;
+      stroke: black;
+      stroke-width: 1;
+    }
+
+    .connector-text {
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 9px;
+      font-weight: 700;
+      fill: black;
+      text-anchor: middle;
+      dominant-baseline: middle;
+    }
+
+    .page-footer {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding-top: 2mm;
+      font-size: 9pt;
+      color: #666;
+    }
+
+    .answer-key-label {
+      position: absolute;
+      right: 0;
+      font-size: 9pt;
+      color: #999;
+    }
+
+    @media print {
+      body {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
       }
-      .page-subtitle {
-        font-family: Arial, Helvetica, sans-serif;
-        font-size: 10pt;
-        fill: #666;
+      .page {
+        page-break-after: always;
       }
-      .page-footer {
-        font-family: Arial, Helvetica, sans-serif;
-        font-size: 8pt;
-        fill: #999;
+      .page:last-child {
+        page-break-after: avoid;
       }
-    </style>
-  `
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+`
 
   // Page header
-  let headerY = layout.marginTop + 4
-
-  if (config.title) {
-    svg += `<text x="${layout.marginLeft}" y="${headerY}" class="page-title">${escapeXml(config.title)}</text>`
-    headerY += 6
-  }
-
-  if (config.subtitle) {
-    svg += `<text x="${layout.marginLeft}" y="${headerY}" class="page-subtitle">${escapeXml(config.subtitle)}</text>`
-    headerY += 5
-  }
-
+  html += `<div class="page-header">`
+  html += `<span class="page-title">${escapeXml(config.title)}</span>`
   if (config.showDate) {
     const dateStr = new Date().toLocaleDateString('en-GB', {
       day: 'numeric',
       month: 'long',
       year: 'numeric',
     })
-    svg += `<text x="${svgWidth - layout.marginRight}" y="${layout.marginTop + 4}" class="page-subtitle" text-anchor="end">${dateStr}</text>`
+    html += `<span class="page-date">${dateStr}</span>`
   }
+  html += `</div>`
 
-  // Calculate puzzle positioning
-  const puzzleAreaTop = headerY + 8
-  const puzzleAreaHeight =
-    layout.contentHeight - (puzzleAreaTop - layout.marginTop) - 10
-
+  // Render puzzles
   if (config.puzzlesPerPage === 2 && puzzles.length === 2) {
-    // Two puzzles per page
-    const puzzleHeight = (puzzleAreaHeight - layout.gapBetweenPuzzles) / 2
-
-    // Puzzle 1
-    const puzzle1SVG = renderPuzzleSVG(puzzles[0], config, showSolutions)
-    svg += `<g transform="translate(${layout.marginLeft}, ${puzzleAreaTop})">${extractSVGContent(puzzle1SVG)}</g>`
-
-    // Divider line
-    const dividerY = puzzleAreaTop + puzzleHeight + layout.gapBetweenPuzzles / 2
-    svg += `<line x1="${layout.marginLeft}" y1="${dividerY}" x2="${svgWidth - layout.marginRight}" y2="${dividerY}" stroke="#ccc" stroke-width="0.25" stroke-dasharray="2,2" />`
-
-    // Puzzle 2
-    const puzzle2SVG = renderPuzzleSVG(puzzles[1], config, showSolutions)
-    svg += `<g transform="translate(${layout.marginLeft}, ${puzzleAreaTop + puzzleHeight + layout.gapBetweenPuzzles})">${extractSVGContent(puzzle2SVG)}</g>`
+    html += renderPuzzleSection(puzzles[0], config, showSolutions)
+    html += renderPuzzleSection(puzzles[1], config, showSolutions)
   } else if (puzzles.length >= 1) {
-    // One puzzle per page (centered)
-    const puzzleSVG = renderPuzzleSVG(puzzles[0], config, showSolutions)
-    svg += `<g transform="translate(${layout.marginLeft}, ${puzzleAreaTop})">${extractSVGContent(puzzleSVG)}</g>`
+    html += renderPuzzleSection(puzzles[0], config, showSolutions)
   }
 
   // Page footer
-  if (config.showPageNumbers) {
-    svg += `<text x="${svgWidth / 2}" y="${svgHeight - layout.marginBottom + 5}" class="page-footer" text-anchor="middle">Page ${pageNumber} of ${totalPages}</text>`
+  if (config.showPageNumbers || showSolutions) {
+    html += `<div class="page-footer" style="position: relative;">`
+    if (config.showPageNumbers) {
+      html += `<span>Page ${pageNumber} of ${totalPages}</span>`
+    }
+    if (showSolutions) {
+      html += `<span class="answer-key-label">ANSWER KEY</span>`
+    }
+    html += `</div>`
   }
 
-  // Answer indicator
-  if (showSolutions) {
-    svg += `<text x="${svgWidth - layout.marginRight}" y="${svgHeight - layout.marginBottom + 5}" class="page-footer" text-anchor="end">ANSWER KEY</text>`
-  }
+  html += `
+  </div>
+</body>
+</html>`
 
-  svg += '</svg>'
-
-  return svg
+  return html
 }
 
 /**
- * Extracts the inner content from an SVG string (removes outer svg tags).
+ * Renders a standalone SVG for embedding (without HTML wrapper).
+ * Used for preview components.
  */
-function extractSVGContent(svg: string): string {
-  // Remove the outer <svg> and </svg> tags
-  return svg.replace(/<svg[^>]*>/, '').replace(/<\/svg>$/, '')
+export function renderPuzzleSVGStandalone(
+  puzzle: PrintablePuzzle,
+  config: PrintConfig,
+  showSolution: boolean = false
+): string {
+  const svgContent = renderPuzzleSVG(puzzle, config, showSolution)
+
+  // Add styles inline for standalone use
+  const styles = `
+    <style>
+      .cell-outline {
+        fill: white;
+        stroke: black;
+        stroke-width: 1.5;
+      }
+      .cell-outline-solution {
+        fill: #e8e8e8;
+        stroke: black;
+        stroke-width: 2;
+      }
+      .cell-start .cell-outline,
+      .cell-finish .cell-outline {
+        stroke-width: 2.5;
+      }
+      .cell-text {
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 11px;
+        font-weight: 600;
+        fill: black;
+        text-anchor: middle;
+        dominant-baseline: middle;
+      }
+      .cell-label {
+        font-size: 8px;
+        font-weight: 700;
+        fill: black;
+        text-anchor: middle;
+        dominant-baseline: hanging;
+      }
+      .connector-line {
+        stroke: black;
+        stroke-width: 1.5;
+        fill: none;
+      }
+      .connector-line-solution {
+        stroke: black;
+        stroke-width: 3;
+        fill: none;
+      }
+      .connector-badge {
+        fill: white;
+        stroke: black;
+        stroke-width: 1;
+      }
+      .connector-text {
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 9px;
+        font-weight: 700;
+        fill: black;
+        text-anchor: middle;
+        dominant-baseline: middle;
+      }
+    </style>
+  `
+
+  // Insert styles after the opening svg tag
+  return svgContent.replace(/<svg([^>]*)>/, `<svg$1>${styles}`)
 }
 
 /**

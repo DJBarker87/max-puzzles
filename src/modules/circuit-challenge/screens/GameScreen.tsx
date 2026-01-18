@@ -9,6 +9,7 @@ import {
   StarryBackground,
 } from '../components'
 import { Button, Modal } from '@/ui'
+import { printCurrentPuzzle } from '../services/pdfGenerator'
 import type { DifficultySettings } from '../engine/types'
 
 interface LocationState {
@@ -112,7 +113,9 @@ export default function GameScreen() {
   }
 
   const handlePrint = () => {
-    window.print()
+    if (state.puzzle) {
+      printCurrentPuzzle(state.puzzle, state.showingSolution)
+    }
   }
 
   // Get the most recent coin animation
