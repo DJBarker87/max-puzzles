@@ -99,7 +99,7 @@ export default function PuzzleGrid({
     <svg
       viewBox={`0 0 ${gridWidth} ${gridHeight}`}
       className={`puzzle-grid ${className}`}
-      style={{ maxWidth: '100%', height: 'auto' }}
+      preserveAspectRatio="xMidYMid meet"
     >
       <GridDefs />
 

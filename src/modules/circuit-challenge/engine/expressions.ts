@@ -245,18 +245,18 @@ export function applyExpressions(
 ): void {
   for (const row of cells) {
     for (const cell of row) {
-      if (cell.answer !== null) {
+      if (cell.isFinish) {
+        // FINISH cell doesn't need an expression - it shows "FINISH"
+        cell.expression = ''
+      } else if (cell.answer !== null) {
+        // Generate math expression for all cells including START
         const expression = generateExpression(cell.answer, difficulty)
         cell.expression = expression.text
       } else {
-        // FINISH cell - show "FINISH" or leave empty
-        cell.expression = 'FINISH'
+        cell.expression = ''
       }
     }
   }
-
-  // Mark START cell expression
-  cells[0][0].expression = 'START'
 }
 
 /**
