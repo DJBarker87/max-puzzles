@@ -180,11 +180,6 @@ export function generateDivision(
 }
 
 /**
- * Maximum answer value for division expressions (keeps mental math manageable)
- */
-const MAX_DIVISION_ANSWER = 13
-
-/**
  * Generate an arithmetic expression that evaluates to the target value
  * @param prioritizeDivision - If true, give 80% chance to use division (for division-seeded cells)
  */
@@ -193,12 +188,15 @@ export function generateExpression(
   difficulty: DifficultySettings,
   prioritizeDivision: boolean = false
 ): Expression {
+  // Maximum answer for division is based on the multDivRange setting
+  const maxDivisionAnswer = difficulty.multDivRange
+
   // Try up to 10 times to generate a valid expression
   for (let attempt = 0; attempt < 10; attempt++) {
     let operation: Operation
 
     // If this cell is marked for division priority and division is enabled
-    if (prioritizeDivision && difficulty.divisionEnabled && target <= MAX_DIVISION_ANSWER) {
+    if (prioritizeDivision && difficulty.divisionEnabled && target <= maxDivisionAnswer) {
       // 80% chance to use division for division-seeded cells
       if (Math.random() < 0.8) {
         operation = '÷'
@@ -222,8 +220,8 @@ export function generateExpression(
         expression = generateMultiplication(target, difficulty.multDivRange)
         break
       case '÷':
-        // Only use division for small answers (keeps mental math manageable)
-        if (target <= MAX_DIVISION_ANSWER) {
+        // Only use division for answers within the multDivRange
+        if (target <= maxDivisionAnswer) {
           expression = generateDivision(target, difficulty.multDivRange)
         }
         break

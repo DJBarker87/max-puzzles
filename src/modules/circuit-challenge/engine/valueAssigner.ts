@@ -40,11 +40,6 @@ export function randomInt(min: number, max: number): number {
 }
 
 /**
- * Maximum value for division-friendly answers
- */
-const MAX_DIVISION_VALUE = 13
-
-/**
  * Proportion of path connectors reserved for division when enabled
  */
 const DIVISION_CONNECTOR_RATIO = 0.25
@@ -83,7 +78,8 @@ function assignValueToConnector(
   cellConnectorMap: Map<string, number[]>,
   minValue: number,
   maxValue: number,
-  preferSmall: boolean = false
+  preferSmall: boolean = false,
+  maxSmallValue: number = 12
 ): number | null {
   const connector = unvaluedConnectors[index]
   const keyA = coordToKey(connector.cellA)
@@ -120,7 +116,7 @@ function assignValueToConnector(
 
   // If preferring small values, filter to small values if possible
   if (preferSmall) {
-    const smallValues = available.filter(v => v <= MAX_DIVISION_VALUE)
+    const smallValues = available.filter(v => v <= maxSmallValue)
     if (smallValues.length > 0) {
       return randomChoice(smallValues)
     }
@@ -134,7 +130,7 @@ function assignValueToConnector(
  * Ensures no cell has duplicate connector values
  *
  * When divisionEnabled is true and a solution path is provided:
- * - ~25% of path connectors are reserved for division (values 1-13)
+ * - ~25% of path connectors are reserved for division (values 1 to multDivRange)
  * - These are assigned first to ensure division-friendly cell answers
  */
 export function assignConnectorValues(
@@ -142,7 +138,8 @@ export function assignConnectorValues(
   minValue: number,
   maxValue: number,
   divisionEnabled: boolean = false,
-  solutionPath: Coordinate[] = []
+  solutionPath: Coordinate[] = [],
+  multDivRange: number = 12
 ): ValueAssignmentResult {
   // Build map: cellKey -> list of connector indices touching that cell
   const cellConnectorMap = new Map<string, number[]>()
@@ -182,7 +179,7 @@ export function assignConnectorValues(
     const shuffledPathIndices = shuffle(pathConnectorIndices)
     divisionConnectorIndices = shuffledPathIndices.slice(0, numDivisionConnectors)
 
-    // Assign division connectors FIRST with small values (1-13)
+    // Assign division connectors FIRST with small values (1 to multDivRange)
     for (const index of divisionConnectorIndices) {
       const value = assignValueToConnector(
         index,
@@ -190,8 +187,9 @@ export function assignConnectorValues(
         connectorValues,
         cellConnectorMap,
         Math.max(1, minValue), // Ensure min is at least 1 for division
-        Math.min(MAX_DIVISION_VALUE, maxValue), // Cap at 13 for division
-        true // Prefer small values
+        Math.min(multDivRange, maxValue), // Cap at multDivRange for division
+        true, // Prefer small values
+        multDivRange
       )
 
       if (value === null) {
