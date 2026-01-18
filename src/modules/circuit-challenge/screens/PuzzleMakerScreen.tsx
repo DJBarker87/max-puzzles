@@ -115,10 +115,10 @@ export default function PuzzleMakerScreen() {
 
         {/* Introduction */}
         <Card className="mb-6 p-4">
-          <h2 className="text-lg font-bold mb-2">Create Printable Worksheets</h2>
+          <h2 className="text-lg font-bold mb-2">Create Printable Puzzles</h2>
           <p className="text-text-secondary text-sm">
-            Generate professional Circuit Challenge worksheets for classroom use.
-            Each A4 page contains 2 puzzles, optimised for black & white printing.
+            Generate Circuit Challenge puzzles to print.
+            Each A4 page contains 2 puzzles.
           </p>
         </Card>
 
@@ -257,7 +257,7 @@ export default function PuzzleMakerScreen() {
               loading={isExporting}
               disabled={isExporting}
             >
-              Print / Save as PDF ({totalPagesWithAnswers} pages)
+              Print Puzzles
             </Button>
 
             <Button
@@ -271,16 +271,6 @@ export default function PuzzleMakerScreen() {
           </div>
         )}
 
-        {/* Tips */}
-        <Card className="p-4 mt-6 bg-accent-primary/10 border-accent-primary/30">
-          <h3 className="font-bold mb-2">Tips for Teachers</h3>
-          <ul className="text-sm text-text-secondary space-y-1">
-            <li>&bull; 2 puzzles per A4 page = easy to cut in half</li>
-            <li>&bull; Black & white design = perfect for photocopying</li>
-            <li>&bull; Answer key at the back for quick marking</li>
-            <li>&bull; Mix difficulty levels by generating multiple batches</li>
-          </ul>
-        </Card>
       </div>
 
       {/* Full Page Preview Modal */}
