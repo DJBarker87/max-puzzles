@@ -1,22 +1,31 @@
-import { createContext, useContext, useState, useCallback, ReactNode } from 'react'
-import type { User, Family, AuthState } from '@/shared/types/auth'
+import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react'
+import type { User, Family } from '@/shared/types/auth'
+import * as authService from '@/shared/services/auth'
+import * as syncService from '@/shared/services/sync'
+import * as activityService from '@/shared/services/activity'
+import { supabase } from '@/shared/services/supabase'
 
 /** Child user info for family selection */
 export interface Child {
   id: string
   displayName: string
   avatarEmoji?: string
+  coins?: number
+}
+
+interface AuthState {
+  user: User | null
+  family: Family | null
+  children: Child[]
+  isGuest: boolean
+  isDemoMode: boolean
+  isLoading: boolean
+  activeChildId: string | null
 }
 
 interface AuthContextValue extends AuthState {
-  /** The current family (if logged in) */
-  family: Family | null
-  /** Children in the family */
-  children: Child[]
-  /** Currently selected child */
+  /** The currently selected child */
   selectedChild: Child | null
-  /** Whether in parent demo mode */
-  isDemoMode: boolean
   /** Log in a user */
   login: (email: string, password: string) => Promise<void>
   /** Sign up a new user */
@@ -24,13 +33,21 @@ interface AuthContextValue extends AuthState {
   /** Log out the current user */
   logout: () => Promise<void>
   /** Switch to guest mode */
-  setGuestMode: () => void
+  setGuestMode: () => Promise<void>
   /** Select a child and verify PIN */
   selectChild: (childId: string, pin: string) => Promise<void>
   /** Enter parent demo mode */
   enterDemoMode: () => void
   /** Exit demo mode */
   exitDemoMode: () => void
+  /** Add a new child to the family */
+  addChild: (displayName: string, pin: string) => Promise<User | null>
+  /** Remove a child from the family */
+  removeChild: (childId: string) => Promise<void>
+  /** Sync guest data to account */
+  syncGuestToAccount: () => Promise<boolean>
+  /** Check if Supabase is available */
+  isOnline: boolean
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
@@ -41,171 +58,293 @@ interface AuthProviderProps {
 
 /**
  * Authentication provider
- * Manages user authentication state
+ * Manages user authentication state with Supabase and offline support
  */
 export function AuthProvider({ children: childrenProp }: AuthProviderProps) {
-  const [user, setUser] = useState<User | null>(null)
-  const [family, setFamily] = useState<Family | null>(null)
-  const [children, setChildren] = useState<Child[]>([])
-  const [selectedChild, setSelectedChild] = useState<Child | null>(null)
-  const [isGuest, setIsGuest] = useState(true)
-  const [isDemoMode, setIsDemoMode] = useState(false)
-  const [isLoading, setIsLoading] = useState(false)
+  const [state, setState] = useState<AuthState>({
+    user: null,
+    family: null,
+    children: [],
+    isGuest: false,
+    isDemoMode: false,
+    isLoading: true,
+    activeChildId: null,
+  })
 
-  const login = useCallback(async (email: string, password: string) => {
-    setIsLoading(true)
+  const isOnline = authService.isSupabaseConfigured()
+
+  // Initialize on mount
+  useEffect(() => {
+    initializeAuth()
+  }, [])
+
+  // Listen for auth state changes
+  useEffect(() => {
+    if (!supabase) return
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_IN' && session?.user) {
+        await loadUserData(session.user.id)
+      } else if (event === 'SIGNED_OUT') {
+        setState((prev) => ({
+          ...prev,
+          user: null,
+          family: null,
+          children: [],
+          isGuest: false,
+          isDemoMode: false,
+          activeChildId: null,
+        }))
+      }
+    })
+
+    return () => subscription.unsubscribe()
+  }, [])
+
+  async function initializeAuth() {
     try {
-      // TODO: Implement actual login with Supabase
-      console.log('Login attempt:', email, password)
-      // Stub implementation - simulate a parent login
-      setUser({
-        id: 'user-1',
-        familyId: 'family-1',
-        email,
-        displayName: email.split('@')[0],
-        role: 'parent',
-        coins: 0,
-        isActive: true,
-      })
-      setFamily({
-        id: 'family-1',
-        name: `${email.split('@')[0]}'s Family`,
-        createdAt: new Date(),
-      })
-      // Stub children data
-      setChildren([
-        { id: 'child-1', displayName: 'Max', avatarEmoji: '👽' },
-        { id: 'child-2', displayName: 'Sophie', avatarEmoji: '👽' },
-      ])
-      setIsGuest(false)
-      setIsDemoMode(false)
-      setSelectedChild(null)
+      // Check for existing session
+      const user = await authService.getCurrentUser()
+
+      if (user && user.familyId) {
+        await loadUserData(user.id)
+      }
+    } catch (err) {
+      console.error('Auth initialization error:', err)
     } finally {
-      setIsLoading(false)
+      setState((prev) => ({ ...prev, isLoading: false }))
+    }
+  }
+
+  async function loadUserData(userId: string) {
+    const user = await authService.fetchUserById(userId)
+    if (!user || !user.familyId) {
+      // Try fetching by auth_id if direct user lookup failed
+      const currentUser = await authService.getCurrentUser()
+      if (!currentUser || !currentUser.familyId) return
+      await loadUserDataInternal(currentUser)
+      return
+    }
+    await loadUserDataInternal(user)
+  }
+
+  async function loadUserDataInternal(user: User) {
+    if (!user.familyId) return
+
+    const family = await authService.fetchFamily(user.familyId)
+    const familyChildren = await authService.fetchFamilyChildren(user.familyId)
+
+    setState((prev) => ({
+      ...prev,
+      user,
+      family,
+      children: familyChildren.map((c) => ({
+        id: c.id,
+        displayName: c.displayName,
+        avatarEmoji: '👽',
+        coins: c.coins,
+      })),
+      isGuest: false,
+      isDemoMode: false,
+      isLoading: false,
+    }))
+  }
+
+  // ============================================
+  // Auth Actions
+  // ============================================
+
+  const signup = useCallback(async (email: string, password: string, displayName: string) => {
+    setState((prev) => ({ ...prev, isLoading: true }))
+
+    const { user, error } = await authService.signUp(email, password, displayName)
+
+    if (error) {
+      setState((prev) => ({ ...prev, isLoading: false }))
+      throw new Error(error)
+    }
+
+    if (user && user.familyId) {
+      await loadUserDataInternal(user)
     }
   }, [])
 
-  const signup = useCallback(async (email: string, password: string, displayName: string) => {
-    setIsLoading(true)
-    try {
-      // TODO: Implement actual signup with Supabase
-      console.log('Signup attempt:', email, password, displayName)
-      // Stub implementation
-      setUser({
-        id: 'user-1',
-        familyId: 'family-1',
-        email,
-        displayName,
-        role: 'parent',
-        coins: 0,
-        isActive: true,
-      })
-      setFamily({
-        id: 'family-1',
-        name: `${displayName}'s Family`,
-        createdAt: new Date(),
-      })
-      // New account starts with no children
-      setChildren([])
-      setIsGuest(false)
-      setIsDemoMode(false)
-      setSelectedChild(null)
-    } finally {
-      setIsLoading(false)
+  const login = useCallback(async (email: string, password: string) => {
+    setState((prev) => ({ ...prev, isLoading: true }))
+
+    const { user, error } = await authService.signIn(email, password)
+
+    if (error) {
+      setState((prev) => ({ ...prev, isLoading: false }))
+      throw new Error(error)
+    }
+
+    if (user && user.familyId) {
+      await loadUserDataInternal(user)
     }
   }, [])
 
   const logout = useCallback(async () => {
-    setIsLoading(true)
-    try {
-      // TODO: Implement actual logout with Supabase
-      console.log('Logout')
-      setUser(null)
-      setFamily(null)
-      setChildren([])
-      setSelectedChild(null)
-      setIsGuest(true)
-      setIsDemoMode(false)
-    } finally {
-      setIsLoading(false)
-    }
+    await activityService.endSession(state.user?.id || null, state.isGuest)
+    await authService.signOut()
+
+    setState((prev) => ({
+      ...prev,
+      user: null,
+      family: null,
+      children: [],
+      isGuest: false,
+      isDemoMode: false,
+      activeChildId: null,
+    }))
+  }, [state.user?.id, state.isGuest])
+
+  // ============================================
+  // Guest Mode
+  // ============================================
+
+  const setGuestMode = useCallback(async () => {
+    const guestUser = await authService.initGuestProfile()
+
+    setState((prev) => ({
+      ...prev,
+      user: guestUser,
+      family: null,
+      children: [],
+      isGuest: true,
+      isDemoMode: false,
+      isLoading: false,
+      activeChildId: null,
+    }))
   }, [])
 
-  const setGuestMode = useCallback(() => {
-    setUser(null)
-    setFamily(null)
-    setChildren([])
-    setSelectedChild(null)
-    setIsGuest(true)
-    setIsDemoMode(false)
-  }, [])
+  // ============================================
+  // Family Actions
+  // ============================================
 
-  const selectChild = useCallback(async (childId: string, pin: string) => {
-    // TODO: Implement actual PIN verification with backend
-    console.log('Select child:', childId, 'with PIN:', pin)
+  const selectChild = useCallback(
+    async (childId: string, pin: string) => {
+      const isValid = await authService.verifyChildPin(childId, pin)
 
-    // Stub: Accept any 4-digit PIN for now
-    if (pin.length !== 4) {
-      throw new Error('Invalid PIN')
-    }
+      if (!isValid) {
+        throw new Error('Invalid PIN')
+      }
 
-    // For demo, accept PIN "1234" for any child
-    if (pin !== '1234') {
-      throw new Error('Wrong PIN')
-    }
+      const child = state.children.find((c) => c.id === childId)
+      if (!child) {
+        throw new Error('Child not found')
+      }
 
-    const child = children.find(c => c.id === childId)
-    if (!child) {
-      throw new Error('Child not found')
-    }
+      // Fetch full child user data
+      const childUser = await authService.fetchUserById(childId)
+      if (!childUser) {
+        throw new Error('Could not load child data')
+      }
 
-    setSelectedChild(child)
-    // Update user to reflect child session
-    setUser({
-      id: childId,
-      familyId: family?.id || null,
-      email: null,
-      displayName: child.displayName,
-      role: 'child',
-      coins: 150, // Stub: child has some coins
-      isActive: true,
-    })
-    setIsDemoMode(false)
-  }, [children, family])
+      setState((prev) => ({
+        ...prev,
+        user: childUser,
+        activeChildId: childId,
+        isDemoMode: false,
+      }))
+    },
+    [state.children]
+  )
 
   const enterDemoMode = useCallback(() => {
-    setIsDemoMode(true)
-    setSelectedChild(null)
-    // In demo mode, parent plays but nothing is tracked
-    if (user && user.role === 'parent') {
-      // Keep parent user but set demo flag
-      setUser({
-        ...user,
-        displayName: `${user.displayName} (Demo)`,
-      })
+    if (!state.family) return
+
+    // Create a temporary demo user
+    const demoUser: User = {
+      id: 'demo',
+      familyId: state.family.id,
+      email: null,
+      displayName: 'Demo',
+      role: 'parent',
+      coins: 0,
+      isActive: true,
     }
-  }, [user])
+
+    setState((prev) => ({
+      ...prev,
+      user: demoUser,
+      isDemoMode: true,
+      activeChildId: null,
+    }))
+  }, [state.family])
 
   const exitDemoMode = useCallback(() => {
-    setIsDemoMode(false)
-    // Restore original parent user
-    if (user && user.role === 'parent') {
-      const originalName = user.displayName.replace(' (Demo)', '')
-      setUser({
-        ...user,
-        displayName: originalName,
-      })
+    // Return to parent selection
+    setState((prev) => ({
+      ...prev,
+      user: null,
+      isDemoMode: false,
+      activeChildId: null,
+    }))
+  }, [])
+
+  const addChild = useCallback(
+    async (displayName: string, pin: string): Promise<User | null> => {
+      if (!state.family?.id) return null
+
+      const newChild = await authService.addChild(state.family.id, displayName, pin)
+
+      if (newChild) {
+        setState((prev) => ({
+          ...prev,
+          children: [
+            ...prev.children,
+            {
+              id: newChild.id,
+              displayName: newChild.displayName,
+              avatarEmoji: '👽',
+              coins: newChild.coins,
+            },
+          ],
+        }))
+      }
+
+      return newChild
+    },
+    [state.family?.id]
+  )
+
+  const removeChild = useCallback(async (childId: string) => {
+    const success = await authService.removeChild(childId)
+
+    if (success) {
+      setState((prev) => ({
+        ...prev,
+        children: prev.children.filter((c) => c.id !== childId),
+      }))
     }
-  }, [user])
+  }, [])
+
+  // ============================================
+  // Data Sync
+  // ============================================
+
+  const syncGuestToAccount = useCallback(async (): Promise<boolean> => {
+    if (!state.user?.id || state.isGuest) return false
+
+    const result = await syncService.syncGuestDataToAccount(state.user.id)
+    return result.success
+  }, [state.user?.id, state.isGuest])
+
+  // ============================================
+  // Context Value
+  // ============================================
+
+  const selectedChild = state.activeChildId
+    ? state.children.find((c) => c.id === state.activeChildId) || null
+    : null
 
   const value: AuthContextValue = {
-    user,
-    family,
-    children,
+    ...state,
     selectedChild,
-    isGuest,
-    isDemoMode,
-    isLoading,
+    isOnline,
     login,
     signup,
     logout,
@@ -213,6 +352,9 @@ export function AuthProvider({ children: childrenProp }: AuthProviderProps) {
     selectChild,
     enterDemoMode,
     exitDemoMode,
+    addChild,
+    removeChild,
+    syncGuestToAccount,
   }
 
   return <AuthContext.Provider value={value}>{childrenProp}</AuthContext.Provider>

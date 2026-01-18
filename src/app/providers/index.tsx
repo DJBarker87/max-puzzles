@@ -22,5 +22,5 @@ export function AppProviders({ children }: AppProvidersProps) {
 
 // Re-export providers and hooks
 export { AuthProvider, useAuth } from './AuthProvider'
-export { StorageProvider, useStorageContext } from './StorageProvider'
+export { StorageProvider, useStorageContext, useStorage } from './StorageProvider'
 export { SoundProvider, useSound } from './SoundProvider'
