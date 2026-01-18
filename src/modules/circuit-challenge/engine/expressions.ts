@@ -149,7 +149,7 @@ export function generateMultiplication(target: number, maxFactor: number): Expre
 export function generateDivision(
   target: number,
   maxDivisor: number,
-  maxDividend: number = 144
+  maxDividend: number = 1000
 ): Expression | null {
   if (target < 1) return null
 
