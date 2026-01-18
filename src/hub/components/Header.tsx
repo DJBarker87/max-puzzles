@@ -65,8 +65,7 @@ function MobileMenu({ onClose }: MobileMenuProps) {
         </div>
 
         <nav className="space-y-2">
-          <MenuLink to="/hub" icon="🏠" label="Home" onClick={onClose} />
-          <MenuLink to="/modules" icon="🎮" label="Play" onClick={onClose} />
+          <MenuLink to="/play/circuit-challenge" icon="🎮" label="Play" onClick={onClose} />
           <MenuLink to="/shop" icon="🛒" label="Shop" onClick={onClose} />
           <MenuLink to="/settings" icon="⚙️" label="Settings" onClick={onClose} />
         </nav>
@@ -130,7 +129,7 @@ export default function Header({
               {title}
             </h1>
           ) : (
-            <Link to="/hub" className="flex items-center gap-2">
+            <Link to="/play/circuit-challenge" className="flex items-center gap-2">
               <span className="text-2xl">👽</span>
               <span className="text-xl font-display font-bold hidden md:inline">
                 Max's Puzzles

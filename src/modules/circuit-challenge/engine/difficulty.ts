@@ -295,6 +295,25 @@ export function createCustomDifficulty(overrides: Partial<DifficultySettings>): 
     },
   }
 
+  // Auto-calculate weights based on enabled operations if not explicitly provided
+  if (!overrides.weights) {
+    const enabledOps: string[] = []
+    if (settings.additionEnabled) enabledOps.push('addition')
+    if (settings.subtractionEnabled) enabledOps.push('subtraction')
+    if (settings.multiplicationEnabled) enabledOps.push('multiplication')
+    if (settings.divisionEnabled) enabledOps.push('division')
+
+    // Distribute weight equally among enabled operations
+    const weightPerOp = enabledOps.length > 0 ? Math.floor(100 / enabledOps.length) : 0
+
+    settings.weights = {
+      addition: settings.additionEnabled ? weightPerOp : 0,
+      subtraction: settings.subtractionEnabled ? weightPerOp : 0,
+      multiplication: settings.multiplicationEnabled ? weightPerOp : 0,
+      division: settings.divisionEnabled ? weightPerOp : 0,
+    }
+  }
+
   // Recalculate path lengths if grid size changed
   if (overrides.gridRows || overrides.gridCols) {
     settings.minPathLength = calculateMinPathLength(settings.gridRows, settings.gridCols)
