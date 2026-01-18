@@ -24,6 +24,7 @@ const ModuleMenu = lazy(() => import('@/modules/circuit-challenge/screens/Module
 const QuickPlaySetup = lazy(() => import('@/modules/circuit-challenge/screens/QuickPlaySetup'))
 const GameScreen = lazy(() => import('@/modules/circuit-challenge/screens/GameScreen'))
 const SummaryScreen = lazy(() => import('@/modules/circuit-challenge/screens/SummaryScreen'))
+const PuzzleMakerScreen = lazy(() => import('@/modules/circuit-challenge/screens/PuzzleMakerScreen'))
 
 /**
  * Loading spinner for route transitions
@@ -206,6 +207,14 @@ const router = createBrowserRouter([
     element: (
       <LazyRoute>
         <SummaryScreen />
+      </LazyRoute>
+    ),
+  },
+  {
+    path: '/play/circuit-challenge/maker',
+    element: (
+      <LazyRoute>
+        <PuzzleMakerScreen />
       </LazyRoute>
     ),
   },

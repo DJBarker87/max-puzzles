@@ -62,7 +62,7 @@ export default function ModuleMenu() {
         <Card
           variant="interactive"
           className="w-full max-w-md p-6 cursor-pointer hover:scale-[1.02] transition-transform"
-          onClick={() => navigate('/play/circuit-challenge/puzzle-maker')}
+          onClick={() => navigate('/play/circuit-challenge/maker')}
         >
           <div className="flex items-center gap-4">
             <span className="text-4xl">🖨️</span>

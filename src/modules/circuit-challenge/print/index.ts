@@ -1,2 +1,5 @@
 // Circuit Challenge print functionality
-// TODO: Implement PrintTemplate and generatePrintPuzzles
+// Re-export from services for convenience
+export * from '../services/printGenerator'
+export * from '../services/svgRenderer'
+export * from '../services/pdfGenerator'
