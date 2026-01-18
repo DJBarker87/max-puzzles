@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Circuit Challenge - Print</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    @page {
+      size: A4 portrait;
+      margin: 10mm;
+    }
+
+    body {
+      font-family: Arial, Helvetica, sans-serif;
+      background: white;
+      color: black;
+    }
+
+    .page {
+      width: 190mm;
+      height: 277mm;
+      display: flex;
+      flex-direction: column;
+      gap: 5mm;
+    }
+
+    .puzzle-section {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      border: 1.5pt solid black;
+      padding: 3mm;
+    }
+
+    .puzzle-container {
+      flex: 1;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .puzzle-grid {
+      width: 100%;
+      height: 100%;
+    }
+
+    /* Cell styles */
+    .cell-outline {
+      fill: white;
+      stroke: black;
+      stroke-width: 1.5;
+    }
+
+    .cell-start .cell-outline {
+      stroke-width: 2.5;
+    }
+
+    .cell-finish .cell-outline {
+      stroke-width: 2.5;
+    }
+
+    .cell-text {
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 11px;
+      font-weight: 600;
+      fill: black;
+      text-anchor: middle;
+      dominant-baseline: middle;
+    }
+
+    .cell-label {
+      font-size: 8px;
+      font-weight: 700;
+      fill: black;
+      text-anchor: middle;
+      dominant-baseline: hanging;
+    }
+
+    /* Connector styles */
+    .connector-line {
+      stroke: black;
+      stroke-width: 1.5;
+      fill: none;
+    }
+
+    .connector-badge {
+      fill: white;
+      stroke: black;
+      stroke-width: 1;
+    }
+
+    .connector-text {
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 9px;
+      font-weight: 700;
+      fill: black;
+      text-anchor: middle;
+      dominant-baseline: middle;
+    }
+
+    /* Print styles */
+    @media print {
+      body {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+      .no-print {
+        display: none !important;
+      }
+      .page {
+        page-break-after: always;
+      }
+      .page:last-child {
+        page-break-after: avoid;
+      }
+    }
+
+    /* Screen preview */
+    @media screen {
+      body {
+        padding: 10px;
+        background: #888;
+      }
+      .page {
+        background: white;
+        margin: 0 auto 20px;
+        padding: 10mm;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+      }
+      .print-button {
+        position: fixed;
+        top: 15px;
+        right: 15px;
+        padding: 10px 20px;
+        background: #333;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      .print-button:hover {
+        background: #000;
+      }
+    }
+  </style>
+</head>
+<body>
+  <button class="print-button no-print" onclick="window.print()">Print</button>
+
+  <div class="page">
+    
+    <!-- Puzzle 1 -->
+    <section class="puzzle-section">
+      <div class="puzzle-container">
+        <svg class="puzzle-grid" viewBox="0 0 440 310" preserveAspectRatio="xMidYMid meet">
+          <defs>
+            <path id="hex" d="M 0,-26 L 22.5,-13 L 22.5,13 L 0,26 L -22.5,13 L -22.5,-13 Z"/>
+          </defs>
+
+          <!-- Connectors -->
+          <!-- Row 0 horizontals -->
+          <line class="connector-line" x1="67" y1="45" x2="113" y2="45"/>
+          <rect class="connector-badge" x="78" y="35" width="22" height="18" rx="3"/><text class="connector-text" x="89" y="44">11</text>
+          
+          <line class="connector-line" x1="157" y1="45" x2="203" y2="45"/>
+          <rect class="connector-badge" x="168" y="35" width="22" height="18" rx="3"/><text class="connector-text" x="179" y="44">7</text>
+          
+          <line class="connector-line" x1="247" y1="45" x2="293" y2="45"/>
+          <rect class="connector-badge" x="258" y="35" width="22" height="18" rx="3"/><text class="connector-text" x="269" y="44">14</text>
+          
+          <line class="connector-line" x1="337" y1="45" x2="383" y2="45"/>
+          <rect class="connector-badge" x="348" y="35" width="22" height="18" rx="3"/><text class="connector-text" x="359" y="44">9</text>
+
+          <!-- Row 1 horizontals -->
+          <line class="connector-line" x1="67" y1="125" x2="113" y2="125"/>
+          <rect class="connector-badge" x="78" y="115" width="22" height="18" rx="3"/><text class="connector-text" x="89" y="124">8</text>
+          
+          <line class="connector-line" x1="157" y1="125" x2="203" y2="125"/>
+          <rect class="connector-badge" x="168" y="115" width="22" height="18" rx="3"/><text class="connector-text" x="179" y="124">15</text>
+          
+          <line class="connector-line" x1="247" y1="125" x2="293" y2="125"/>
+          <rect class="connector-badge" x="258" y="115" width="22" height="18" rx="3"/><text class="connector-text" x="269" y="124">6</text>
+          
+          <line class="connector-line" x1="337" y1="125" x2="383" y2="125"/>
+          <rect class="connector-badge" x="348" y="115" width="22" height="18" rx="3"/><text class="connector-text" x="359" y="124">12</text>
+
+          <!-- Row 2 horizontals -->
+          <line class="connector-line" x1="67" y1="205" x2="113" y2="205"/>
+          <rect class="connector-badge" x="78" y="195" width="22" height="18" rx="3"/><text class="connector-text" x="89" y="204">18</text>
+          
+          <line class="connector-line" x1="157" y1="205" x2="203" y2="205"/>
+          <rect class="connector-badge" x="168" y="195" width="22" height="18" rx="3"/><text class="connector-text" x="179" y="204">10</text>
+          
+          <line class="connector-line" x1="247" y1="205" x2="293" y2="205"/>
+          <rect class="connector-badge" x="258" y="195" width="22" height="18" rx="3"/><text class="connector-text" x="269" y="204">16</text>
+          
+          <line class="connector-line" x1="337" y1="205" x2="383" y2="205"/>
+          <rect class="connector-badge" x="348" y="195" width="22" height="18" rx="3"/><text class="connector-text" x="359" y="204">20</text>
+
+          <!-- Row 3 horizontals -->
+          <line class="connector-line" x1="67" y1="285" x2="113" y2="285"/>
+          <rect class="connector-badge" x="78" y="275" width="22" height="18" rx="3"/><text class="connector-text" x="89" y="284">5</text>
+          
+          <line class="connector-line" x1="157" y1="285" x2="203" y2="285"/>
+          <rect class="connector-badge" x="168" y="275" width="22" height="18" rx="3"/><text class="connector-text" x="179" y="284">13</text>
+          
+          <line class="connector-line" x1="247" y1="285" x2="293" y2="285"/>
+          <rect class="connector-badge" x="258" y="275" width="22" height="18" rx="3"/><text class="connector-text" x="269" y="284">8</text>
+          
+          <line class="connector-line" x1="337" y1="285" x2="383" y2="285"/>
+          <rect class="connector-badge" x="348" y="275" width="22" height="18" rx="3"/><text class="connector-text" x="359" y="284">17</text>
+
+          <!-- Vertical connectors -->
+          <line class="connector-line" x1="45" y1="71" x2="45" y2="99"/>
+          <rect class="connector-badge" x="34" y="76" width="22" height="18" rx="3"/><text class="connector-text" x="45" y="85">9</text>
+          
+          <line class="connector-line" x1="45" y1="151" x2="45" y2="179"/>
+          <rect class="connector-badge" x="34" y="156" width="22" height="18" rx="3"/><text class="connector-text" x="45" y="165">13</text>
+          
+          <line class="connector-line" x1="45" y1="231" x2="45" y2="259"/>
+          <rect class="connector-badge" x="34" y="236" width="22" height="18" rx="3"/><text class="connector-text" x="45" y="245">7</text>
+
+          <line class="connector-line" x1="135" y1="71" x2="135" y2="99"/>
+          <rect class="connector-badge" x="124" y="76" width="22" height="18" rx="3"/><text class="connector-text" x="135" y="85">12</text>
+          
+          <line class="connector-line" x1="135" y1="151" x2="135" y2="179"/>
+          <rect class="connector-badge" x="124" y="156" width="22" height="18" rx="3"/><text class="connector-text" x="135" y="165">6</text>
+          
+          <line class="connector-line" x1="135" y1="231" x2="135" y2="259"/>
+          <rect class="connector-badge" x="124" y="236" width="22" height="18" rx="3"/><text class="connector-text" x="135" y="245">14</text>
+
+          <line class="connector-line" x1="225" y1="71" x2="225" y2="99"/>
+          <rect class="connector-badge" x="214" y="76" width="22" height="18" rx="3"/><text class="connector-text" x="225" y="85">10</text>
+          
+          <line class="connector-line" x1="225" y1="151" x2="225" y2="179"/>
+          <rect class="connector-badge" x="214" y="156" width="22" height="18" rx="3"/><text class="connector-text" x="225" y="165">19</text>
+          
+          <line class="connector-line" x1="225" y1="231" x2="225" y2="259"/>
+          <rect class="connector-badge" x="214" y="236" width="22" height="18" rx="3"/><text class="connector-text" x="225" y="245">11</text>
+
+          <line class="connector-line" x1="315" y1="71" x2="315" y2="99"/>
+          <rect class="connector-badge" x="304" y="76" width="22" height="18" rx="3"/><text class="connector-text" x="315" y="85">8</text>
+          
+          <line class="connector-line" x1="315" y1="151" x2="315" y2="179"/>
+          <rect class="connector-badge" x="304" y="156" width="22" height="18" rx="3"/><text class="connector-text" x="315" y="165">15</text>
+          
+          <line class="connector-line" x1="315" y1="231" x2="315" y2="259"/>
+          <rect class="connector-badge" x="304" y="236" width="22" height="18" rx="3"/><text class="connector-text" x="315" y="245">9</text>
+
+          <line class="connector-line" x1="405" y1="71" x2="405" y2="99"/>
+          <rect class="connector-badge" x="394" y="76" width="22" height="18" rx="3"/><text class="connector-text" x="405" y="85">16</text>
+          
+          <line class="connector-line" x1="405" y1="151" x2="405" y2="179"/>
+          <rect class="connector-badge" x="394" y="156" width="22" height="18" rx="3"/><text class="connector-text" x="405" y="165">7</text>
+          
+          <line class="connector-line" x1="405" y1="231" x2="405" y2="259"/>
+          <rect class="connector-badge" x="394" y="236" width="22" height="18" rx="3"/><text class="connector-text" x="405" y="245">12</text>
+
+          <!-- Sample diagonals -->
+          <line class="connector-line" x1="63" y1="63" x2="117" y2="107"/>
+          <rect class="connector-badge" x="79" y="76" width="22" height="18" rx="3"/><text class="connector-text" x="90" y="85">6</text>
+
+          <line class="connector-line" x1="207" y1="63" x2="153" y2="107"/>
+          <rect class="connector-badge" x="169" y="76" width="22" height="18" rx="3"/><text class="connector-text" x="180" y="85">17</text>
+
+          <line class="connector-line" x1="243" y1="143" x2="297" y2="187"/>
+          <rect class="connector-badge" x="259" y="156" width="22" height="18" rx="3"/><text class="connector-text" x="270" y="165">5</text>
+
+          <line class="connector-line" x1="387" y1="223" x2="333" y2="267"/>
+          <rect class="connector-badge" x="349" y="236" width="22" height="18" rx="3"/><text class="connector-text" x="360" y="245">11</text>
+
+          <!-- Cells Row 0 -->
+          <g class="cell cell-start" transform="translate(45, 45)">
+            <use href="#hex" class="cell-outline"/>
+            <text class="cell-label" y="-11">START</text>
+            <text class="cell-text" y="4">5 + 6</text>
+          </g>
+          <g class="cell" transform="translate(135, 45)">
+            <use href="#hex" class="cell-outline"/>
+            <text class="cell-text" y="2">12 − 5</text>
+          </g>
+          <g class="cell" transform="translate(225, 45)">
+            <use href="#hex" class="cell-outline"/>
+            <text class="cell-text" y="2">3 × 4</text>
+          </g>
+          <g class="cell" transform="translate(315, 45)">
+            <use href="#hex" class="cell-outline"/>
+            <text class="cell-text" y="2">16 − 8</text>
+          </g>
+          <g class="cell" transform="translate(405, 45)">
+            <use href="#hex" class="cell-outline"/>
+            <text class="cell-text" y="2">2 × 8</text>
+          </g>
+
+          <!-- Cells Row 1 -->
+          <g class="cell" transform="translate(45, 125)">
+            <use href="#hex" class="cell-outline"/>
+            <text class="cell-text" y="2">6 + 7</text>
+          </g>
+          <g class="cell" transform="translate(135, 125)">
+            <use href="#hex" class="cell-outline"/>
+            <text class="cell-text" y="2">3 × 5</text>
+          </g>
+          <g class="cell" transform="translate(225, 125)">
+            <use href="#hex" class="cell-outline"/>
+            <text class="cell-text" y="2">9 + 10</text>
+          </g>
+          <g class="cell" transform="translate(315, 125)">
+            <use href="#hex" class="cell-outline"/>
+            <text class="cell-text" y="2">20 − 5</text>
+          </g>
+          <g class="cell" transform="translate(405, 125)">
+            <use href="#hex" class="cell-outline"/>
+            <text class="cell-text" y="2">4 × 3</text>
+          </g>
+
+          <!-- Cells Row 2 -->
+          <g class="cell" transform="translate(45, 205)">
+            <use href="#hex" class="cell-outline"/>
+            <text class="cell-text" y="2">9 + 4</text>
+          </g>
+          <g class="cell" transform="translate(135, 205)">
+            <use href="#hex" class="cell-outline"/>
+            <text class="cell-text" y="2">2 × 7</text>
+          </g>
+          <g class="cell" transform="translate(225, 205)">
+            <use href="#hex" class="cell-outline"/>
+            <text class="cell-text" y="2">18 − 2</text>
+          </g>
+          <g class="cell" transform="translate(315, 205)">
+            <use href="#hex" class="cell-outline"/>
+            <text class="cell-text" y="2">5 × 4</text>
+          </g>
+          <g class="cell" transform="translate(405, 205)">
+            <use href="#hex" class="cell-outline"/>
+            <text class="cell-text" y="2">11 + 6</text>
+          </g>
+
+          <!-- Cells Row 3 -->
+          <g class="cell" transform="translate(45, 285)">
+            <use href="#hex" class="cell-outline"/>
+            <text class="cell-text" y="2">15 − 8</text>
+          </g>
+          <g class="cell" transform="translate(135, 285)">
+            <use href="#hex" class="cell-outline"/>
+            <text class="cell-text" y="2">6 + 8</text>
+          </g>
+          <g class="cell" transform="translate(225, 285)">
+            <use href="#hex" class="cell-outline"/>
+            <text class="cell-text" y="2">3 × 3</text>
+          </g>
+          <g class="cell" transform="translate(315, 285)">
+            <use href="#hex" class="cell-outline"/>
+            <text class="cell-text" y="2">12 + 5</text>
+          </g>
+          <g class="cell cell-finish" transform="translate(405, 285)">
+            <use href="#hex" class="cell-outline"/>
+            <text class="cell-text" y="2">FINISH</text>
+          </g>
+        </svg>
+      </div>
+    </section>
+
+    <!-- Puzzle 2 -->
+    <section class="puzzle-section">
+      <div class="puzzle-container">
+        <svg class="puzzle-grid" viewBox="0 0 440 310" preserveAspectRatio="xMidYMid meet">
+          <defs>
+            <path id="hex2" d="M 0,-26 L 22.5,-13 L 22.5,13 L 0,26 L -22.5,13 L -22.5,-13 Z"/>
+          </defs>
+
+          <!-- Connectors (different puzzle) -->
+          <!-- Row 0 horizontals -->
+          <line class="connector-line" x1="67" y1="45" x2="113" y2="45"/>
+          <rect class="connector-badge" x="78" y="35" width="22" height="18" rx="3"/><text class="connector-text" x="89" y="44">8</text>
+          
+          <line class="connector-line" x1="157" y1="45" x2="203" y2="45"/>
+          <rect class="connector-badge" x="168" y="35" width="22" height="18" rx="3"/><text class="connector-text" x="179" y="44">15</text>
+          
+          <line class="connector-line" x1="247" y1="45" x2="293" y2="45"/>
+          <rect class="connector-badge" x="258" y="35" width="22" height="18" rx="3"/><text class="connector-text" x="269" y="44">6</text>
+          
+          <line class="connector-line" x1="337" y1="45" x2="383" y2="45"/>
+          <rect class="connector-badge" x="348" y="35" width="22" height="18" rx="3"/><text class="connector-text" x="359" y="44">12</text>
+
+          <!-- Row 1 horizontals -->
+          <line class="connector-line" x1="67" y1="125" x2="113" y2="125"/>
+          <rect class="connector-badge" x="78" y="115" width="22" height="18" rx="3"/><text class="connector-text" x="89" y="124">14</text>
+          
+          <line class="connector-line" x1="157" y1="125" x2="203" y2="125"/>
+          <rect class="connector-badge" x="168" y="115" width="22" height="18" rx="3"/><text class="connector-text" x="179" y="124">9</text>
+          
+          <line class="connector-line" x1="247" y1="125" x2="293" y2="125"/>
+          <rect class="connector-badge" x="258" y="115" width="22" height="18" rx="3"/><text class="connector-text" x="269" y="124">18</text>
+          
+          <line class="connector-line" x1="337" y1="125" x2="383" y2="125"/>
+          <rect class="connector-badge" x="348" y="115" width="22" height="18" rx="3"/><text class="connector-text" x="359" y="124">7</text>
+
+          <!-- Row 2 horizontals -->
+          <line class="connector-line" x1="67" y1="205" x2="113" y2="205"/>
+          <rect class="connector-badge" x="78" y="195" width="22" height="18" rx="3"/><text class="connector-text" x="89" y="204">11</text>
+          
+          <line class="connector-line" x1="157" y1="205" x2="203" y2="205"/>
+          <rect class="connector-badge" x="168" y="195" width="22" height="18" rx="3"/><text class="connector-text" x="179" y="204">20</text>
+          
+          <line class="connector-line" x1="247" y1="205" x2="293" y2="205"/>
+          <rect class="connector-badge" x="258" y="195" width="22" height="18" rx="3"/><text class="connector-text" x="269" y="204">5</text>
+          
+          <line class="connector-line" x1="337" y1="205" x2="383" y2="205"/>
+          <rect class="connector-badge" x="348" y="195" width="22" height="18" rx="3"/><text class="connector-text" x="359" y="204">16</text>
+
+          <!-- Row 3 horizontals -->
+          <line class="connector-line" x1="67" y1="285" x2="113" y2="285"/>
+          <rect class="connector-badge" x="78" y="275" width="22" height="18" rx="3"/><text class="connector-text" x="89" y="284">10</text>
+          
+          <line class="connector-line" x1="157" y1="285" x2="203" y2="285"/>
+          <rect class="connector-badge" x="168" y="275" width="22" height="18" rx="3"/><text class="connector-text" x="179" y="284">6</text>
+          
+          <line class="connector-line" x1="247" y1="285" x2="293" y2="285"/>
+          <rect class="connector-badge" x="258" y="275" width="22" height="18" rx="3"/><text class="connector-text" x="269" y="284">13</text>
+          
+          <line class="connector-line" x1="337" y1="285" x2="383" y2="285"/>
+          <rect class="connector-badge" x="348" y="275" width="22" height="18" rx="3"/><text class="connector-text" x="359" y="284">8</text>
+
+          <!-- Vertical connectors -->
+          <line class="connector-line" x1="45" y1="71" x2="45" y2="99"/>
+          <rect class="connector-badge" x="34" y="76" width="22" height="18" rx="3"/><text class="connector-text" x="45" y="85">12</text>
+          
+          <line class="connector-line" x1="45" y1="151" x2="45" y2="179"/>
+          <rect class="connector-badge" x="34" y="156" width="22" height="18" rx="3"/><text class="connector-text" x="45" y="165">7</text>
+          
+          <line class="connector-line" x1="45" y1="231" x2="45" y2="259"/>
+          <rect class="connector-badge" x="34" y="236" width="22" height="18" rx="3"/><text class="connector-text" x="45" y="245">15</text>
+
+          <line class="connector-line" x1="135" y1="71" x2="135" y2="99"/>
+          <rect class="connector-badge" x="124" y="76" width="22" height="18" rx="3"/><text class="connector-text" x="135" y="85">5</text>
+          
+          <line class="connector-line" x1="135" y1="151" x2="135" y2="179"/>
+          <rect class="connector-badge" x="124" y="156" width="22" height="18" rx="3"/><text class="connector-text" x="135" y="165">16</text>
+          
+          <line class="connector-line" x1="135" y1="231" x2="135" y2="259"/>
+          <rect class="connector-badge" x="124" y="236" width="22" height="18" rx="3"/><text class="connector-text" x="135" y="245">9</text>
+
+          <line class="connector-line" x1="225" y1="71" x2="225" y2="99"/>
+          <rect class="connector-badge" x="214" y="76" width="22" height="18" rx="3"/><text class="connector-text" x="225" y="85">11</text>
+          
+          <line class="connector-line" x1="225" y1="151" x2="225" y2="179"/>
+          <rect class="connector-badge" x="214" y="156" width="22" height="18" rx="3"/><text class="connector-text" x="225" y="165">8</text>
+          
+          <line class="connector-line" x1="225" y1="231" x2="225" y2="259"/>
+          <rect class="connector-badge" x="214" y="236" width="22" height="18" rx="3"/><text class="connector-text" x="225" y="245">14</text>
+
+          <line class="connector-line" x1="315" y1="71" x2="315" y2="99"/>
+          <rect class="connector-badge" x="304" y="76" width="22" height="18" rx="3"/><text class="connector-text" x="315" y="85">17</text>
+          
+          <line class="connector-line" x1="315" y1="151" x2="315" y2="179"/>
+          <rect class="connector-badge" x="304" y="156" width="22" height="18" rx="3"/><text class="connector-text" x="315" y="165">10</text>
+          
+          <line class="connector-line" x1="315" y1="231" x2="315" y2="259"/>
+          <rect class="connector-badge" x="304" y="236" width="22" height="18" rx="3"/><text class="connector-text" x="315" y="245">19</text>
+
+          <line class="connector-line" x1="405" y1="71" x2="405" y2="99"/>
+          <rect class="connector-badge" x="394" y="76" width="22" height="18" rx="3"/><text class="connector-text" x="405" y="85">9</text>
+          
+          <line class="connector-line" x1="405" y1="151" x2="405" y2="179"/>
+          <rect class="connector-badge" x="394" y="156" width="22" height="18" rx="3"/><text class="connector-text" x="405" y="165">13</text>
+          
+          <line class="connector-line" x1="405" y1="231" x2="405" y2="259"/>
+          <rect class="connector-badge" x="394" y="236" width="22" height="18" rx="3"/><text class="connector-text" x="405" y="245">6</text>
+
+          <!-- Sample diagonals (different from puzzle 1) -->
+          <line class="connector-line" x1="153" y1="63" x2="207" y2="107"/>
+          <rect class="connector-badge" x="169" y="76" width="22" height="18" rx="3"/><text class="connector-text" x="180" y="85">10</text>
+
+          <line class="connector-line" x1="297" y1="63" x2="243" y2="107"/>
+          <rect class="connector-badge" x="259" y="76" width="22" height="18" rx="3"/><text class="connector-text" x="270" y="85">7</text>
+
+          <line class="connector-line" x1="153" y1="223" x2="207" y2="267"/>
+          <rect class="connector-badge" x="169" y="236" width="22" height="18" rx="3"/><text class="connector-text" x="180" y="245">12</text>
+
+          <line class="connector-line" x1="333" y1="143" x2="387" y2="187"/>
+          <rect class="connector-badge" x="349" y="156" width="22" height="18" rx="3"/><text class="connector-text" x="360" y="165">11</text>
+
+          <!-- Cells Row 0 -->
+          <g class="cell cell-start" transform="translate(45, 45)">
+            <use href="#hex2" class="cell-outline"/>
+            <text class="cell-label" y="-11">START</text>
+            <text class="cell-text" y="4">4 + 8</text>
+          </g>
+          <g class="cell" transform="translate(135, 45)">
+            <use href="#hex2" class="cell-outline"/>
+            <text class="cell-text" y="2">3 × 5</text>
+          </g>
+          <g class="cell" transform="translate(225, 45)">
+            <use href="#hex2" class="cell-outline"/>
+            <text class="cell-text" y="2">18 − 7</text>
+          </g>
+          <g class="cell" transform="translate(315, 45)">
+            <use href="#hex2" class="cell-outline"/>
+            <text class="cell-text" y="2">2 × 3</text>
+          </g>
+          <g class="cell" transform="translate(405, 45)">
+            <use href="#hex2" class="cell-outline"/>
+            <text class="cell-text" y="2">7 + 5</text>
+          </g>
+
+          <!-- Cells Row 1 -->
+          <g class="cell" transform="translate(45, 125)">
+            <use href="#hex2" class="cell-outline"/>
+            <text class="cell-text" y="2">9 + 5</text>
+          </g>
+          <g class="cell" transform="translate(135, 125)">
+            <use href="#hex2" class="cell-outline"/>
+            <text class="cell-text" y="2">16 − 7</text>
+          </g>
+          <g class="cell" transform="translate(225, 125)">
+            <use href="#hex2" class="cell-outline"/>
+            <text class="cell-text" y="2">2 × 9</text>
+          </g>
+          <g class="cell" transform="translate(315, 125)">
+            <use href="#hex2" class="cell-outline"/>
+            <text class="cell-text" y="2">14 − 7</text>
+          </g>
+          <g class="cell" transform="translate(405, 125)">
+            <use href="#hex2" class="cell-outline"/>
+            <text class="cell-text" y="2">6 + 7</text>
+          </g>
+
+          <!-- Cells Row 2 -->
+          <g class="cell" transform="translate(45, 205)">
+            <use href="#hex2" class="cell-outline"/>
+            <text class="cell-text" y="2">3 + 4</text>
+          </g>
+          <g class="cell" transform="translate(135, 205)">
+            <use href="#hex2" class="cell-outline"/>
+            <text class="cell-text" y="2">4 × 4</text>
+          </g>
+          <g class="cell" transform="translate(225, 205)">
+            <use href="#hex2" class="cell-outline"/>
+            <text class="cell-text" y="2">12 + 8</text>
+          </g>
+          <g class="cell" transform="translate(315, 205)">
+            <use href="#hex2" class="cell-outline"/>
+            <text class="cell-text" y="2">11 − 6</text>
+          </g>
+          <g class="cell" transform="translate(405, 205)">
+            <use href="#hex2" class="cell-outline"/>
+            <text class="cell-text" y="2">4 × 4</text>
+          </g>
+
+          <!-- Cells Row 3 -->
+          <g class="cell" transform="translate(45, 285)">
+            <use href="#hex2" class="cell-outline"/>
+            <text class="cell-text" y="2">8 + 7</text>
+          </g>
+          <g class="cell" transform="translate(135, 285)">
+            <use href="#hex2" class="cell-outline"/>
+            <text class="cell-text" y="2">15 − 6</text>
+          </g>
+          <g class="cell" transform="translate(225, 285)">
+            <use href="#hex2" class="cell-outline"/>
+            <text class="cell-text" y="2">2 × 7</text>
+          </g>
+          <g class="cell" transform="translate(315, 285)">
+            <use href="#hex2" class="cell-outline"/>
+            <text class="cell-text" y="2">6 + 2</text>
+          </g>
+          <g class="cell cell-finish" transform="translate(405, 285)">
+            <use href="#hex2" class="cell-outline"/>
+            <text class="cell-text" y="2">FINISH</text>
+          </g>
+        </svg>
+      </div>
+    </section>
+
+  </div>
+</body>
+</html>

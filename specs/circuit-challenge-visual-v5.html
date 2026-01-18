@@ -1,0 +1,1147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Circuit Challenge - Visual Design v5</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background: linear-gradient(145deg, #0a0a12 0%, #12121f 50%, #0d0d18 100%);
+      min-height: 100vh;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      color: #ffffff;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* Starry background */
+    .stars {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .star {
+      position: absolute;
+      background: #ffffff;
+      border-radius: 50%;
+    }
+
+    .star.twinkle-1 { animation: twinkle 3s ease-in-out infinite; }
+    .star.twinkle-2 { animation: twinkle 4s ease-in-out infinite 0.5s; }
+    .star.twinkle-3 { animation: twinkle 5s ease-in-out infinite 1s; }
+    .star.twinkle-4 { animation: twinkle 3.5s ease-in-out infinite 1.5s; }
+    .star.twinkle-5 { animation: twinkle 4.5s ease-in-out infinite 2s; }
+
+    @keyframes twinkle {
+      0%, 100% { opacity: 0.3; transform: scale(1); }
+      50% { opacity: 0.8; transform: scale(1.2); }
+    }
+
+    /* Subtle ambient glow */
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-image: 
+        radial-gradient(circle at 50% 50%, rgba(0, 255, 128, 0.03) 0%, transparent 50%);
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    /* Header */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 32px;
+      background: linear-gradient(180deg, rgba(0,0,0,0.5) 0%, transparent 100%);
+      position: relative;
+      z-index: 10;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .back-button {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      background: linear-gradient(145deg, #1a1a2e, #0f0f1a);
+      border: 1px solid rgba(255,255,255,0.1);
+      color: #fff;
+      font-size: 20px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 
+        0 4px 15px rgba(0,0,0,0.5),
+        inset 0 1px 0 rgba(255,255,255,0.1);
+      transition: all 0.2s ease;
+    }
+
+    .back-button:hover {
+      transform: translateY(-2px);
+      box-shadow: 
+        0 6px 20px rgba(0,0,0,0.6),
+        inset 0 1px 0 rgba(255,255,255,0.15);
+    }
+
+    .title {
+      font-size: 26px;
+      font-weight: 700;
+      background: linear-gradient(135deg, #fff 0%, #a0a0b0 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 28px;
+    }
+
+    .lives {
+      display: flex;
+      gap: 8px;
+    }
+
+    .heart {
+      font-size: 28px;
+      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));
+      transition: all 0.3s ease;
+    }
+
+    .heart.active {
+      color: #ff3366;
+      filter: drop-shadow(0 0 8px rgba(255,51,102,0.6));
+      animation: heartPulse 1.2s ease-in-out infinite;
+    }
+
+    @keyframes heartPulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.15); }
+    }
+
+    .heart.inactive {
+      color: #2a2a3a;
+    }
+
+    .coins {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: linear-gradient(145deg, #2a2518, #1a1810);
+      padding: 10px 20px;
+      border-radius: 25px;
+      border: 1px solid rgba(251, 191, 36, 0.3);
+      box-shadow: 
+        0 4px 15px rgba(0,0,0,0.4),
+        inset 0 1px 0 rgba(251, 191, 36, 0.2);
+    }
+
+    .coin-icon {
+      font-size: 22px;
+      filter: drop-shadow(0 0 6px rgba(251, 191, 36, 0.5));
+    }
+
+    .coin-amount {
+      font-size: 20px;
+      font-weight: 700;
+      color: #fbbf24;
+      text-shadow: 0 0 10px rgba(251, 191, 36, 0.4);
+    }
+
+    /* Main game area */
+    .game-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      height: calc(100vh - 80px);
+      position: relative;
+      z-index: 10;
+    }
+
+    /* SVG Grid */
+    .puzzle-grid {
+      filter: drop-shadow(0 20px 60px rgba(0,0,0,0.5));
+    }
+
+    /* Connector styles - normal */
+    .connector-line {
+      stroke: #3d3428;
+      stroke-width: 8;
+      stroke-linecap: round;
+      filter: drop-shadow(0 2px 3px rgba(0,0,0,0.5));
+    }
+
+    /* Connector styles - traversed with electric flow effect */
+    .connector.traversed .connector-line {
+      stroke: #00dd77;
+      stroke-width: 10;
+    }
+
+    .connector.traversed .connector-line-glow {
+      stroke: #00ff88;
+      stroke-width: 18;
+      stroke-linecap: round;
+      opacity: 0.5;
+      filter: blur(6px);
+    }
+
+    .connector.traversed .connector-line-core {
+      stroke: #aaffcc;
+      stroke-width: 3;
+      stroke-linecap: round;
+    }
+
+    /* Flowing energy particles */
+    .connector.traversed .connector-line-energy {
+      stroke: #ffffff;
+      stroke-width: 4;
+      stroke-linecap: round;
+      stroke-dasharray: 4 20;
+      animation: electricFlow 0.8s linear infinite;
+    }
+
+    .connector.traversed .connector-line-energy2 {
+      stroke: #88ffcc;
+      stroke-width: 6;
+      stroke-linecap: round;
+      stroke-dasharray: 6 30;
+      animation: electricFlow 1.2s linear infinite;
+      animation-delay: -0.4s;
+    }
+
+    @keyframes electricFlow {
+      0% { stroke-dashoffset: 0; }
+      100% { stroke-dashoffset: -36; }
+    }
+
+    /* Pulsing glow on traversed connectors */
+    .connector.traversed {
+      animation: connectorPulse 1.5s ease-in-out infinite;
+    }
+
+    @keyframes connectorPulse {
+      0%, 100% { filter: drop-shadow(0 0 8px rgba(0,255,136,0.6)); }
+      50% { filter: drop-shadow(0 0 16px rgba(0,255,170,0.9)); }
+    }
+
+    .connector-label-bg {
+      fill: #15151f;
+      stroke: #2a2a3a;
+      stroke-width: 2;
+      filter: drop-shadow(0 3px 6px rgba(0,0,0,0.6));
+    }
+
+    .connector-label-text {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      font-size: 14px;
+      font-weight: 800;
+      fill: #ff9f43;
+      text-anchor: middle;
+      dominant-baseline: middle;
+    }
+
+    /* Hexagon base styles - Poker chip 3D effect */
+    .cell-shadow {
+      fill: rgba(0,0,0,0.6);
+    }
+
+    .cell-edge {
+      fill: url(#cellEdgeGradient);
+    }
+
+    .cell-base {
+      fill: url(#cellBaseGradient);
+    }
+
+    .cell-top {
+      fill: url(#cellTopGradient);
+      stroke: #4a4a5a;
+      stroke-width: 2;
+    }
+
+    .cell-rim {
+      fill: none;
+      stroke: rgba(255,255,255,0.2);
+      stroke-width: 1.5;
+    }
+
+    .cell-inner-shadow {
+      fill: url(#cellInnerShadow);
+    }
+
+    /* Cell state variations */
+    .cell.start .cell-top {
+      fill: url(#startGradient);
+      stroke: #00ff88;
+      stroke-width: 2;
+    }
+
+    .cell.start .cell-base, .cell.start .cell-edge {
+      fill: url(#startBaseGradient);
+    }
+
+    .cell.finish .cell-top {
+      fill: url(#finishGradient);
+      stroke: #ffcc00;
+      stroke-width: 2;
+    }
+
+    .cell.finish .cell-base, .cell.finish .cell-edge {
+      fill: url(#finishBaseGradient);
+    }
+
+    .cell.current .cell-top {
+      fill: url(#currentGradient);
+      stroke: #00ffcc;
+      stroke-width: 3;
+    }
+
+    .cell.current .cell-base, .cell.current .cell-edge {
+      fill: url(#currentBaseGradient);
+    }
+
+    .cell.visited .cell-top {
+      fill: url(#visitedGradient);
+      stroke: #00ff88;
+      stroke-width: 2;
+    }
+
+    .cell.visited .cell-base, .cell.visited .cell-edge {
+      fill: url(#visitedBaseGradient);
+    }
+
+    /* Cell text */
+    .cell-text {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      font-size: 17px;
+      font-weight: 700;
+      fill: #ffffff;
+      text-anchor: middle;
+      dominant-baseline: middle;
+    }
+
+    .cell.visited .cell-text {
+      fill: rgba(255,255,255,0.7);
+    }
+
+    .cell.finish .cell-text {
+      fill: #ffdd44;
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: 1px;
+    }
+
+    /* Glow effects for active states */
+    .cell.start {
+      filter: drop-shadow(0 0 15px rgba(0,255,136,0.4));
+    }
+
+    .cell.finish {
+      filter: drop-shadow(0 0 15px rgba(255,200,0,0.4));
+    }
+
+    .cell.current {
+      filter: drop-shadow(0 0 25px rgba(0,255,200,0.6));
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { filter: drop-shadow(0 0 20px rgba(0,255,200,0.5)); }
+      50% { filter: drop-shadow(0 0 35px rgba(0,255,200,0.9)); }
+    }
+
+    .cell.visited {
+      filter: drop-shadow(0 0 10px rgba(0,255,136,0.3));
+      animation: visitedPulse 2s ease-in-out infinite;
+    }
+
+    @keyframes visitedPulse {
+      0%, 100% { filter: drop-shadow(0 0 8px rgba(0,255,136,0.3)); }
+      50% { filter: drop-shadow(0 0 20px rgba(0,255,136,0.6)); }
+    }
+
+    /* START/FINISH labels */
+    .label-text {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-anchor: middle;
+    }
+
+    .start-label {
+      fill: #00ff88;
+      filter: drop-shadow(0 0 6px rgba(0,255,136,0.6));
+    }
+
+    .finish-label {
+      fill: #ffcc00;
+      filter: drop-shadow(0 0 6px rgba(255,200,0,0.6));
+    }
+
+    /* Action buttons */
+    .button-bar {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 16px;
+      z-index: 100;
+    }
+
+    .btn {
+      padding: 12px 24px;
+      border-radius: 12px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      border: none;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-primary {
+      background: linear-gradient(145deg, #22c55e, #16a34a);
+      color: #fff;
+      border: 1px solid rgba(255,255,255,0.2);
+      box-shadow: 
+        0 4px 15px rgba(34, 197, 94, 0.4),
+        inset 0 1px 0 rgba(255,255,255,0.2);
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 
+        0 6px 20px rgba(34, 197, 94, 0.5),
+        inset 0 1px 0 rgba(255,255,255,0.25);
+    }
+
+    .btn-secondary {
+      background: linear-gradient(145deg, #2a2a40, #1a1a2a);
+      color: #fff;
+      border: 1px solid rgba(255,255,255,0.15);
+      box-shadow: 
+        0 4px 15px rgba(0,0,0,0.4),
+        inset 0 1px 0 rgba(255,255,255,0.1);
+    }
+
+    .btn-secondary:hover {
+      transform: translateY(-2px);
+      box-shadow: 
+        0 6px 20px rgba(0,0,0,0.5),
+        inset 0 1px 0 rgba(255,255,255,0.15);
+    }
+
+    .btn-icon {
+      font-size: 18px;
+    }
+  </style>
+</head>
+<body>
+  <!-- Starry background -->
+  <div class="stars" id="stars"></div>
+  
+  <script>
+    // Generate subtle twinkling stars
+    const starsContainer = document.getElementById('stars');
+    const starCount = 80;
+    
+    for (let i = 0; i < starCount; i++) {
+      const star = document.createElement('div');
+      star.className = `star twinkle-${Math.floor(Math.random() * 5) + 1}`;
+      star.style.left = Math.random() * 100 + '%';
+      star.style.top = Math.random() * 100 + '%';
+      const size = Math.random() * 2 + 1;
+      star.style.width = size + 'px';
+      star.style.height = size + 'px';
+      starsContainer.appendChild(star);
+    }
+  </script>
+
+  <!-- Header -->
+  <header class="header">
+    <div class="header-left">
+      <button class="back-button">←</button>
+      <h1 class="title">Circuit Challenge</h1>
+    </div>
+    <div class="header-right">
+      <div class="lives">
+        <span class="heart active">♥</span>
+        <span class="heart active">♥</span>
+        <span class="heart active">♥</span>
+        <span class="heart active">♥</span>
+        <span class="heart inactive">♥</span>
+      </div>
+      <div class="coins">
+        <span class="coin-icon">🪙</span>
+        <span class="coin-amount">1,234</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Game Area -->
+  <main class="game-container">
+    <svg class="puzzle-grid" width="780" height="620" viewBox="0 0 780 620">
+      <defs>
+        <!-- Electric gradient for energy flow -->
+        <linearGradient id="electricGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" style="stop-color:#00ff88"/>
+          <stop offset="50%" style="stop-color:#88ffcc"/>
+          <stop offset="100%" style="stop-color:#00ff88"/>
+        </linearGradient>
+
+        <!-- Cell edge gradient (3D rim) -->
+        <linearGradient id="cellEdgeGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" style="stop-color:#2a2a38"/>
+          <stop offset="50%" style="stop-color:#1a1a25"/>
+          <stop offset="100%" style="stop-color:#0f0f15"/>
+        </linearGradient>
+
+        <!-- Inner shadow for depth -->
+        <radialGradient id="cellInnerShadow" cx="50%" cy="50%" r="50%">
+          <stop offset="70%" style="stop-color:transparent"/>
+          <stop offset="100%" style="stop-color:rgba(0,0,0,0.3)"/>
+        </radialGradient>
+
+        <!-- Normal cell gradients -->
+        <linearGradient id="cellBaseGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" style="stop-color:#1a1a25"/>
+          <stop offset="100%" style="stop-color:#0a0a10"/>
+        </linearGradient>
+
+        <linearGradient id="cellTopGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" style="stop-color:#3a3a4a"/>
+          <stop offset="50%" style="stop-color:#2a2a38"/>
+          <stop offset="100%" style="stop-color:#252530"/>
+        </linearGradient>
+
+        <!-- Start cell gradients -->
+        <linearGradient id="startBaseGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" style="stop-color:#0a3020"/>
+          <stop offset="100%" style="stop-color:#051510"/>
+        </linearGradient>
+
+        <linearGradient id="startGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" style="stop-color:#15803d"/>
+          <stop offset="50%" style="stop-color:#116630"/>
+          <stop offset="100%" style="stop-color:#0d5025"/>
+        </linearGradient>
+
+        <!-- Finish cell gradients -->
+        <linearGradient id="finishBaseGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" style="stop-color:#3d2a08"/>
+          <stop offset="100%" style="stop-color:#1a1205"/>
+        </linearGradient>
+
+        <linearGradient id="finishGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" style="stop-color:#ca8a04"/>
+          <stop offset="50%" style="stop-color:#a16207"/>
+          <stop offset="100%" style="stop-color:#854d0e"/>
+        </linearGradient>
+
+        <!-- Current cell gradients -->
+        <linearGradient id="currentBaseGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" style="stop-color:#0a3030"/>
+          <stop offset="100%" style="stop-color:#051818"/>
+        </linearGradient>
+
+        <linearGradient id="currentGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" style="stop-color:#0d9488"/>
+          <stop offset="50%" style="stop-color:#0a7c72"/>
+          <stop offset="100%" style="stop-color:#086560"/>
+        </linearGradient>
+
+        <!-- Visited cell gradients -->
+        <linearGradient id="visitedBaseGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" style="stop-color:#082818"/>
+          <stop offset="100%" style="stop-color:#041008"/>
+        </linearGradient>
+
+        <linearGradient id="visitedGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" style="stop-color:#1a5c38"/>
+          <stop offset="50%" style="stop-color:#14472c"/>
+          <stop offset="100%" style="stop-color:#103822"/>
+        </linearGradient>
+      </defs>
+
+      <!-- ==================== CONNECTORS ==================== -->
+      
+      <!-- Horizontal connectors Row 0 -->
+      <g class="connector traversed">
+        <line class="connector-line-glow" x1="115" y1="75" x2="185" y2="75"/>
+        <line class="connector-line" x1="115" y1="75" x2="185" y2="75"/>
+        <line class="connector-line-energy2" x1="115" y1="75" x2="185" y2="75"/>
+        <line class="connector-line-energy" x1="115" y1="75" x2="185" y2="75"/>
+        <line class="connector-line-core" x1="115" y1="75" x2="185" y2="75"/>
+      </g>
+      <g class="connector">
+        <line class="connector-line" x1="265" y1="75" x2="335" y2="75"/>
+      </g>
+      <g class="connector">
+        <line class="connector-line" x1="415" y1="75" x2="485" y2="75"/>
+      </g>
+      <g class="connector">
+        <line class="connector-line" x1="565" y1="75" x2="635" y2="75"/>
+      </g>
+
+      <!-- Horizontal connectors Row 1 -->
+      <g class="connector">
+        <line class="connector-line" x1="115" y1="215" x2="185" y2="215"/>
+      </g>
+      <g class="connector traversed">
+        <line class="connector-line-glow" x1="265" y1="215" x2="335" y2="215"/>
+        <line class="connector-line" x1="265" y1="215" x2="335" y2="215"/>
+        <line class="connector-line-energy2" x1="265" y1="215" x2="335" y2="215"/>
+        <line class="connector-line-energy" x1="265" y1="215" x2="335" y2="215"/>
+        <line class="connector-line-core" x1="265" y1="215" x2="335" y2="215"/>
+      </g>
+      <g class="connector">
+        <line class="connector-line" x1="415" y1="215" x2="485" y2="215"/>
+      </g>
+      <g class="connector">
+        <line class="connector-line" x1="565" y1="215" x2="635" y2="215"/>
+      </g>
+
+      <!-- Horizontal connectors Row 2 -->
+      <g class="connector">
+        <line class="connector-line" x1="115" y1="355" x2="185" y2="355"/>
+      </g>
+      <g class="connector">
+        <line class="connector-line" x1="265" y1="355" x2="335" y2="355"/>
+      </g>
+      <g class="connector">
+        <line class="connector-line" x1="415" y1="355" x2="485" y2="355"/>
+      </g>
+      <g class="connector">
+        <line class="connector-line" x1="565" y1="355" x2="635" y2="355"/>
+      </g>
+
+      <!-- Horizontal connectors Row 3 -->
+      <g class="connector">
+        <line class="connector-line" x1="115" y1="495" x2="185" y2="495"/>
+      </g>
+      <g class="connector">
+        <line class="connector-line" x1="265" y1="495" x2="335" y2="495"/>
+      </g>
+      <g class="connector">
+        <line class="connector-line" x1="415" y1="495" x2="485" y2="495"/>
+      </g>
+      <g class="connector">
+        <line class="connector-line" x1="565" y1="495" x2="635" y2="495"/>
+      </g>
+
+      <!-- Vertical connectors Column 0 -->
+      <g class="connector">
+        <line class="connector-line" x1="75" y1="115" x2="75" y2="175"/>
+      </g>
+      <g class="connector">
+        <line class="connector-line" x1="75" y1="255" x2="75" y2="315"/>
+      </g>
+      <g class="connector">
+        <line class="connector-line" x1="75" y1="395" x2="75" y2="455"/>
+      </g>
+
+      <!-- Vertical connectors Column 1 -->
+      <g class="connector traversed">
+        <line class="connector-line-glow" x1="225" y1="115" x2="225" y2="175"/>
+        <line class="connector-line" x1="225" y1="115" x2="225" y2="175"/>
+        <line class="connector-line-energy2" x1="225" y1="115" x2="225" y2="175"/>
+        <line class="connector-line-energy" x1="225" y1="115" x2="225" y2="175"/>
+        <line class="connector-line-core" x1="225" y1="115" x2="225" y2="175"/>
+      </g>
+      <g class="connector">
+        <line class="connector-line" x1="225" y1="255" x2="225" y2="315"/>
+      </g>
+      <g class="connector">
+        <line class="connector-line" x1="225" y1="395" x2="225" y2="455"/>
+      </g>
+
+      <!-- Vertical connectors Column 2 -->
+      <g class="connector">
+        <line class="connector-line" x1="375" y1="115" x2="375" y2="175"/>
+      </g>
+      <g class="connector">
+        <line class="connector-line" x1="375" y1="255" x2="375" y2="315"/>
+      </g>
+      <g class="connector">
+        <line class="connector-line" x1="375" y1="395" x2="375" y2="455"/>
+      </g>
+
+      <!-- Vertical connectors Column 3 -->
+      <g class="connector">
+        <line class="connector-line" x1="525" y1="115" x2="525" y2="175"/>
+      </g>
+      <g class="connector">
+        <line class="connector-line" x1="525" y1="255" x2="525" y2="315"/>
+      </g>
+      <g class="connector">
+        <line class="connector-line" x1="525" y1="395" x2="525" y2="455"/>
+      </g>
+
+      <!-- Vertical connectors Column 4 -->
+      <g class="connector">
+        <line class="connector-line" x1="675" y1="115" x2="675" y2="175"/>
+      </g>
+      <g class="connector">
+        <line class="connector-line" x1="675" y1="255" x2="675" y2="315"/>
+      </g>
+      <g class="connector">
+        <line class="connector-line" x1="675" y1="395" x2="675" y2="455"/>
+      </g>
+
+      <!-- Diagonal connectors -->
+      <g class="connector">
+        <line class="connector-line" x1="110" y1="105" x2="190" y2="185"/>
+      </g>
+      <g class="connector">
+        <line class="connector-line" x1="340" y1="105" x2="260" y2="185"/>
+      </g>
+      <g class="connector">
+        <line class="connector-line" x1="410" y1="105" x2="490" y2="185"/>
+      </g>
+      <g class="connector">
+        <line class="connector-line" x1="640" y1="105" x2="560" y2="185"/>
+      </g>
+
+      <g class="connector">
+        <line class="connector-line" x1="190" y1="245" x2="110" y2="325"/>
+      </g>
+      <g class="connector">
+        <line class="connector-line" x1="260" y1="245" x2="340" y2="325"/>
+      </g>
+      <g class="connector">
+        <line class="connector-line" x1="490" y1="245" x2="410" y2="325"/>
+      </g>
+      <g class="connector">
+        <line class="connector-line" x1="560" y1="245" x2="640" y2="325"/>
+      </g>
+
+      <g class="connector">
+        <line class="connector-line" x1="110" y1="385" x2="190" y2="465"/>
+      </g>
+      <g class="connector">
+        <line class="connector-line" x1="340" y1="385" x2="260" y2="465"/>
+      </g>
+      <g class="connector">
+        <line class="connector-line" x1="410" y1="385" x2="490" y2="465"/>
+      </g>
+      <g class="connector">
+        <line class="connector-line" x1="640" y1="385" x2="560" y2="465"/>
+      </g>
+
+      <!-- ==================== CONNECTOR LABELS ==================== -->
+      
+      <!-- Horizontal Row 0 -->
+      <g class="connector-label">
+        <rect class="connector-label-bg" x="135" y="60" width="32" height="28" rx="6"/>
+        <text class="connector-label-text" x="151" y="75">13</text>
+      </g>
+      <g class="connector-label">
+        <rect class="connector-label-bg" x="285" y="60" width="32" height="28" rx="6"/>
+        <text class="connector-label-text" x="301" y="75">8</text>
+      </g>
+      <g class="connector-label">
+        <rect class="connector-label-bg" x="435" y="60" width="32" height="28" rx="6"/>
+        <text class="connector-label-text" x="451" y="75">15</text>
+      </g>
+      <g class="connector-label">
+        <rect class="connector-label-bg" x="585" y="60" width="32" height="28" rx="6"/>
+        <text class="connector-label-text" x="601" y="75">6</text>
+      </g>
+
+      <!-- Horizontal Row 1 -->
+      <g class="connector-label">
+        <rect class="connector-label-bg" x="135" y="200" width="32" height="28" rx="6"/>
+        <text class="connector-label-text" x="151" y="215">11</text>
+      </g>
+      <g class="connector-label">
+        <rect class="connector-label-bg" x="285" y="200" width="32" height="28" rx="6"/>
+        <text class="connector-label-text" x="301" y="215">7</text>
+      </g>
+      <g class="connector-label">
+        <rect class="connector-label-bg" x="435" y="200" width="32" height="28" rx="6"/>
+        <text class="connector-label-text" x="451" y="215">19</text>
+      </g>
+      <g class="connector-label">
+        <rect class="connector-label-bg" x="585" y="200" width="32" height="28" rx="6"/>
+        <text class="connector-label-text" x="601" y="215">14</text>
+      </g>
+
+      <!-- Horizontal Row 2 -->
+      <g class="connector-label">
+        <rect class="connector-label-bg" x="135" y="340" width="32" height="28" rx="6"/>
+        <text class="connector-label-text" x="151" y="355">16</text>
+      </g>
+      <g class="connector-label">
+        <rect class="connector-label-bg" x="285" y="340" width="32" height="28" rx="6"/>
+        <text class="connector-label-text" x="301" y="355">5</text>
+      </g>
+      <g class="connector-label">
+        <rect class="connector-label-bg" x="435" y="340" width="32" height="28" rx="6"/>
+        <text class="connector-label-text" x="451" y="355">12</text>
+      </g>
+      <g class="connector-label">
+        <rect class="connector-label-bg" x="585" y="340" width="32" height="28" rx="6"/>
+        <text class="connector-label-text" x="601" y="355">9</text>
+      </g>
+
+      <!-- Horizontal Row 3 -->
+      <g class="connector-label">
+        <rect class="connector-label-bg" x="135" y="480" width="32" height="28" rx="6"/>
+        <text class="connector-label-text" x="151" y="495">18</text>
+      </g>
+      <g class="connector-label">
+        <rect class="connector-label-bg" x="285" y="480" width="32" height="28" rx="6"/>
+        <text class="connector-label-text" x="301" y="495">10</text>
+      </g>
+      <g class="connector-label">
+        <rect class="connector-label-bg" x="435" y="480" width="32" height="28" rx="6"/>
+        <text class="connector-label-text" x="451" y="495">17</text>
+      </g>
+      <g class="connector-label">
+        <rect class="connector-label-bg" x="585" y="480" width="32" height="28" rx="6"/>
+        <text class="connector-label-text" x="601" y="495">11</text>
+      </g>
+
+      <!-- Vertical labels -->
+      <g class="connector-label">
+        <rect class="connector-label-bg" x="59" y="131" width="32" height="28" rx="6"/>
+        <text class="connector-label-text" x="75" y="146">9</text>
+      </g>
+      <g class="connector-label">
+        <rect class="connector-label-bg" x="59" y="271" width="32" height="28" rx="6"/>
+        <text class="connector-label-text" x="75" y="286">14</text>
+      </g>
+      <g class="connector-label">
+        <rect class="connector-label-bg" x="59" y="411" width="32" height="28" rx="6"/>
+        <text class="connector-label-text" x="75" y="426">7</text>
+      </g>
+
+      <g class="connector-label">
+        <rect class="connector-label-bg" x="209" y="131" width="32" height="28" rx="6"/>
+        <text class="connector-label-text" x="225" y="146">12</text>
+      </g>
+      <g class="connector-label">
+        <rect class="connector-label-bg" x="209" y="271" width="32" height="28" rx="6"/>
+        <text class="connector-label-text" x="225" y="286">8</text>
+      </g>
+      <g class="connector-label">
+        <rect class="connector-label-bg" x="209" y="411" width="32" height="28" rx="6"/>
+        <text class="connector-label-text" x="225" y="426">15</text>
+      </g>
+
+      <g class="connector-label">
+        <rect class="connector-label-bg" x="359" y="131" width="32" height="28" rx="6"/>
+        <text class="connector-label-text" x="375" y="146">16</text>
+      </g>
+      <g class="connector-label">
+        <rect class="connector-label-bg" x="359" y="271" width="32" height="28" rx="6"/>
+        <text class="connector-label-text" x="375" y="286">6</text>
+      </g>
+      <g class="connector-label">
+        <rect class="connector-label-bg" x="359" y="411" width="32" height="28" rx="6"/>
+        <text class="connector-label-text" x="375" y="426">13</text>
+      </g>
+
+      <g class="connector-label">
+        <rect class="connector-label-bg" x="509" y="131" width="32" height="28" rx="6"/>
+        <text class="connector-label-text" x="525" y="146">10</text>
+      </g>
+      <g class="connector-label">
+        <rect class="connector-label-bg" x="509" y="271" width="32" height="28" rx="6"/>
+        <text class="connector-label-text" x="525" y="286">18</text>
+      </g>
+      <g class="connector-label">
+        <rect class="connector-label-bg" x="509" y="411" width="32" height="28" rx="6"/>
+        <text class="connector-label-text" x="525" y="426">5</text>
+      </g>
+
+      <g class="connector-label">
+        <rect class="connector-label-bg" x="659" y="131" width="32" height="28" rx="6"/>
+        <text class="connector-label-text" x="675" y="146">17</text>
+      </g>
+      <g class="connector-label">
+        <rect class="connector-label-bg" x="659" y="271" width="32" height="28" rx="6"/>
+        <text class="connector-label-text" x="675" y="286">9</text>
+      </g>
+      <g class="connector-label">
+        <rect class="connector-label-bg" x="659" y="411" width="32" height="28" rx="6"/>
+        <text class="connector-label-text" x="675" y="426">14</text>
+      </g>
+
+      <!-- ==================== 3D HEXAGON CELLS (Poker Chip Style) ==================== -->
+      
+      <!-- Row 0 -->
+      <!-- Cell (0,0) - VISITED -->
+      <g class="cell visited" transform="translate(75, 75)">
+        <polygon class="cell-shadow" points="0,-42 36,-21 36,21 0,42 -36,21 -36,-21" transform="translate(4, 14)"/>
+        <polygon class="cell-edge" points="0,-42 36,-21 36,21 0,42 -36,21 -36,-21" transform="translate(0, 12)"/>
+        <polygon class="cell-base" points="0,-42 36,-21 36,21 0,42 -36,21 -36,-21" transform="translate(0, 6)"/>
+        <polygon class="cell-top" points="0,-42 36,-21 36,21 0,42 -36,21 -36,-21"/>
+        <polygon class="cell-inner-shadow" points="0,-38 32,-19 32,19 0,38 -32,19 -32,-19"/>
+        <polygon class="cell-rim" points="0,-42 36,-21 36,21 0,42 -36,21 -36,-21"/>
+        <text class="cell-text" y="2">5 + 8</text>
+      </g>
+      
+      <!-- Cell (0,1) - VISITED -->
+      <g class="cell visited" transform="translate(225, 75)">
+        <polygon class="cell-shadow" points="0,-42 36,-21 36,21 0,42 -36,21 -36,-21" transform="translate(4, 14)"/>
+        <polygon class="cell-edge" points="0,-42 36,-21 36,21 0,42 -36,21 -36,-21" transform="translate(0, 12)"/>
+        <polygon class="cell-base" points="0,-42 36,-21 36,21 0,42 -36,21 -36,-21" transform="translate(0, 6)"/>
+        <polygon class="cell-top" points="0,-42 36,-21 36,21 0,42 -36,21 -36,-21"/>
+        <polygon class="cell-inner-shadow" points="0,-38 32,-19 32,19 0,38 -32,19 -32,-19"/>
+        <polygon class="cell-rim" points="0,-42 36,-21 36,21 0,42 -36,21 -36,-21"/>
+        <text class="cell-text" y="2">15 − 3</text>
+      </g>
+
+      <!-- Cell (0,2) - NORMAL -->
+      <g class="cell" transform="translate(375, 75)">
+        <polygon class="cell-shadow" points="0,-42 36,-21 36,21 0,42 -36,21 -36,-21" transform="translate(4, 14)"/>
+        <polygon class="cell-edge" points="0,-42 36,-21 36,21 0,42 -36,21 -36,-21" transform="translate(0, 12)"/>
+        <polygon class="cell-base" points="0,-42 36,-21 36,21 0,42 -36,21 -36,-21" transform="translate(0, 6)"/>
+        <polygon class="cell-top" points="0,-42 36,-21 36,21 0,42 -36,21 -36,-21"/>
+        <polygon class="cell-inner-shadow" points="0,-38 32,-19 32,19 0,38 -32,19 -32,-19"/>
+        <polygon class="cell-rim" points="0,-42 36,-21 36,21 0,42 -36,21 -36,-21"/>
+        <text class="cell-text" y="2">4 × 3</text>
+      </g>
+
+      <!-- Cell (0,3) - NORMAL -->
+      <g class="cell" transform="translate(525, 75)">
+        <polygon class="cell-shadow" points="0,-42 36,-21 36,21 0,42 -36,21 -36,-21" transform="translate(4, 14)"/>
+        <polygon class="cell-edge" points="0,-42 36,-21 36,21 0,42 -36,21 -36,-21" transform="translate(0, 12)"/>
+        <polygon class="cell-base" points="0,-42 36,-21 36,21 0,42 -36,21 -36,-21" transform="translate(0, 6)"/>
+        <polygon class="cell-top" points="0,-42 36,-21 36,21 0,42 -36,21 -36,-21"/>
+        <polygon class="cell-inner-shadow" points="0,-38 32,-19 32,19 0,38 -32,19 -32,-19"/>
+        <polygon class="cell-rim" points="0,-42 36,-21 36,21 0,42 -36,21 -36,-21"/>
+        <text class="cell-text" y="2">18 − 9</text>
+      </g>
+
+      <!-- Cell (0,4) - NORMAL -->
+      <g class="cell" transform="translate(675, 75)">
+        <polygon class="cell-shadow" points="0,-42 36,-21 36,21 0,42 -36,21 -36,-21" transform="translate(4, 14)"/>
+        <polygon class="cell-edge" points="0,-42 36,-21 36,21 0,42 -36,21 -36,-21" transform="translate(0, 12)"/>
+        <polygon class="cell-base" points="0,-42 36,-21 36,21 0,42 -36,21 -36,-21" transform="translate(0, 6)"/>
+        <polygon class="cell-top" points="0,-42 36,-21 36,21 0,42 -36,21 -36,-21"/>
+        <polygon class="cell-inner-shadow" points="0,-38 32,-19 32,19 0,38 -32,19 -32,-19"/>
+        <polygon class="cell-rim" points="0,-42 36,-21 36,21 0,42 -36,21 -36,-21"/>
+        <text class="cell-text" y="2">7 + 8</text>
+      </g>
+
+      <!-- Row 1 -->
+      <!-- Cell (1,0) - NORMAL -->
+      <g class="cell" transform="translate(75, 215)">
+        <polygon class="cell-shadow" points="0,-42 36,-21 36,21 0,42 -36,21 -36,-21" transform="translate(4, 14)"/>
+        <polygon class="cell-edge" points="0,-42 36,-21 36,21 0,42 -36,21 -36,-21" transform="translate(0, 12)"/>
+        <polygon class="cell-base" points="0,-42 36,-21 36,21 0,42 -36,21 -36,-21" transform="translate(0, 6)"/>
+        <polygon class="cell-top" points="0,-42 36,-21 36,21 0,42 -36,21 -36,-21"/>
+        <polygon class="cell-inner-shadow" points="0,-38 32,-19 32,19 0,38 -32,19 -32,-19"/>
+        <polygon class="cell-rim" points="0,-42 36,-21 36,21 0,42 -36,21 -36,-21"/>
+        <text class="cell-text" y="2">6 + 5</text>
+      </g>
+
+      <!-- Cell (1,1) - VISITED -->
+      <g class="cell visited" transform="translate(225, 215)">
+        <polygon class="cell-shadow" points="0,-42 36,-21 36,21 0,42 -36,21 -36,-21" transform="translate(4, 14)"/>
+        <polygon class="cell-edge" points="0,-42 36,-21 36,21 0,42 -36,21 -36,-21" transform="translate(0, 12)"/>
+        <polygon class="cell-base" points="0,-42 36,-21 36,21 0,42 -36,21 -36,-21" transform="translate(0, 6)"/>
+        <polygon class="cell-top" points="0,-42 36,-21 36,21 0,42 -36,21 -36,-21"/>
+        <polygon class="cell-inner-shadow" points="0,-38 32,-19 32,19 0,38 -32,19 -32,-19"/>
+        <polygon class="cell-rim" points="0,-42 36,-21 36,21 0,42 -36,21 -36,-21"/>
+        <text class="cell-text" y="2">3 × 4</text>
+      </g>
+
+      <!-- Cell (1,2) - CURRENT -->
+      <g class="cell current" transform="translate(375, 215)">
+        <polygon class="cell-shadow" points="0,-42 36,-21 36,21 0,42 -36,21 -36,-21" transform="translate(4, 14)"/>
+        <polygon class="cell-edge" points="0,-42 36,-21 36,21 0,42 -36,21 -36,-21" transform="translate(0, 12)"/>
+        <polygon class="cell-base" points="0,-42 36,-21 36,21 0,42 -36,21 -36,-21" transform="translate(0, 6)"/>
+        <polygon class="cell-top" points="0,-42 36,-21 36,21 0,42 -36,21 -36,-21"/>
+        <polygon class="cell-inner-shadow" points="0,-38 32,-19 32,19 0,38 -32,19 -32,-19"/>
+        <polygon class="cell-rim" points="0,-42 36,-21 36,21 0,42 -36,21 -36,-21"/>
+        <text class="cell-text" y="2">9 + 3</text>
+      </g>
+
+      <!-- Cell (1,3) - NORMAL -->
+      <g class="cell" transform="translate(525, 215)">
+        <polygon class="cell-shadow" points="0,-42 36,-21 36,21 0,42 -36,21 -36,-21" transform="translate(4, 14)"/>
+        <polygon class="cell-edge" points="0,-42 36,-21 36,21 0,42 -36,21 -36,-21" transform="translate(0, 12)"/>
+        <polygon class="cell-base" points="0,-42 36,-21 36,21 0,42 -36,21 -36,-21" transform="translate(0, 6)"/>
+        <polygon class="cell-top" points="0,-42 36,-21 36,21 0,42 -36,21 -36,-21"/>
+        <polygon class="cell-inner-shadow" points="0,-38 32,-19 32,19 0,38 -32,19 -32,-19"/>
+        <polygon class="cell-rim" points="0,-42 36,-21 36,21 0,42 -36,21 -36,-21"/>
+        <text class="cell-text" y="2">16 − 7</text>
+      </g>
+
+      <!-- Cell (1,4) - NORMAL -->
+      <g class="cell" transform="translate(675, 215)">
+        <polygon class="cell-shadow" points="0,-42 36,-21 36,21 0,42 -36,21 -36,-21" transform="translate(4, 14)"/>
+        <polygon class="cell-edge" points="0,-42 36,-21 36,21 0,42 -36,21 -36,-21" transform="translate(0, 12)"/>
+        <polygon class="cell-base" points="0,-42 36,-21 36,21 0,42 -36,21 -36,-21" transform="translate(0, 6)"/>
+        <polygon class="cell-top" points="0,-42 36,-21 36,21 0,42 -36,21 -36,-21"/>
+        <polygon class="cell-inner-shadow" points="0,-38 32,-19 32,19 0,38 -32,19 -32,-19"/>
+        <polygon class="cell-rim" points="0,-42 36,-21 36,21 0,42 -36,21 -36,-21"/>
+        <text class="cell-text" y="2">2 × 6</text>
+      </g>
+
+      <!-- Row 2 -->
+      <!-- Cell (2,0) - NORMAL -->
+      <g class="cell" transform="translate(75, 355)">
+        <polygon class="cell-shadow" points="0,-42 36,-21 36,21 0,42 -36,21 -36,-21" transform="translate(4, 14)"/>
+        <polygon class="cell-edge" points="0,-42 36,-21 36,21 0,42 -36,21 -36,-21" transform="translate(0, 12)"/>
+        <polygon class="cell-base" points="0,-42 36,-21 36,21 0,42 -36,21 -36,-21" transform="translate(0, 6)"/>
+        <polygon class="cell-top" points="0,-42 36,-21 36,21 0,42 -36,21 -36,-21"/>
+        <polygon class="cell-inner-shadow" points="0,-38 32,-19 32,19 0,38 -32,19 -32,-19"/>
+        <polygon class="cell-rim" points="0,-42 36,-21 36,21 0,42 -36,21 -36,-21"/>
+        <text class="cell-text" y="2">14 − 6</text>
+      </g>
+
+      <!-- Cell (2,1) - NORMAL -->
+      <g class="cell" transform="translate(225, 355)">
+        <polygon class="cell-shadow" points="0,-42 36,-21 36,21 0,42 -36,21 -36,-21" transform="translate(4, 14)"/>
+        <polygon class="cell-edge" points="0,-42 36,-21 36,21 0,42 -36,21 -36,-21" transform="translate(0, 12)"/>
+        <polygon class="cell-base" points="0,-42 36,-21 36,21 0,42 -36,21 -36,-21" transform="translate(0, 6)"/>
+        <polygon class="cell-top" points="0,-42 36,-21 36,21 0,42 -36,21 -36,-21"/>
+        <polygon class="cell-inner-shadow" points="0,-38 32,-19 32,19 0,38 -32,19 -32,-19"/>
+        <polygon class="cell-rim" points="0,-42 36,-21 36,21 0,42 -36,21 -36,-21"/>
+        <text class="cell-text" y="2">5 × 2</text>
+      </g>
+
+      <!-- Cell (2,2) - NORMAL -->
+      <g class="cell" transform="translate(375, 355)">
+        <polygon class="cell-shadow" points="0,-42 36,-21 36,21 0,42 -36,21 -36,-21" transform="translate(4, 14)"/>
+        <polygon class="cell-edge" points="0,-42 36,-21 36,21 0,42 -36,21 -36,-21" transform="translate(0, 12)"/>
+        <polygon class="cell-base" points="0,-42 36,-21 36,21 0,42 -36,21 -36,-21" transform="translate(0, 6)"/>
+        <polygon class="cell-top" points="0,-42 36,-21 36,21 0,42 -36,21 -36,-21"/>
+        <polygon class="cell-inner-shadow" points="0,-38 32,-19 32,19 0,38 -32,19 -32,-19"/>
+        <polygon class="cell-rim" points="0,-42 36,-21 36,21 0,42 -36,21 -36,-21"/>
+        <text class="cell-text" y="2">8 + 7</text>
+      </g>
+
+      <!-- Cell (2,3) - NORMAL -->
+      <g class="cell" transform="translate(525, 355)">
+        <polygon class="cell-shadow" points="0,-42 36,-21 36,21 0,42 -36,21 -36,-21" transform="translate(4, 14)"/>
+        <polygon class="cell-edge" points="0,-42 36,-21 36,21 0,42 -36,21 -36,-21" transform="translate(0, 12)"/>
+        <polygon class="cell-base" points="0,-42 36,-21 36,21 0,42 -36,21 -36,-21" transform="translate(0, 6)"/>
+        <polygon class="cell-top" points="0,-42 36,-21 36,21 0,42 -36,21 -36,-21"/>
+        <polygon class="cell-inner-shadow" points="0,-38 32,-19 32,19 0,38 -32,19 -32,-19"/>
+        <polygon class="cell-rim" points="0,-42 36,-21 36,21 0,42 -36,21 -36,-21"/>
+        <text class="cell-text" y="2">3 × 5</text>
+      </g>
+
+      <!-- Cell (2,4) - NORMAL -->
+      <g class="cell" transform="translate(675, 355)">
+        <polygon class="cell-shadow" points="0,-42 36,-21 36,21 0,42 -36,21 -36,-21" transform="translate(4, 14)"/>
+        <polygon class="cell-edge" points="0,-42 36,-21 36,21 0,42 -36,21 -36,-21" transform="translate(0, 12)"/>
+        <polygon class="cell-base" points="0,-42 36,-21 36,21 0,42 -36,21 -36,-21" transform="translate(0, 6)"/>
+        <polygon class="cell-top" points="0,-42 36,-21 36,21 0,42 -36,21 -36,-21"/>
+        <polygon class="cell-inner-shadow" points="0,-38 32,-19 32,19 0,38 -32,19 -32,-19"/>
+        <polygon class="cell-rim" points="0,-42 36,-21 36,21 0,42 -36,21 -36,-21"/>
+        <text class="cell-text" y="2">11 + 6</text>
+      </g>
+
+      <!-- Row 3 -->
+      <!-- Cell (3,0) - NORMAL -->
+      <g class="cell" transform="translate(75, 495)">
+        <polygon class="cell-shadow" points="0,-42 36,-21 36,21 0,42 -36,21 -36,-21" transform="translate(4, 14)"/>
+        <polygon class="cell-edge" points="0,-42 36,-21 36,21 0,42 -36,21 -36,-21" transform="translate(0, 12)"/>
+        <polygon class="cell-base" points="0,-42 36,-21 36,21 0,42 -36,21 -36,-21" transform="translate(0, 6)"/>
+        <polygon class="cell-top" points="0,-42 36,-21 36,21 0,42 -36,21 -36,-21"/>
+        <polygon class="cell-inner-shadow" points="0,-38 32,-19 32,19 0,38 -32,19 -32,-19"/>
+        <polygon class="cell-rim" points="0,-42 36,-21 36,21 0,42 -36,21 -36,-21"/>
+        <text class="cell-text" y="2">9 + 9</text>
+      </g>
+
+      <!-- Cell (3,1) - NORMAL -->
+      <g class="cell" transform="translate(225, 495)">
+        <polygon class="cell-shadow" points="0,-42 36,-21 36,21 0,42 -36,21 -36,-21" transform="translate(4, 14)"/>
+        <polygon class="cell-edge" points="0,-42 36,-21 36,21 0,42 -36,21 -36,-21" transform="translate(0, 12)"/>
+        <polygon class="cell-base" points="0,-42 36,-21 36,21 0,42 -36,21 -36,-21" transform="translate(0, 6)"/>
+        <polygon class="cell-top" points="0,-42 36,-21 36,21 0,42 -36,21 -36,-21"/>
+        <polygon class="cell-inner-shadow" points="0,-38 32,-19 32,19 0,38 -32,19 -32,-19"/>
+        <polygon class="cell-rim" points="0,-42 36,-21 36,21 0,42 -36,21 -36,-21"/>
+        <text class="cell-text" y="2">20 − 6</text>
+      </g>
+
+      <!-- Cell (3,2) - NORMAL -->
+      <g class="cell" transform="translate(375, 495)">
+        <polygon class="cell-shadow" points="0,-42 36,-21 36,21 0,42 -36,21 -36,-21" transform="translate(4, 14)"/>
+        <polygon class="cell-edge" points="0,-42 36,-21 36,21 0,42 -36,21 -36,-21" transform="translate(0, 12)"/>
+        <polygon class="cell-base" points="0,-42 36,-21 36,21 0,42 -36,21 -36,-21" transform="translate(0, 6)"/>
+        <polygon class="cell-top" points="0,-42 36,-21 36,21 0,42 -36,21 -36,-21"/>
+        <polygon class="cell-inner-shadow" points="0,-38 32,-19 32,19 0,38 -32,19 -32,-19"/>
+        <polygon class="cell-rim" points="0,-42 36,-21 36,21 0,42 -36,21 -36,-21"/>
+        <text class="cell-text" y="2">4 × 4</text>
+      </g>
+
+      <!-- Cell (3,3) - NORMAL -->
+      <g class="cell" transform="translate(525, 495)">
+        <polygon class="cell-shadow" points="0,-42 36,-21 36,21 0,42 -36,21 -36,-21" transform="translate(4, 14)"/>
+        <polygon class="cell-edge" points="0,-42 36,-21 36,21 0,42 -36,21 -36,-21" transform="translate(0, 12)"/>
+        <polygon class="cell-base" points="0,-42 36,-21 36,21 0,42 -36,21 -36,-21" transform="translate(0, 6)"/>
+        <polygon class="cell-top" points="0,-42 36,-21 36,21 0,42 -36,21 -36,-21"/>
+        <polygon class="cell-inner-shadow" points="0,-38 32,-19 32,19 0,38 -32,19 -32,-19"/>
+        <polygon class="cell-rim" points="0,-42 36,-21 36,21 0,42 -36,21 -36,-21"/>
+        <text class="cell-text" y="2">13 − 5</text>
+      </g>
+
+      <!-- Cell (3,4) - FINISH -->
+      <g class="cell finish" transform="translate(675, 495)">
+        <polygon class="cell-shadow" points="0,-42 36,-21 36,21 0,42 -36,21 -36,-21" transform="translate(4, 14)"/>
+        <polygon class="cell-edge" points="0,-42 36,-21 36,21 0,42 -36,21 -36,-21" transform="translate(0, 12)"/>
+        <polygon class="cell-base" points="0,-42 36,-21 36,21 0,42 -36,21 -36,-21" transform="translate(0, 6)"/>
+        <polygon class="cell-top" points="0,-42 36,-21 36,21 0,42 -36,21 -36,-21"/>
+        <polygon class="cell-inner-shadow" points="0,-38 32,-19 32,19 0,38 -32,19 -32,-19"/>
+        <polygon class="cell-rim" points="0,-42 36,-21 36,21 0,42 -36,21 -36,-21"/>
+        <text class="cell-text" y="2">FINISH</text>
+      </g>
+
+      <!-- START label -->
+      <text class="label-text start-label" x="75" y="20">START</text>
+      
+    </svg>
+  </main>
+
+  <!-- Button Bar -->
+  <div class="button-bar">
+    <button class="btn btn-primary">
+      <span class="btn-icon">🔄</span>
+      New Puzzle
+    </button>
+    <button class="btn btn-secondary">
+      <span class="btn-icon">⚙️</span>
+      Difficulty
+    </button>
+    <button class="btn btn-secondary">
+      <span class="btn-icon">🖨️</span>
+      Print Puzzle
+    </button>
+  </div>
+</body>
+</html>
