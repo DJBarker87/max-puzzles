@@ -76,6 +76,18 @@ export default function PuzzleGrid({
     )
   }
 
+  // Get the actual traversal direction - returns the coordinates in the order they were traversed
+  const getTraversalDirection = (cellA: Coordinate, cellB: Coordinate): { from: Coordinate; to: Coordinate } | null => {
+    const match = traversedConnectors.find(tc =>
+      (tc.cellA.row === cellA.row && tc.cellA.col === cellA.col &&
+       tc.cellB.row === cellB.row && tc.cellB.col === cellB.col) ||
+      (tc.cellA.row === cellB.row && tc.cellA.col === cellB.col &&
+       tc.cellB.row === cellA.row && tc.cellB.col === cellA.col)
+    )
+    if (!match) return null
+    return { from: match.cellA, to: match.cellB }
+  }
+
   const isConnectorWrong = (cellA: Coordinate, cellB: Coordinate): boolean => {
     return wrongConnectors?.some(wc =>
       (wc.cellA.row === cellA.row && wc.cellA.col === cellA.col &&
@@ -106,8 +118,15 @@ export default function PuzzleGrid({
       {/* Connectors layer (behind cells) */}
       <g className="connectors-layer">
         {puzzle.connectors.map((connector, index) => {
-          const centerA = getCellCenter(connector.cellA.row, connector.cellA.col)
-          const centerB = getCellCenter(connector.cellB.row, connector.cellB.col)
+          const isTraversed = isConnectorTraversed(connector.cellA, connector.cellB)
+          const traversalDir = isTraversed ? getTraversalDirection(connector.cellA, connector.cellB) : null
+
+          // Use actual traversal direction for animation flow, or default connector direction
+          const fromCoord = traversalDir ? traversalDir.from : connector.cellA
+          const toCoord = traversalDir ? traversalDir.to : connector.cellB
+
+          const centerA = getCellCenter(fromCoord.row, fromCoord.col)
+          const centerB = getCellCenter(toCoord.row, toCoord.col)
 
           return (
             <Connector
@@ -116,7 +135,7 @@ export default function PuzzleGrid({
               cellB={centerB}
               value={connector.value}
               type={connector.type}
-              isTraversed={isConnectorTraversed(connector.cellA, connector.cellB)}
+              isTraversed={isTraversed}
               isWrong={isConnectorWrong(connector.cellA, connector.cellB)}
               animationDelay={index * 50}
             />
