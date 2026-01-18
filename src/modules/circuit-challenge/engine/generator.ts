@@ -57,7 +57,14 @@ export function generatePuzzle(
       const unvaluedConnectors = buildConnectorGraph(gridRows, gridCols, diagonalGrid)
 
       // Step 4: Assign connector values
-      const valueResult = assignConnectorValues(unvaluedConnectors, connectorMin, connectorMax)
+      // When division is enabled, reserve ~25% of path connectors for division-friendly values (1-13)
+      const valueResult = assignConnectorValues(
+        unvaluedConnectors,
+        connectorMin,
+        connectorMax,
+        difficulty.divisionEnabled,
+        pathResult.path
+      )
       if (!valueResult.success) {
         continue
       }
