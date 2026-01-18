@@ -70,10 +70,16 @@ export function generatePuzzle(
       }
 
       // Step 5: Assign cell answers based on solution path
-      const cellGrid = assignCellAnswers(gridRows, gridCols, pathResult.path, valueResult.connectors)
+      const cellGrid = assignCellAnswers(
+        gridRows,
+        gridCols,
+        pathResult.path,
+        valueResult.connectors,
+        valueResult.divisionConnectorIndices
+      )
 
       // Step 6: Generate arithmetic expressions for each cell
-      applyExpressions(cellGrid.cells, difficulty)
+      applyExpressions(cellGrid.cells, difficulty, cellGrid.divisionCells)
 
       // Step 7: Construct puzzle object
       const puzzle: Puzzle = {

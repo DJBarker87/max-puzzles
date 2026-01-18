@@ -1,6 +1,6 @@
 import type { Cell, Coordinate, Connector } from '../types'
 import { coordToKey } from './pathfinder'
-import { getCellConnectors, getConnectorBetween } from './connectors'
+import { getCellConnectors } from './connectors'
 import { randomChoice } from './valueAssigner'
 
 /**
@@ -10,6 +10,8 @@ export interface CellGrid {
   cells: Cell[][]
   rows: number
   cols: number
+  /** Set of cell keys (row,col) that should prioritize division expressions */
+  divisionCells: Set<string>
 }
 
 /**
@@ -17,13 +19,20 @@ export interface CellGrid {
  * - Path cells: answer = value of connector to next cell in path
  * - Other cells: answer = random connector value (creates wrong paths)
  * - FINISH cell: answer = null
+ *
+ * @param divisionConnectorIndices - Indices of connectors reserved for division
  */
 export function assignCellAnswers(
   rows: number,
   cols: number,
   solutionPath: Coordinate[],
-  connectors: Connector[]
+  connectors: Connector[],
+  divisionConnectorIndices: number[] = []
 ): CellGrid {
+  // Create set of division connector indices for quick lookup
+  const divisionConnectorSet = new Set(divisionConnectorIndices)
+  // Track cells that get their answer from a division connector
+  const divisionCells = new Set<string>()
   // Initialize cells grid
   const cells: Cell[][] = []
   for (let row = 0; row < rows; row++) {
@@ -49,14 +58,30 @@ export function assignCellAnswers(
     const current = solutionPath[i]
     const next = solutionPath[i + 1]
 
-    // Find the connector between current and next
-    const connector = getConnectorBetween(current, next, connectors)
+    // Find the connector between current and next (and its index)
+    let connectorIndex = -1
+    const connector = connectors.find((c, idx) => {
+      const matches = (
+        (c.cellA.row === current.row && c.cellA.col === current.col &&
+         c.cellB.row === next.row && c.cellB.col === next.col) ||
+        (c.cellA.row === next.row && c.cellA.col === next.col &&
+         c.cellB.row === current.row && c.cellB.col === current.col)
+      )
+      if (matches) connectorIndex = idx
+      return matches
+    })
+
     if (!connector) {
       throw new Error(`No connector found between (${current.row},${current.col}) and (${next.row},${next.col})`)
     }
 
     // Cell's answer is the connector's value
     cells[current.row][current.col].answer = connector.value
+
+    // If this connector is reserved for division, mark the cell
+    if (divisionConnectorSet.has(connectorIndex)) {
+      divisionCells.add(coordToKey(current))
+    }
   }
 
   // Assign answers for cells NOT on the solution path (except FINISH)
@@ -88,7 +113,7 @@ export function assignCellAnswers(
     }
   }
 
-  return { cells, rows, cols }
+  return { cells, rows, cols, divisionCells }
 }
 
 /**
