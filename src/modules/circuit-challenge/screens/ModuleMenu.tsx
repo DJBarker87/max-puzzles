@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom'
-import { Button, Card } from '@/ui'
+import { Card } from '@/ui'
+import Header from '@/hub/components/Header'
 import { StarryBackground } from '../components'
 
 /**
@@ -12,24 +13,16 @@ export default function ModuleMenu() {
     <div className="min-h-screen flex flex-col relative">
       <StarryBackground />
 
-      {/* Header */}
-      <header className="flex items-center gap-4 p-4 md:p-8 relative z-10">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => navigate('/hub')}
-          className="w-11 h-11 rounded-xl !p-0 flex items-center justify-center"
-          aria-label="Go back"
-        >
-          <span className="text-xl">←</span>
-        </Button>
-        <div>
-          <h1 className="text-2xl md:text-3xl font-display font-bold">
-            <span className="text-accent-primary">⚡</span> Circuit Challenge
-          </h1>
-          <p className="text-text-secondary">Navigate the circuit!</p>
-        </div>
-      </header>
+      {/* Header with menu button for settings/shop access */}
+      <Header showMenu className="relative z-10" />
+
+      {/* Title section */}
+      <div className="px-4 md:px-8 pb-4 relative z-10">
+        <h1 className="text-2xl md:text-3xl font-display font-bold">
+          <span className="text-accent-primary">⚡</span> Circuit Challenge
+        </h1>
+        <p className="text-text-secondary">Navigate the circuit!</p>
+      </div>
 
       {/* Menu Options */}
       <div className="flex-1 flex flex-col items-center justify-center p-4 gap-4 relative z-10">

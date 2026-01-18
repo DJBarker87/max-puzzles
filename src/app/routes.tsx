@@ -43,9 +43,15 @@ function LazyRoute({ children }: { children: React.ReactNode }) {
  * Application routes
  */
 const router = createBrowserRouter([
-  // Splash
+  // Landing page redirects to play
   {
     path: '/',
+    element: <Navigate to="/play/circuit-challenge" replace />,
+  },
+
+  // Keep splash screen accessible if needed
+  {
+    path: '/splash',
     element: (
       <LazyRoute>
         <SplashScreen />
