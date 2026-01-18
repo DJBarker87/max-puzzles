@@ -257,25 +257,7 @@ export function renderPageSVG(
       height: ${layout.height - 20}mm;
       display: flex;
       flex-direction: column;
-      gap: 5mm;
-    }
-
-    .page-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: baseline;
-      padding-bottom: 3mm;
-      border-bottom: 1pt solid #ccc;
-    }
-
-    .page-title {
-      font-size: 14pt;
-      font-weight: bold;
-    }
-
-    .page-date {
-      font-size: 10pt;
-      color: #666;
+      gap: 3mm;
     }
 
     .puzzle-section {
@@ -395,20 +377,7 @@ export function renderPageSVG(
   <div class="page">
 `
 
-  // Page header
-  html += `<div class="page-header">`
-  html += `<span class="page-title">${escapeXml(config.title)}</span>`
-  if (config.showDate) {
-    const dateStr = new Date().toLocaleDateString('en-GB', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-    })
-    html += `<span class="page-date">${dateStr}</span>`
-  }
-  html += `</div>`
-
-  // Render puzzles
+  // Render puzzles (no header to maximize space for puzzles)
   if (config.puzzlesPerPage === 2 && puzzles.length === 2) {
     html += renderPuzzleSection(puzzles[0], config, showSolutions)
     html += renderPuzzleSection(puzzles[1], config, showSolutions)
