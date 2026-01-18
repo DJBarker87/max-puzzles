@@ -92,7 +92,6 @@ export default function PuzzleMakerScreen() {
 
   // Calculate stats
   const totalPages = Math.ceil(puzzles.length / config.puzzlesPerPage)
-  const totalPagesWithAnswers = config.showAnswers ? totalPages * 2 + 1 : totalPages
 
   return (
     <div className="min-h-screen flex flex-col relative">
