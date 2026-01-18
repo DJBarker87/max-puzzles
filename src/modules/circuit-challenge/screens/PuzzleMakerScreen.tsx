@@ -123,111 +123,54 @@ export default function PuzzleMakerScreen() {
         </Card>
 
         {/* Configuration */}
-        <div className="grid md:grid-cols-2 gap-4 mb-6">
-          {/* Puzzle Settings */}
-          <Card className="p-4">
-            <h3 className="font-bold mb-4">Puzzle Settings</h3>
+        <Card className="p-4 mb-6">
+          <h3 className="font-bold mb-4">Puzzle Settings</h3>
 
-            {/* Difficulty */}
-            <div className="mb-4">
-              <label className="block text-sm font-medium mb-2">
-                Difficulty Level
-              </label>
-              <select
-                value={config.difficulty}
-                onChange={(e) => updateConfig({ difficulty: Number(e.target.value) })}
-                className="w-full px-3 py-2 rounded-lg bg-background-dark border border-white/20 focus:border-accent-primary outline-none text-white"
-              >
-                {Object.entries(DIFFICULTY_NAMES).map(([level, name]) => (
-                  <option key={level} value={level}>
-                    {name} (Level {Number(level) + 1})
-                  </option>
-                ))}
-              </select>
-            </div>
+          {/* Difficulty */}
+          <div className="mb-4">
+            <label className="block text-sm font-medium mb-2">
+              Difficulty Level
+            </label>
+            <select
+              value={config.difficulty}
+              onChange={(e) => updateConfig({ difficulty: Number(e.target.value) })}
+              className="w-full px-3 py-2 rounded-lg bg-background-dark border border-white/20 focus:border-accent-primary outline-none text-white"
+            >
+              {Object.entries(DIFFICULTY_NAMES).map(([level, name]) => (
+                <option key={level} value={level}>
+                  {name} (Level {Number(level) + 1})
+                </option>
+              ))}
+            </select>
+          </div>
 
-            {/* Puzzle Count */}
-            <div className="mb-4">
-              <label className="block text-sm font-medium mb-2">
-                Number of Puzzles: {config.puzzleCount}
-              </label>
-              <input
-                type="range"
-                min={2}
-                max={50}
-                step={2}
-                value={config.puzzleCount}
-                onChange={(e) => updateConfig({ puzzleCount: Number(e.target.value) })}
-                className="w-full accent-accent-primary"
-              />
-              <div className="flex justify-between text-xs text-text-secondary">
-                <span>2</span>
-                <span>50</span>
-              </div>
-            </div>
-
-            {/* Include Answers */}
-            <Toggle
-              checked={config.showAnswers}
-              onChange={(checked) => updateConfig({ showAnswers: checked })}
-              label="Include answer key pages"
+          {/* Puzzle Count */}
+          <div className="mb-4">
+            <label className="block text-sm font-medium mb-2">
+              Number of Puzzles: {config.puzzleCount}
+            </label>
+            <input
+              type="range"
+              min={2}
+              max={50}
+              step={2}
+              value={config.puzzleCount}
+              onChange={(e) => updateConfig({ puzzleCount: Number(e.target.value) })}
+              className="w-full accent-accent-primary"
             />
-          </Card>
-
-          {/* Page Settings */}
-          <Card className="p-4">
-            <h3 className="font-bold mb-4">Page Settings</h3>
-
-            {/* Title */}
-            <div className="mb-4">
-              <label className="block text-sm font-medium mb-2">
-                Worksheet Title
-              </label>
-              <input
-                type="text"
-                value={config.title}
-                onChange={(e) => updateConfig({ title: e.target.value })}
-                placeholder="Circuit Challenge"
-                className="w-full px-3 py-2 rounded-lg bg-background-dark border border-white/20 focus:border-accent-primary outline-none text-white placeholder:text-text-secondary"
-              />
+            <div className="flex justify-between text-xs text-text-secondary">
+              <span>2</span>
+              <span>50</span>
             </div>
+          </div>
 
-            {/* Subtitle */}
-            <div className="mb-4">
-              <label className="block text-sm font-medium mb-2">
-                Subtitle (optional)
-              </label>
-              <input
-                type="text"
-                value={config.subtitle}
-                onChange={(e) => updateConfig({ subtitle: e.target.value })}
-                placeholder="e.g., Year 5 Maths - Week 3"
-                className="w-full px-3 py-2 rounded-lg bg-background-dark border border-white/20 focus:border-accent-primary outline-none text-white placeholder:text-text-secondary"
-              />
-            </div>
-
-            {/* Options */}
-            <div className="space-y-3">
-              <Toggle
-                checked={config.showDate}
-                onChange={(checked) => updateConfig({ showDate: checked })}
-                label="Show date on pages"
-              />
-
-              <Toggle
-                checked={config.showPageNumbers}
-                onChange={(checked) => updateConfig({ showPageNumbers: checked })}
-                label="Show page numbers"
-              />
-
-              <Toggle
-                checked={config.showDifficulty}
-                onChange={(checked) => updateConfig({ showDifficulty: checked })}
-                label="Show difficulty label"
-              />
-            </div>
-          </Card>
-        </div>
+          {/* Include Answers */}
+          <Toggle
+            checked={config.showAnswers}
+            onChange={(checked) => updateConfig({ showAnswers: checked })}
+            label="Include answer key pages"
+          />
+        </Card>
 
         {/* Generate Button */}
         <div className="mb-6">
