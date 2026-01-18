@@ -129,10 +129,10 @@ export default function GameScreen() {
   }
 
   return (
-    <div className={`min-h-screen flex flex-col relative ${shakeClassName}`}>
+    <div className={`h-screen flex flex-col relative overflow-hidden ${shakeClassName}`}>
       <StarryBackground />
 
-      {/* Game Header */}
+      {/* Game Header - shrink-0 to prevent compression */}
       <GameHeader
         title={state.isHiddenMode ? 'Hidden Mode' : 'Quick Play'}
         lives={state.lives}
@@ -144,12 +144,13 @@ export default function GameScreen() {
         coinChange={coinChange}
         isHiddenMode={state.isHiddenMode}
         onBackClick={() => setShowExitConfirm(true)}
+        className="shrink-0"
       />
 
-      {/* Puzzle Grid */}
-      <div className="flex-1 flex items-center justify-center p-2 relative z-10 overflow-hidden">
+      {/* Puzzle Grid - flex-1 min-h-0 allows proper shrinking within flexbox */}
+      <div className="flex-1 min-h-0 flex items-center justify-center p-2 relative z-10">
         {state.puzzle ? (
-          <div className="w-full h-full max-w-[90vw] max-h-[calc(100vh-180px)] flex items-center justify-center">
+          <div className="w-full h-full flex items-center justify-center">
             <PuzzleGrid
               puzzle={state.puzzle}
               currentPosition={state.currentPosition}
@@ -177,7 +178,7 @@ export default function GameScreen() {
         )}
       </div>
 
-      {/* Action Buttons */}
+      {/* Action Buttons - shrink-0 to prevent compression */}
       <ActionButtons
         onReset={resetPuzzle}
         onNewPuzzle={handleNewPuzzle}
@@ -186,6 +187,7 @@ export default function GameScreen() {
         onViewSolution={state.status === 'lost' ? showSolution : undefined}
         showViewSolution={state.status === 'lost' && !state.showingSolution}
         disabled={!state.puzzle}
+        className="shrink-0"
       />
 
       {/* Exit Confirmation Modal */}
