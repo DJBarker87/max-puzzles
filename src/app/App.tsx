@@ -1,6 +1,7 @@
 import { Component, ErrorInfo, ReactNode } from 'react'
 import { AppProviders } from './providers'
 import { AppRouter } from './routes'
+import { OfflineBanner, PWAUpdatePrompt, InstallPrompt } from '@/shared/components'
 
 interface ErrorBoundaryProps {
   children: ReactNode
@@ -61,7 +62,10 @@ export default function App() {
   return (
     <ErrorBoundary>
       <AppProviders>
+        <OfflineBanner />
         <AppRouter />
+        <PWAUpdatePrompt />
+        <InstallPrompt />
       </AppProviders>
     </ErrorBoundary>
   )
