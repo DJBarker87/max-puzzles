@@ -180,6 +180,11 @@ export function generateDivision(
 }
 
 /**
+ * Maximum answer value for division expressions (keeps mental math manageable)
+ */
+const MAX_DIVISION_ANSWER = 13
+
+/**
  * Generate an arithmetic expression that evaluates to the target value
  */
 export function generateExpression(
@@ -203,7 +208,10 @@ export function generateExpression(
         expression = generateMultiplication(target, difficulty.multDivRange)
         break
       case '÷':
-        expression = generateDivision(target, difficulty.multDivRange)
+        // Only use division for small answers (keeps mental math manageable)
+        if (target <= MAX_DIVISION_ANSWER) {
+          expression = generateDivision(target, difficulty.multDivRange)
+        }
         break
     }
 
