@@ -1,0 +1,79 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Nunito:wght@400;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Background colors */
+  --color-bg-dark: #0f0f23;
+  --color-bg-mid: #1a1a3e;
+  --color-bg-light: #252550;
+
+  /* Accent colors */
+  --color-accent-primary: #22c55e;
+  --color-accent-secondary: #e94560;
+  --color-accent-tertiary: #fbbf24;
+
+  /* Circuit colors */
+  --color-circuit-cell-normal: #3a3a4a;
+  --color-circuit-cell-edge: #1a1a25;
+  --color-circuit-start: #15803d;
+  --color-circuit-finish: #ca8a04;
+  --color-circuit-current: #0d9488;
+  --color-circuit-visited: #1a5c38;
+  --color-circuit-connector-default: #3d3428;
+  --color-circuit-connector-active: #00dd77;
+  --color-circuit-connector-glow: #00ff88;
+
+  /* Text colors */
+  --color-text-primary: #ffffff;
+  --color-text-secondary: #a1a1aa;
+
+  /* Status colors */
+  --color-error: #ef4444;
+  --color-hearts-active: #ff3366;
+  --color-hearts-inactive: #2a2a3a;
+}
+
+@layer base {
+  body {
+    @apply bg-background-dark text-text-primary font-body;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Prevent text selection during gameplay */
+  .no-select {
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+  }
+}
+
+@layer components {
+  /* Focus visible styles for accessibility */
+  .focus-ring {
+    @apply focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background-dark;
+  }
+}
+
+@layer utilities {
+  /* Glow effects */
+  .glow-primary {
+    box-shadow: 0 0 20px rgba(34, 197, 94, 0.4);
+  }
+
+  .glow-secondary {
+    box-shadow: 0 0 20px rgba(233, 69, 96, 0.4);
+  }
+
+  .glow-tertiary {
+    box-shadow: 0 0 20px rgba(251, 191, 36, 0.4);
+  }
+
+  .glow-connector {
+    filter: drop-shadow(0 0 8px rgba(0, 255, 136, 0.5));
+  }
+}

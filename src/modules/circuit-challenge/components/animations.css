@@ -1,0 +1,130 @@
+/* ============================================
+   Circuit Challenge - Animation Styles
+   ============================================ */
+
+/* Electric flow animation for connectors */
+@keyframes electricFlow {
+  0% { stroke-dashoffset: 0; }
+  100% { stroke-dashoffset: -36; }
+}
+
+.energy-flow-fast {
+  animation: electricFlow 0.8s linear infinite;
+}
+
+.energy-flow-slow {
+  animation: electricFlow 1.2s linear infinite;
+}
+
+/* Connector glow pulse */
+@keyframes connectorPulse {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 0.8; }
+}
+
+.connector-glow {
+  animation: connectorPulse 1.5s ease-in-out infinite;
+}
+
+/* Cell pulsing for current position */
+@keyframes cellPulse {
+  0%, 100% {
+    filter: drop-shadow(0 0 20px rgba(0, 255, 200, 0.5));
+  }
+  50% {
+    filter: drop-shadow(0 0 35px rgba(0, 255, 200, 0.9));
+  }
+}
+
+.cell-current {
+  animation: cellPulse 1.5s ease-in-out infinite;
+}
+
+/* Visited cell subtle pulse */
+@keyframes visitedPulse {
+  0%, 100% {
+    filter: drop-shadow(0 0 8px rgba(0, 255, 136, 0.3));
+  }
+  50% {
+    filter: drop-shadow(0 0 20px rgba(0, 255, 136, 0.6));
+  }
+}
+
+.cell-visited {
+  animation: visitedPulse 2s ease-in-out infinite;
+}
+
+/* Heart pulse */
+@keyframes heartPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.15); }
+}
+
+.animate-heart-pulse {
+  animation: heartPulse 1.2s ease-in-out infinite;
+}
+
+/* Heart break animation */
+@keyframes heartBreak {
+  0% { transform: scale(1); opacity: 1; }
+  25% { transform: scale(1.3); }
+  50% { transform: scale(0.8) rotate(10deg); }
+  75% { transform: scale(0.5) rotate(-10deg); opacity: 0.5; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.animate-heart-break {
+  animation: heartBreak 0.5s ease-out forwards;
+}
+
+/* Coin floating animations */
+@keyframes floatUp {
+  0% {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -30px);
+  }
+}
+
+@keyframes floatDown {
+  0% {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, 20px);
+  }
+}
+
+.animate-float-up {
+  animation: floatUp 0.8s ease-out forwards;
+}
+
+.animate-float-down {
+  animation: floatDown 0.8s ease-out forwards;
+}
+
+/* Screen shake for wrong answer */
+@keyframes screenShake {
+  0%, 100% { transform: translateX(0); }
+  10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+  20%, 40%, 60%, 80% { transform: translateX(5px); }
+}
+
+.animate-shake {
+  animation: screenShake 0.3s ease-out;
+}
+
+/* Star twinkle for background */
+@keyframes twinkle {
+  0%, 100% { opacity: 0.3; transform: scale(1); }
+  50% { opacity: 0.8; transform: scale(1.2); }
+}
+
+.animate-twinkle {
+  animation: twinkle var(--twinkle-duration, 4s) ease-in-out infinite;
+}
