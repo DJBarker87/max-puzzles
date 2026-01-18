@@ -1,5 +1,6 @@
 import { generatePuzzle } from '../engine/generator'
 import { DIFFICULTY_PRESETS } from '../engine/difficulty'
+import type { DifficultySettings } from '../engine/types'
 import type { Puzzle, Coordinate, Connector } from '../types'
 import type {
   PrintConfig,
@@ -29,6 +30,38 @@ export function generatePrintablePuzzles(config: PrintConfig): PrintablePuzzle[]
       const retry = generatePuzzle(diffSettings)
       if (retry.success) {
         const printable = convertToPrintable(retry.puzzle, i + 1, difficultyIndex)
+        puzzles.push(printable)
+      } else {
+        console.warn(`Failed to generate puzzle ${i + 1}:`, retry.error)
+      }
+    }
+  }
+
+  return puzzles
+}
+
+/**
+ * Generates a batch of puzzles formatted for printing using custom difficulty settings.
+ */
+export function generatePrintablePuzzlesWithSettings(
+  config: PrintConfig,
+  diffSettings: DifficultySettings
+): PrintablePuzzle[] {
+  const puzzles: PrintablePuzzle[] = []
+
+  for (let i = 0; i < config.puzzleCount; i++) {
+    // Generate a puzzle using the existing engine with custom settings
+    const result = generatePuzzle(diffSettings)
+
+    if (result.success) {
+      // Convert to printable format
+      const printable = convertToPrintableWithSettings(result.puzzle, i + 1, diffSettings)
+      puzzles.push(printable)
+    } else {
+      // If generation fails, retry once more
+      const retry = generatePuzzle(diffSettings)
+      if (retry.success) {
+        const printable = convertToPrintableWithSettings(retry.puzzle, i + 1, diffSettings)
         puzzles.push(printable)
       } else {
         console.warn(`Failed to generate puzzle ${i + 1}:`, retry.error)
@@ -137,6 +170,98 @@ function convertToPrintable(
     puzzleNumber,
     difficulty: difficultyIndex,
     difficultyName: DIFF_NAMES[difficultyIndex] || `Level ${difficultyIndex + 1}`,
+    gridRows,
+    gridCols,
+    cells,
+    connectors: printableConnectors,
+    targetSum,
+    solution: solutionIndices,
+  }
+}
+
+/**
+ * Converts a generated puzzle to printable format using custom difficulty settings.
+ */
+function convertToPrintableWithSettings(
+  puzzle: Puzzle,
+  puzzleNumber: number,
+  diffSettings: DifficultySettings
+): PrintablePuzzle {
+  const { grid, connectors, solution } = puzzle
+  const gridRows = grid.length
+  const gridCols = grid[0]?.length || 0
+
+  // Create solution set for quick lookup (using coordinate key)
+  const solutionCoords = solution.path.map(
+    (c: Coordinate) => `${c.row},${c.col}`
+  )
+  const solutionSet = new Set(solutionCoords)
+
+  // Create solution edges for connector highlighting
+  const solutionEdges = new Set<string>()
+  for (let i = 0; i < solution.path.length - 1; i++) {
+    const from = solution.path[i]
+    const to = solution.path[i + 1]
+    solutionEdges.add(`${from.row},${from.col}-${to.row},${to.col}`)
+    solutionEdges.add(`${to.row},${to.col}-${from.row},${from.col}`)
+  }
+
+  // Convert cells
+  const cells: PrintableCell[] = []
+  let targetSum = 0
+
+  for (let row = 0; row < gridRows; row++) {
+    for (let col = 0; col < gridCols; col++) {
+      const cell = grid[row][col]
+      const index = row * gridCols + col
+      const coordKey = `${row},${col}`
+      const inSolution = solutionSet.has(coordKey)
+
+      if (inSolution && cell.answer !== null) {
+        targetSum += cell.answer
+      }
+
+      cells.push({
+        index,
+        row,
+        col,
+        expression: cell.expression,
+        answer: cell.answer,
+        isStart: cell.isStart,
+        isEnd: cell.isFinish,
+        inSolution,
+      })
+    }
+  }
+
+  // Convert connectors
+  const printableConnectors: PrintableConnector[] = connectors.map(
+    (conn: Connector) => {
+      const edgeKey = `${conn.cellA.row},${conn.cellA.col}-${conn.cellB.row},${conn.cellB.col}`
+      return {
+        fromRow: conn.cellA.row,
+        fromCol: conn.cellA.col,
+        toRow: conn.cellB.row,
+        toCol: conn.cellB.col,
+        value: conn.value,
+        inSolution: solutionEdges.has(edgeKey),
+      }
+    }
+  )
+
+  // Convert solution path to indices
+  const solutionIndices = solution.path.map(
+    (c: Coordinate) => c.row * gridCols + c.col
+  )
+
+  // Build difficulty name from settings
+  const difficultyName = diffSettings.name || 'Custom'
+
+  return {
+    id: puzzle.id,
+    puzzleNumber,
+    difficulty: 0, // Custom difficulty doesn't have a preset index
+    difficultyName,
     gridRows,
     gridCols,
     cells,

@@ -1,16 +1,37 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Button, Card, Modal, Toggle } from '@/ui'
+import { Button, Card, Modal, Toggle, Slider } from '@/ui'
 import { StarryBackground, PuzzlePreview } from '../components'
-import { generatePrintablePuzzles } from '../services/printGenerator'
+import { generatePrintablePuzzlesWithSettings } from '../services/printGenerator'
 import { renderAllPages } from '../services/svgRenderer'
 import { openPrintPreview, openPreview } from '../services/pdfGenerator'
 import {
+  DIFFICULTY_PRESETS,
+  createCustomDifficulty,
+  calculateMinPathLength,
+  calculateMaxPathLength,
+} from '../engine/difficulty'
+import type { DifficultySettings } from '../engine/types'
+import {
   DEFAULT_PRINT_CONFIG,
-  DIFFICULTY_NAMES,
   type PrintConfig,
   type PrintablePuzzle,
 } from '../types/print'
+
+/**
+ * Get human-readable description of a difficulty preset
+ */
+function getPresetDescription(preset: DifficultySettings): string {
+  const ops: string[] = []
+  if (preset.additionEnabled) ops.push('addition')
+  if (preset.subtractionEnabled) ops.push('subtraction')
+  if (preset.multiplicationEnabled) ops.push('multiplication')
+  if (preset.divisionEnabled) ops.push('division')
+
+  const opsStr = ops.length === 1 ? ops[0] : ops.slice(0, -1).join(', ') + ' & ' + ops[ops.length - 1]
+
+  return `${opsStr.charAt(0).toUpperCase() + opsStr.slice(1)}, numbers up to ${preset.addSubRange}, ${preset.gridRows}×${preset.gridCols} grid`
+}
 
 /**
  * Puzzle Maker screen for generating printable worksheets.
@@ -20,6 +41,20 @@ export default function PuzzleMakerScreen() {
 
   // Configuration state
   const [config, setConfig] = useState<PrintConfig>(DEFAULT_PRINT_CONFIG)
+  const [selectedPreset, setSelectedPreset] = useState(3) // Default to Level 4
+  const [isCustomMode, setIsCustomMode] = useState(false)
+
+  // Custom settings
+  const [customSettings, setCustomSettings] = useState<Partial<DifficultySettings>>({
+    additionEnabled: true,
+    subtractionEnabled: true,
+    multiplicationEnabled: false,
+    divisionEnabled: false,
+    addSubRange: 20,
+    multDivRange: 5,
+    gridRows: 4,
+    gridCols: 5,
+  })
 
   // Generation state
   const [puzzles, setPuzzles] = useState<PrintablePuzzle[]>([])
@@ -30,21 +65,43 @@ export default function PuzzleMakerScreen() {
   // Modal state
   const [showPreviewModal, setShowPreviewModal] = useState(false)
 
+  const currentPreset = DIFFICULTY_PRESETS[selectedPreset]
+
+  // Build the final difficulty settings
+  const finalDifficulty = useMemo<DifficultySettings>(() => {
+    if (isCustomMode) {
+      const settings = createCustomDifficulty({
+        ...customSettings,
+      })
+      settings.minPathLength = calculateMinPathLength(settings.gridRows, settings.gridCols)
+      settings.maxPathLength = calculateMaxPathLength(settings.gridRows, settings.gridCols)
+      return settings
+    } else {
+      const preset = { ...currentPreset }
+      preset.minPathLength = calculateMinPathLength(preset.gridRows, preset.gridCols)
+      preset.maxPathLength = calculateMaxPathLength(preset.gridRows, preset.gridCols)
+      return preset
+    }
+  }, [isCustomMode, customSettings, currentPreset])
+
   // Update config helper
   const updateConfig = (updates: Partial<PrintConfig>) => {
     setConfig((prev) => ({ ...prev, ...updates }))
-    // Clear puzzles when config changes
     setPuzzles([])
+  }
+
+  const handlePresetChange = (preset: number) => {
+    setSelectedPreset(preset)
+    updateConfig({ difficulty: preset })
   }
 
   // Generate puzzles
   const handleGenerate = useCallback(() => {
     setIsGenerating(true)
 
-    // Use setTimeout to allow UI to update
     setTimeout(() => {
       try {
-        const newPuzzles = generatePrintablePuzzles(config)
+        const newPuzzles = generatePrintablePuzzlesWithSettings(config, finalDifficulty)
         setPuzzles(newPuzzles)
         setPreviewIndex(0)
       } catch (err) {
@@ -53,7 +110,7 @@ export default function PuzzleMakerScreen() {
         setIsGenerating(false)
       }
     }, 100)
-  }, [config])
+  }, [config, finalDifficulty])
 
   // Print / Export to PDF
   const handlePrint = useCallback(() => {
@@ -62,10 +119,7 @@ export default function PuzzleMakerScreen() {
     setIsExporting(true)
 
     try {
-      // Render all pages
       const { questionPages, answerPages } = renderAllPages(puzzles, config)
-
-      // Open print preview
       openPrintPreview(questionPages, answerPages, config)
     } catch (err) {
       console.error('Error exporting:', err)
@@ -89,6 +143,40 @@ export default function PuzzleMakerScreen() {
       setIsExporting(false)
     }
   }, [puzzles, config])
+
+  const toggleOperation = (op: string) => {
+    switch (op) {
+      case '+':
+        setCustomSettings(s => ({ ...s, additionEnabled: !s.additionEnabled }))
+        break
+      case '−':
+        setCustomSettings(s => ({ ...s, subtractionEnabled: !s.subtractionEnabled }))
+        break
+      case '×':
+        setCustomSettings(s => ({ ...s, multiplicationEnabled: !s.multiplicationEnabled }))
+        break
+      case '÷':
+        setCustomSettings(s => ({ ...s, divisionEnabled: !s.divisionEnabled }))
+        break
+    }
+    setPuzzles([])
+  }
+
+  const isOperationEnabled = (op: string): boolean => {
+    switch (op) {
+      case '+': return customSettings.additionEnabled ?? true
+      case '−': return customSettings.subtractionEnabled ?? false
+      case '×': return customSettings.multiplicationEnabled ?? false
+      case '÷': return customSettings.divisionEnabled ?? false
+      default: return false
+    }
+  }
+
+  // Check if at least one operation is enabled
+  const hasValidOperations = isCustomMode
+    ? (customSettings.additionEnabled || customSettings.subtractionEnabled ||
+       customSettings.multiplicationEnabled || customSettings.divisionEnabled)
+    : true
 
   // Calculate stats
   const totalPages = Math.ceil(puzzles.length / config.puzzlesPerPage)
@@ -121,29 +209,153 @@ export default function PuzzleMakerScreen() {
           </p>
         </Card>
 
-        {/* Configuration */}
+        {/* Difficulty Selection */}
+        <Card className="mb-6 p-4">
+          <h3 className="font-bold mb-4">Difficulty</h3>
+
+          <select
+            value={selectedPreset}
+            onChange={(e) => handlePresetChange(Number(e.target.value))}
+            disabled={isCustomMode}
+            className="w-full p-3 rounded-lg bg-background-dark border border-white/20 text-white disabled:opacity-50"
+          >
+            {DIFFICULTY_PRESETS.map((preset, i) => (
+              <option key={i} value={i}>
+                Level {i + 1}: {preset.name}
+              </option>
+            ))}
+          </select>
+
+          <p className="mt-2 text-text-secondary text-sm">
+            {getPresetDescription(currentPreset)}
+          </p>
+        </Card>
+
+        {/* Custom Settings Toggle */}
+        <Card className="mb-6 p-4">
+          <Toggle
+            checked={isCustomMode}
+            onChange={(checked) => {
+              setIsCustomMode(checked)
+              setPuzzles([])
+            }}
+            label="Custom Settings"
+          />
+
+          {isCustomMode && (
+            <div className="mt-6 space-y-6">
+              {/* Operations checkboxes */}
+              <div>
+                <label className="text-sm font-medium mb-3 block">Operations</label>
+                <div className="flex flex-wrap gap-3">
+                  {['+', '−', '×', '÷'].map((op) => (
+                    <label
+                      key={op}
+                      className="flex items-center gap-2 cursor-pointer"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isOperationEnabled(op)}
+                        onChange={() => toggleOperation(op)}
+                        className="w-5 h-5 rounded accent-accent-primary"
+                      />
+                      <span className="text-lg">{op}</span>
+                    </label>
+                  ))}
+                </div>
+                {!hasValidOperations && (
+                  <p className="text-error text-sm mt-2">
+                    At least one operation must be enabled
+                  </p>
+                )}
+              </div>
+
+              {/* Add/Sub Range slider */}
+              <Slider
+                label="+/− Number Range"
+                min={5}
+                max={100}
+                value={customSettings.addSubRange ?? 20}
+                onChange={(v) => {
+                  setCustomSettings((s) => ({ ...s, addSubRange: v }))
+                  setPuzzles([])
+                }}
+                showValue
+              />
+
+              {/* Mult/Div Range slider (if enabled) */}
+              {(customSettings.multiplicationEnabled || customSettings.divisionEnabled) && (
+                <Slider
+                  label="×/÷ Number Range"
+                  min={2}
+                  max={12}
+                  value={customSettings.multDivRange ?? 5}
+                  onChange={(v) => {
+                    setCustomSettings((s) => ({ ...s, multDivRange: v }))
+                    setPuzzles([])
+                  }}
+                  showValue
+                />
+              )}
+
+              {/* Grid size selectors */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Rows</label>
+                  <div className="flex flex-wrap gap-2">
+                    {[3, 4, 5, 6, 7, 8].map((n) => (
+                      <button
+                        key={n}
+                        onClick={() => {
+                          setCustomSettings((s) => ({ ...s, gridRows: n }))
+                          setPuzzles([])
+                        }}
+                        className={`w-10 h-10 rounded transition-colors ${
+                          customSettings.gridRows === n
+                            ? 'bg-accent-primary text-white'
+                            : 'bg-background-dark border border-white/20 hover:border-white/40'
+                        }`}
+                      >
+                        {n}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Columns</label>
+                  <div className="flex flex-wrap gap-2">
+                    {[4, 5, 6, 7, 8, 9, 10].map((n) => (
+                      <button
+                        key={n}
+                        onClick={() => {
+                          setCustomSettings((s) => ({ ...s, gridCols: n }))
+                          setPuzzles([])
+                        }}
+                        className={`w-10 h-10 rounded transition-colors ${
+                          customSettings.gridCols === n
+                            ? 'bg-accent-primary text-white'
+                            : 'bg-background-dark border border-white/20 hover:border-white/40'
+                        }`}
+                      >
+                        {n}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Custom description */}
+              <p className="text-text-secondary text-sm">
+                {getPresetDescription(finalDifficulty)}
+              </p>
+            </div>
+          )}
+        </Card>
+
+        {/* Puzzle Count */}
         <Card className="p-4 mb-6">
-          <h3 className="font-bold mb-4">Puzzle Settings</h3>
+          <h3 className="font-bold mb-4">Puzzle Count</h3>
 
-          {/* Difficulty */}
-          <div className="mb-4">
-            <label className="block text-sm font-medium mb-2">
-              Difficulty Level
-            </label>
-            <select
-              value={config.difficulty}
-              onChange={(e) => updateConfig({ difficulty: Number(e.target.value) })}
-              className="w-full px-3 py-2 rounded-lg bg-background-dark border border-white/20 focus:border-accent-primary outline-none text-white"
-            >
-              {Object.entries(DIFFICULTY_NAMES).map(([level, name]) => (
-                <option key={level} value={level}>
-                  {name} (Level {Number(level) + 1})
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Puzzle Count */}
           <div className="mb-4">
             <label className="block text-sm font-medium mb-2">
               Number of Puzzles: {config.puzzleCount}
@@ -179,7 +391,7 @@ export default function PuzzleMakerScreen() {
             size="lg"
             onClick={handleGenerate}
             loading={isGenerating}
-            disabled={isGenerating}
+            disabled={isGenerating || !hasValidOperations}
           >
             {isGenerating
               ? 'Generating Puzzles...'
