@@ -180,6 +180,39 @@ export function generateDivision(
 }
 
 /**
+ * Check if a number is a good multiplication candidate (has factors within range)
+ * Returns the multiplication likelihood boost (0 to 1) based on the value
+ */
+function getMultiplicationBoost(target: number, maxFactor: number): number {
+  // Check if this number has valid factor pairs (factors > 2)
+  let hasValidFactors = false
+  for (let a = 2; a <= Math.min(maxFactor, Math.sqrt(target)); a++) {
+    if (target % a === 0) {
+      const b = target / a
+      if (b >= 2 && b <= maxFactor) {
+        hasValidFactors = true
+        break
+      }
+    }
+  }
+
+  if (!hasValidFactors) return 0
+
+  // Scale likelihood based on value:
+  // Under 25: 40% likelihood
+  // Over 50: 60% likelihood
+  // Linear interpolation between
+  if (target <= 25) {
+    return 0.40
+  } else if (target >= 50) {
+    return 0.60
+  } else {
+    // Linear interpolation: 0.40 + (target - 25) * (0.60 - 0.40) / (50 - 25)
+    return 0.40 + (target - 25) * 0.008
+  }
+}
+
+/**
  * Generate an arithmetic expression that evaluates to the target value
  * @param prioritizeDivision - If true, give 80% chance to use division (for division-seeded cells)
  */
@@ -200,6 +233,16 @@ export function generateExpression(
       // 80% chance to use division for division-seeded cells
       if (Math.random() < 0.8) {
         operation = '÷'
+      } else {
+        operation = selectOperation(difficulty.weights, difficulty)
+      }
+    } else if (difficulty.multiplicationEnabled && !prioritizeDivision) {
+      // Check if this number is a good multiplication candidate
+      const multBoost = getMultiplicationBoost(target, difficulty.multDivRange)
+
+      if (multBoost > 0 && Math.random() < multBoost) {
+        // Use multiplication for this times-table-friendly number
+        operation = '×'
       } else {
         operation = selectOperation(difficulty.weights, difficulty)
       }
