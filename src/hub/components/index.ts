@@ -6,3 +6,7 @@ export type { CoinDisplayProps } from './CoinDisplay'
 
 export { default as PinEntryModal } from './PinEntryModal'
 export type { PinEntryModalProps } from './PinEntryModal'
+
+export { default as ChildSummaryCard } from './ChildSummaryCard'
+
+export { default as ActivityChart } from './ActivityChart'

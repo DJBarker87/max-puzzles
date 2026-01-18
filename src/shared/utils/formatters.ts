@@ -1,36 +1,156 @@
 /**
- * Format a time in milliseconds to a display string (MM:SS)
+ * Format a time in milliseconds to a display string (MM:SS or H:MM:SS)
  */
 export function formatTime(ms: number): string {
   const totalSeconds = Math.floor(ms / 1000)
-  const minutes = Math.floor(totalSeconds / 60)
+  const hours = Math.floor(totalSeconds / 3600)
+  const minutes = Math.floor((totalSeconds % 3600) / 60)
   const seconds = totalSeconds % 60
-  return `${minutes}:${seconds.toString().padStart(2, '0')}`
+
+  const pad = (n: number) => n.toString().padStart(2, '0')
+
+  if (hours > 0) {
+    return `${hours}:${pad(minutes)}:${pad(seconds)}`
+  }
+
+  return `${minutes}:${pad(seconds)}`
 }
 
 /**
  * Format a number with commas (e.g., 1,234)
  */
 export function formatNumber(num: number): string {
-  return num.toLocaleString()
+  return num.toLocaleString('en-GB')
 }
 
 /**
- * Format a date as a relative time string
+ * Format seconds as a human-readable duration.
+ * e.g., "5m", "1h 30m", "2h"
  */
-export function formatRelativeTime(date: Date): string {
+export function formatDuration(seconds: number): string {
+  if (seconds < 60) {
+    return '<1m'
+  }
+
+  const hours = Math.floor(seconds / 3600)
+  const minutes = Math.floor((seconds % 3600) / 60)
+
+  if (hours === 0) {
+    return `${minutes}m`
+  }
+
+  if (minutes === 0) {
+    return `${hours}h`
+  }
+
+  return `${hours}h ${minutes}m`
+}
+
+/**
+ * Formats an ISO timestamp as a relative time string.
+ * e.g., "just now", "5m ago", "2h ago", "yesterday", "3 days ago"
+ * Accepts both ISO string and Date object.
+ */
+export function formatRelativeTime(input: string | Date): string {
+  const date = typeof input === 'string' ? new Date(input) : input
   const now = new Date()
   const diffMs = now.getTime() - date.getTime()
-  const diffSecs = Math.floor(diffMs / 1000)
-  const diffMins = Math.floor(diffSecs / 60)
-  const diffHours = Math.floor(diffMins / 60)
-  const diffDays = Math.floor(diffHours / 24)
 
-  if (diffSecs < 60) return 'just now'
-  if (diffMins < 60) return `${diffMins}m ago`
-  if (diffHours < 24) return `${diffHours}h ago`
-  if (diffDays < 7) return `${diffDays}d ago`
-  return date.toLocaleDateString()
+  const diffSeconds = Math.floor(diffMs / 1000)
+  const diffMinutes = Math.floor(diffMs / (1000 * 60))
+  const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+
+  if (diffSeconds < 60) {
+    return 'just now'
+  }
+
+  if (diffMinutes < 60) {
+    return `${diffMinutes}m ago`
+  }
+
+  if (diffHours < 24) {
+    return `${diffHours}h ago`
+  }
+
+  if (diffDays === 1) {
+    return 'yesterday'
+  }
+
+  if (diffDays < 7) {
+    return `${diffDays} days ago`
+  }
+
+  if (diffDays < 30) {
+    const weeks = Math.floor(diffDays / 7)
+    return weeks === 1 ? '1 week ago' : `${weeks} weeks ago`
+  }
+
+  // Older than a month - show actual date
+  return formatShortDate(date)
+}
+
+/**
+ * Formats a date as "15 Jan 2025".
+ */
+export function formatDate(input: string | Date): string {
+  const date = typeof input === 'string' ? new Date(input) : input
+  return date.toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  })
+}
+
+/**
+ * Formats a date as "15 Jan" (no year).
+ */
+export function formatShortDate(input: string | Date): string {
+  const date = typeof input === 'string' ? new Date(input) : input
+  return date.toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+  })
+}
+
+/**
+ * Formats a date as "Monday, 15 January".
+ */
+export function formatLongDate(input: string | Date): string {
+  const date = typeof input === 'string' ? new Date(input) : input
+  return date.toLocaleDateString('en-GB', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+  })
+}
+
+/**
+ * Formats a date as "Mon" (short weekday).
+ */
+export function formatWeekday(input: string | Date): string {
+  const date = typeof input === 'string' ? new Date(input) : input
+  return date.toLocaleDateString('en-GB', {
+    weekday: 'short',
+  })
+}
+
+/**
+ * Formats a time as "14:30".
+ */
+export function formatTimeOfDay(input: string | Date): string {
+  const date = typeof input === 'string' ? new Date(input) : input
+  return date.toLocaleTimeString('en-GB', {
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
+/**
+ * Formats a percentage (0-100 input, returns "85%").
+ */
+export function formatPercentage(value: number): string {
+  return `${Math.round(value)}%`
 }
 
 /**

@@ -9,8 +9,15 @@ const MainHubScreen = lazy(() => import('@/hub/screens/MainHubScreen'))
 const ModuleSelectScreen = lazy(() => import('@/hub/screens/ModuleSelectScreen'))
 const SettingsScreen = lazy(() => import('@/hub/screens/SettingsScreen'))
 const ShopScreen = lazy(() => import('@/hub/screens/ShopScreen'))
-const AddChildScreen = lazy(() => import('@/hub/screens/AddChildScreen'))
+
+// Parent dashboard screens
 const ParentDashboard = lazy(() => import('@/hub/screens/ParentDashboard'))
+const ChildDetailScreen = lazy(() => import('@/hub/screens/ChildDetailScreen'))
+const ActivityHistoryScreen = lazy(() => import('@/hub/screens/ActivityHistoryScreen'))
+const AddChildScreen = lazy(() => import('@/hub/screens/AddChildScreen'))
+const EditChildScreen = lazy(() => import('@/hub/screens/EditChildScreen'))
+const ResetPinScreen = lazy(() => import('@/hub/screens/ResetPinScreen'))
+const ParentSettingsScreen = lazy(() => import('@/hub/screens/ParentSettingsScreen'))
 
 // Circuit Challenge screens
 const ModuleMenu = lazy(() => import('@/modules/circuit-challenge/screens/ModuleMenu'))
@@ -105,7 +112,7 @@ const router = createBrowserRouter([
     ),
   },
 
-  // Parent routes
+  // Parent dashboard routes
   {
     path: '/parent/dashboard',
     element: (
@@ -115,10 +122,50 @@ const router = createBrowserRouter([
     ),
   },
   {
+    path: '/parent/child/:childId',
+    element: (
+      <LazyRoute>
+        <ChildDetailScreen />
+      </LazyRoute>
+    ),
+  },
+  {
+    path: '/parent/child/:childId/activity',
+    element: (
+      <LazyRoute>
+        <ActivityHistoryScreen />
+      </LazyRoute>
+    ),
+  },
+  {
+    path: '/parent/child/:childId/edit',
+    element: (
+      <LazyRoute>
+        <EditChildScreen />
+      </LazyRoute>
+    ),
+  },
+  {
+    path: '/parent/child/:childId/reset-pin',
+    element: (
+      <LazyRoute>
+        <ResetPinScreen />
+      </LazyRoute>
+    ),
+  },
+  {
     path: '/parent/add-child',
     element: (
       <LazyRoute>
         <AddChildScreen />
+      </LazyRoute>
+    ),
+  },
+  {
+    path: '/parent/settings',
+    element: (
+      <LazyRoute>
+        <ParentSettingsScreen />
       </LazyRoute>
     ),
   },
