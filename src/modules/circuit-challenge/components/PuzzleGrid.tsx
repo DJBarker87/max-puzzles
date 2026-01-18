@@ -13,12 +13,12 @@ interface PuzzleGridProps {
   onCellClick?: (coord: Coordinate) => void
   disabled?: boolean
   showSolution?: boolean
-  cellSize?: number
   className?: string
 }
 
 /**
  * Complete puzzle grid with cells and connectors
+ * Layout matches spec: rectangular grid with 150px horizontal, 140px vertical spacing
  */
 export default function PuzzleGrid({
   puzzle,
@@ -29,23 +29,26 @@ export default function PuzzleGrid({
   wrongConnectors,
   onCellClick,
   disabled = false,
-  cellSize = 45,
   className = '',
 }: PuzzleGridProps) {
-  const hexWidth = cellSize * 2
-  const hexHeight = cellSize * Math.sqrt(3)
-  const horizontalSpacing = hexWidth * 0.75
-  const verticalSpacing = hexHeight
+  // Fixed dimensions matching the spec exactly
+  const cellSize = 42  // radius of hexagon
+  const horizontalSpacing = 150  // matches spec: cells at 75, 225, 375, 525, 675
+  const verticalSpacing = 140    // matches spec: cells at 75, 215, 355, 495
 
   const rows = puzzle.grid.length
   const cols = puzzle.grid[0]?.length ?? 0
 
-  const gridWidth = (cols - 1) * horizontalSpacing + hexWidth + 40
-  const gridHeight = (rows - 1) * verticalSpacing + hexHeight + 40
+  // Calculate grid dimensions with padding
+  // First cell at (75, 75), so we need padding of 75 on left/top
+  const padding = 75
+  const gridWidth = padding + (cols - 1) * horizontalSpacing + padding + 30
+  const gridHeight = padding + (rows - 1) * verticalSpacing + padding + 50
 
+  // Cell centers matching spec positions
   const getCellCenter = (row: number, col: number) => ({
-    x: 20 + col * horizontalSpacing + cellSize,
-    y: 20 + row * verticalSpacing + cellSize,
+    x: padding + col * horizontalSpacing,
+    y: padding + row * verticalSpacing,
   })
 
   const getCellState = (row: number, col: number): CellState => {
@@ -89,6 +92,9 @@ export default function PuzzleGrid({
     return rowDiff <= 1 && colDiff <= 1 && !(rowDiff === 0 && colDiff === 0)
   }
 
+  // Get the start cell position for the label
+  const startCenter = getCellCenter(0, 0)
+
   return (
     <svg
       viewBox={`0 0 ${gridWidth} ${gridHeight}`}
@@ -126,6 +132,10 @@ export default function PuzzleGrid({
             const state = getCellState(rowIndex, colIndex)
             const clickable = isCellClickable(rowIndex, colIndex)
 
+            // For FINISH cell, show "FINISH" as the expression
+            // For all other cells (including START), show the math expression
+            const displayExpression = cell.isFinish ? 'FINISH' : cell.expression
+
             return (
               <HexCell
                 key={`cell-${rowIndex}-${colIndex}`}
@@ -133,8 +143,7 @@ export default function PuzzleGrid({
                 cy={center.y}
                 size={cellSize}
                 state={state}
-                expression={cell.expression}
-                label={cell.isStart ? 'START' : cell.isFinish ? 'FINISH' : undefined}
+                expression={displayExpression}
                 onClick={clickable && onCellClick ? () => onCellClick({ row: rowIndex, col: colIndex }) : undefined}
                 disabled={!clickable}
                 answer={cell.answer ?? undefined}
@@ -143,6 +152,24 @@ export default function PuzzleGrid({
           })
         )}
       </g>
+
+      {/* START label above the grid (matching spec) */}
+      <text
+        className="start-label"
+        x={startCenter.x}
+        y={20}
+        textAnchor="middle"
+        fontSize={11}
+        fontWeight={700}
+        letterSpacing={2}
+        fill="#00ff88"
+        style={{
+          fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
+          filter: 'drop-shadow(0 0 6px rgba(0,255,136,0.6))'
+        }}
+      >
+        START
+      </text>
     </svg>
   )
 }

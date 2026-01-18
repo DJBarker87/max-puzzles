@@ -6,7 +6,6 @@ interface HexCellProps {
   size?: number
   state: CellState
   expression: string
-  label?: string
   onClick?: () => void
   disabled?: boolean
   showAnswer?: boolean
@@ -14,17 +13,25 @@ interface HexCellProps {
 }
 
 /**
- * Generate a flat-top hexagon path
+ * Generate a pointy-top hexagon points string (matching spec)
+ * Spec uses: "0,-42 36,-21 36,21 0,42 -36,21 -36,-21" for radius 42
  */
-function getHexagonPath(cx: number, cy: number, radius: number): string {
-  const points: [number, number][] = []
-  for (let i = 0; i < 6; i++) {
-    const angle = (Math.PI / 3) * i - Math.PI / 6
-    const x = cx + radius * Math.cos(angle)
-    const y = cy + radius * Math.sin(angle)
-    points.push([x, y])
-  }
-  return `M ${points.map(p => p.join(',')).join(' L ')} Z`
+function getHexagonPoints(cx: number, cy: number, radius: number): string {
+  // Pointy-top hexagon: vertices at top and bottom
+  // Width factor is sqrt(3)/2 ≈ 0.866
+  const w = radius * Math.sqrt(3) / 2  // half-width
+  const h = radius / 2                  // quarter-height
+
+  const points = [
+    [cx, cy - radius],           // top
+    [cx + w, cy - h],            // top-right
+    [cx + w, cy + h],            // bottom-right
+    [cx, cy + radius],           // bottom
+    [cx - w, cy + h],            // bottom-left
+    [cx - w, cy - h],            // top-left
+  ]
+
+  return points.map(p => p.join(',')).join(' ')
 }
 
 /**
@@ -73,24 +80,25 @@ function getGradients(state: CellState) {
 }
 
 /**
- * 3D hexagonal cell with poker chip effect
+ * 3D hexagonal cell with poker chip effect (matching spec exactly)
  */
 export default function HexCell({
   cx,
   cy,
-  size = 40,
+  size = 42,
   state,
   expression,
-  label,
   onClick,
   disabled = false,
 }: HexCellProps) {
   const gradients = getGradients(state)
-  const shadowPath = getHexagonPath(cx + 4, cy + 14, size)
-  const edgePath = getHexagonPath(cx, cy + 12, size)
-  const basePath = getHexagonPath(cx, cy + 6, size)
-  const topPath = getHexagonPath(cx, cy, size)
-  const innerPath = getHexagonPath(cx, cy, size * 0.85)
+
+  // Poker chip layers with offsets matching spec
+  const shadowPoints = getHexagonPoints(cx + 4, cy + 14, size)
+  const edgePoints = getHexagonPoints(cx, cy + 12, size)
+  const basePoints = getHexagonPoints(cx, cy + 6, size)
+  const topPoints = getHexagonPoints(cx, cy, size)
+  const innerPoints = getHexagonPoints(cx, cy, size * 0.9)
 
   const isClickable = onClick && !disabled
   const animationClass = state === 'current' ? 'cell-current' : state === 'visited' ? 'cell-visited' : ''
@@ -98,14 +106,17 @@ export default function HexCell({
   // Get text color based on state
   const getTextColor = () => {
     if (state === 'finish') return '#ffdd44'
-    if (label === 'START') return '#00ff88'
-    if (label === 'FINISH') return '#ffcc00'
     if (state === 'visited') return 'rgba(255,255,255,0.7)'
     return '#ffffff'
   }
 
-  // Adjust font size for long expressions
-  const fontSize = expression.length > 7 ? 13 : expression.length > 5 ? 15 : 17
+  // Get font size - smaller for FINISH text
+  const getFontSize = () => {
+    if (state === 'finish') return 13
+    if (expression.length > 7) return 13
+    if (expression.length > 5) return 15
+    return 17
+  }
 
   return (
     <g
@@ -113,66 +124,51 @@ export default function HexCell({
       onClick={isClickable ? onClick : undefined}
       role={isClickable ? 'button' : undefined}
       tabIndex={isClickable ? 0 : undefined}
-      aria-label={label || expression}
+      aria-label={expression}
       style={{
         cursor: isClickable ? 'pointer' : 'default',
         opacity: disabled && !isClickable ? 0.5 : 1,
       }}
     >
       {/* Layer 1: Shadow */}
-      <path d={shadowPath} fill="rgba(0,0,0,0.6)" />
+      <polygon points={shadowPoints} fill="rgba(0,0,0,0.6)" />
 
       {/* Layer 2: Edge */}
-      <path d={edgePath} fill="url(#cc-cellEdgeGradient)" />
+      <polygon points={edgePoints} fill="url(#cc-cellEdgeGradient)" />
 
       {/* Layer 3: Base */}
-      <path d={basePath} fill={gradients.base} />
+      <polygon points={basePoints} fill={gradients.base} />
 
       {/* Layer 4: Top face */}
-      <path
-        d={topPath}
+      <polygon
+        points={topPoints}
         fill={gradients.top}
         stroke={gradients.stroke}
         strokeWidth={gradients.strokeWidth}
       />
 
       {/* Layer 5: Inner shadow */}
-      <path d={innerPath} fill="url(#cc-cellInnerShadow)" />
+      <polygon points={innerPoints} fill="url(#cc-cellInnerShadow)" />
 
       {/* Layer 6: Rim highlight */}
-      <path
-        d={topPath}
+      <polygon
+        points={topPoints}
         fill="none"
         stroke="rgba(255,255,255,0.2)"
         strokeWidth={1.5}
       />
 
-      {/* Label (START/FINISH) */}
-      {label && (
-        <text
-          x={cx}
-          y={cy - 10}
-          textAnchor="middle"
-          fontSize={11}
-          fontWeight={700}
-          letterSpacing={2}
-          fill={label === 'START' ? '#00ff88' : '#ffcc00'}
-          style={{ fontFamily: 'system-ui, sans-serif' }}
-        >
-          {label}
-        </text>
-      )}
-
-      {/* Expression or answer */}
+      {/* Expression text */}
       <text
         x={cx}
-        y={label ? cy + 8 : cy + 5}
+        y={cy + 2}
         textAnchor="middle"
         dominantBaseline="middle"
-        fontSize={fontSize}
+        fontSize={getFontSize()}
         fontWeight={700}
+        letterSpacing={state === 'finish' ? 1 : 0}
         fill={getTextColor()}
-        style={{ fontFamily: 'system-ui, sans-serif' }}
+        style={{ fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif" }}
       >
         {expression}
       </text>
