@@ -8,6 +8,7 @@ interface ActionButtonsProps {
   onViewSolution?: () => void
   disabled?: boolean
   showViewSolution?: boolean
+  vertical?: boolean
   className?: string
 }
 
@@ -22,6 +23,7 @@ export default function ActionButtons({
   onViewSolution,
   disabled = false,
   showViewSolution = false,
+  vertical = false,
   className = '',
 }: ActionButtonsProps) {
   const buttons = [
@@ -35,6 +37,29 @@ export default function ActionButtons({
     buttons.push({ id: 'solution', icon: '👁️', label: 'Solution', onClick: onViewSolution })
   }
 
+  // Vertical layout for landscape mobile
+  if (vertical) {
+    return (
+      <div className={`flex flex-col items-center gap-1 ${className}`}>
+        {buttons.map(btn => (
+          <Button
+            key={btn.id}
+            variant="ghost"
+            size="sm"
+            onClick={btn.onClick}
+            disabled={disabled}
+            className="w-10 h-10 !p-0 flex items-center justify-center rounded-xl"
+            aria-label={btn.label}
+            title={btn.label}
+          >
+            <span className="text-lg">{btn.icon}</span>
+          </Button>
+        ))}
+      </div>
+    )
+  }
+
+  // Horizontal layout (default)
   return (
     <div
       className={`

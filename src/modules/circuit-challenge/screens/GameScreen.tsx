@@ -2,11 +2,15 @@ import { useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useGame } from '../hooks/useGame'
 import { useFeedback } from '../hooks/useFeedback'
+import { useOrientation } from '@/shared/hooks'
 import {
   PuzzleGrid,
   GameHeader,
   ActionButtons,
   StarryBackground,
+  LivesDisplay,
+  TimerDisplay,
+  GameCoinDisplay,
 } from '../components'
 import { Button, Modal } from '@/ui'
 import { printCurrentPuzzle } from '../services/pdfGenerator'
@@ -30,6 +34,7 @@ export default function GameScreen() {
   const [showExitConfirm, setShowExitConfirm] = useState(false)
 
   const { triggerShake, shakeClassName } = useFeedback()
+  const { isMobileLandscape } = useOrientation()
 
   // Redirect to setup if no difficulty
   useEffect(() => {
@@ -131,6 +136,137 @@ export default function GameScreen() {
     return null
   }
 
+  // Render landscape mobile layout
+  if (isMobileLandscape) {
+    return (
+      <div className={`h-screen flex relative overflow-hidden ${shakeClassName}`}>
+        <StarryBackground />
+
+        {/* Left Panel: Back button + Action buttons (vertical) */}
+        <div className="shrink-0 flex flex-col items-center justify-between py-2 px-1 bg-background-dark/80 backdrop-blur-sm border-r border-white/10 z-20">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowExitConfirm(true)}
+            className="w-10 h-10 rounded-xl !p-0 flex items-center justify-center"
+            aria-label="Go back"
+          >
+            <span className="text-lg">←</span>
+          </Button>
+
+          <ActionButtons
+            onReset={resetPuzzle}
+            onNewPuzzle={handleNewPuzzle}
+            onChangeDifficulty={() => navigate('/play/circuit-challenge/quick')}
+            onPrint={handlePrint}
+            onViewSolution={state.status === 'lost' ? showSolution : undefined}
+            showViewSolution={state.status === 'lost' && !state.showingSolution}
+            disabled={!state.puzzle}
+            vertical
+          />
+        </div>
+
+        {/* Center: Puzzle Grid */}
+        <div className="flex-1 min-w-0 flex items-center justify-center p-1 relative z-10">
+          {state.puzzle ? (
+            <div className="w-full h-full flex items-center justify-center">
+              <PuzzleGrid
+                puzzle={state.puzzle}
+                currentPosition={state.currentPosition}
+                visitedCells={state.visitedCells}
+                traversedConnectors={state.traversedConnectors}
+                onCellClick={canMove ? makeMove : undefined}
+                disabled={!canMove}
+                showSolution={state.showingSolution}
+                className="max-w-full max-h-full"
+              />
+            </div>
+          ) : state.error ? (
+            <div className="text-center">
+              <div className="text-4xl mb-4">⚠️</div>
+              <p className="text-error mb-4">{state.error}</p>
+              <Button variant="primary" onClick={handleNewPuzzle}>
+                Try Again
+              </Button>
+            </div>
+          ) : (
+            <div className="text-center">
+              <div className="animate-spin text-4xl mb-4">⚡</div>
+              <p className="text-text-secondary">Generating puzzle...</p>
+            </div>
+          )}
+        </div>
+
+        {/* Right Panel: Status displays (vertical) */}
+        <div className="shrink-0 flex flex-col items-center justify-center gap-3 py-2 px-2 bg-background-dark/80 backdrop-blur-sm border-l border-white/10 z-20">
+          {!state.isHiddenMode && (
+            <LivesDisplay
+              lives={state.lives}
+              maxLives={state.maxLives}
+              size="sm"
+              vertical
+            />
+          )}
+
+          <TimerDisplay
+            elapsedMs={state.elapsedMs}
+            thresholdMs={state.isHiddenMode ? undefined : timeThresholdMs ?? undefined}
+            isRunning={state.isTimerRunning}
+            size="sm"
+          />
+
+          <GameCoinDisplay
+            amount={state.puzzleCoins}
+            showChange={state.isHiddenMode ? undefined : coinChange}
+            size="sm"
+          />
+        </div>
+
+        {/* Exit Confirmation Modal */}
+        <Modal
+          isOpen={showExitConfirm}
+          onClose={() => setShowExitConfirm(false)}
+          title="Exit Puzzle?"
+        >
+          <p className="mb-6 text-text-secondary">
+            Your progress on this puzzle will be lost.
+          </p>
+          <div className="flex gap-3">
+            <Button
+              variant="ghost"
+              onClick={() => setShowExitConfirm(false)}
+              className="flex-1"
+            >
+              Continue Playing
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => navigate('/play/circuit-challenge')}
+              className="flex-1"
+            >
+              Exit
+            </Button>
+          </div>
+        </Modal>
+
+        {/* Game Over Overlay */}
+        {isGameOver && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="text-center animate-pulse">
+              <div className="text-6xl mb-4">
+                {state.status === 'won' ? '🎉' : '💔'}
+              </div>
+              <p className="text-2xl font-display font-bold">
+                {state.status === 'won' ? 'Puzzle Complete!' : 'Out of Lives'}
+              </p>
+            </div>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // Portrait / Desktop layout
   return (
     <div className={`h-screen flex flex-col relative overflow-hidden ${shakeClassName}`}>
       <StarryBackground />

@@ -5,6 +5,7 @@ interface LivesDisplayProps {
   lives: number
   maxLives?: number
   size?: 'sm' | 'md' | 'lg'
+  vertical?: boolean
   className?: string
 }
 
@@ -49,6 +50,7 @@ export default function LivesDisplay({
   lives,
   maxLives = 5,
   size = 'md',
+  vertical = false,
   className = '',
 }: LivesDisplayProps) {
   const prevLivesRef = useRef(lives)
@@ -68,7 +70,7 @@ export default function LivesDisplay({
 
   return (
     <div
-      className={`flex items-center ${className}`}
+      className={`flex items-center ${vertical ? 'flex-col' : ''} ${className}`}
       style={{ gap: config.gap }}
       role="status"
       aria-label={`${lives} of ${maxLives} lives remaining`}
