@@ -106,6 +106,17 @@ export default function GridDefs() {
           <feMergeNode in="SourceGraphic" />
         </feMerge>
       </filter>
+
+      {/* Text glow filter for better visibility on dark cells */}
+      <filter id="cc-textGlow" x="-20%" y="-20%" width="140%" height="140%">
+        <feGaussianBlur in="SourceAlpha" stdDeviation="2" result="blur" />
+        <feFlood floodColor="white" floodOpacity="0.4" result="color" />
+        <feComposite in="color" in2="blur" operator="in" result="shadow" />
+        <feMerge>
+          <feMergeNode in="shadow" />
+          <feMergeNode in="SourceGraphic" />
+        </feMerge>
+      </filter>
     </defs>
   )
 }
