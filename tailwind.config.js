@@ -1,3 +1,5 @@
+import plugin from 'tailwindcss/plugin'
+
 /** @type {import('tailwindcss').Config} */
 export default {
   content: [
@@ -145,5 +147,11 @@ export default {
       },
     },
   },
-  plugins: [],
+  plugins: [
+    // Custom variant for mobile landscape mode
+    plugin(function({ addVariant }) {
+      // Mobile landscape: landscape orientation with limited height (typical phone landscape)
+      addVariant('landscape-mobile', '@media (orientation: landscape) and (max-height: 500px)')
+    }),
+  ],
 }
