@@ -165,15 +165,45 @@ export default function HexCell({
         {expression}
       </text>
 
-      {/* Pulsing glow for current/start cell - ON TOP */}
+      {/* Electric glow for current/start cell - matching connector style */}
       {isPulsing && (
-        <polygon
-          points={topPoints}
-          fill="none"
-          stroke="#00ffc8"
-          strokeWidth={4}
-          className="cell-pulse-stroke"
-        />
+        <>
+          {/* Glow layer */}
+          <polygon
+            points={topPoints}
+            fill="none"
+            stroke="#00ff88"
+            strokeWidth={8}
+            opacity={0.5}
+            filter="url(#cc-connectorGlowFilter)"
+            className="connector-glow"
+          />
+          {/* Main stroke */}
+          <polygon
+            points={topPoints}
+            fill="none"
+            stroke="#00dd77"
+            strokeWidth={4}
+          />
+          {/* Energy flow slow */}
+          <polygon
+            points={topPoints}
+            fill="none"
+            stroke="#88ffcc"
+            strokeWidth={3}
+            strokeDasharray="8 20"
+            className="energy-flow-slow"
+          />
+          {/* Energy flow fast */}
+          <polygon
+            points={topPoints}
+            fill="none"
+            stroke="#ffffff"
+            strokeWidth={2}
+            strokeDasharray="4 16"
+            className="energy-flow-fast"
+          />
+        </>
       )}
     </g>
   )

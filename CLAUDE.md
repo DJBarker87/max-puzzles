@@ -577,9 +577,13 @@ Added optimized layout for mobile devices in landscape orientation:
 **Layout changes (GameScreen.tsx):**
 - Portrait/Desktop: Vertical stack (header → grid → action buttons)
 - Mobile Landscape: Horizontal layout
-  - Left panel: Back button + action buttons (vertical)
-  - Center: Puzzle grid (maximized)
-  - Right panel: Lives, timer, coins (vertical)
+  - Left panel: Back button + action buttons (vertical, centered)
+  - Center: Puzzle grid (maximized, flex-1)
+  - Right panel: Lives, timer, coins (vertical stack)
+
+**Component updates:**
+- `ActionButtons.tsx` - Added `vertical` prop for stacked layout
+- `LivesDisplay.tsx` - Added `vertical` prop for stacked hearts
 
 **Tailwind config:**
 - Added `landscape-mobile` variant: `@media (orientation: landscape) and (max-height: 500px)`
@@ -587,9 +591,30 @@ Added optimized layout for mobile devices in landscape orientation:
 ### Cell Text Visibility
 
 Improved text readability on hex cells:
-- Added black shadow text layer behind white text for contrast
-- All cell text now renders as bright white (#ffffff)
-- Current cell (and START at game start) pulses with electric surge glow effect
+- All cell text renders as bright white (#ffffff) with fontWeight="900"
+- FINISH cell text renders as gold (#ffdd44)
+- Inline style override ensures fill color is applied
+
+### Current Cell Electric Pulse Animation
+
+Current and START cells now pulse with connector-matching energy flow effect:
+
+**Animation layers (HexCell.tsx):**
+1. Glow layer - #00ff88, 8px stroke, 50% opacity with blur filter
+2. Main stroke - #00dd77, 4px solid stroke
+3. Energy flow slow - #88ffcc, 3px dashed (8 20), 1.2s animation
+4. Energy flow fast - #ffffff, 2px dashed (4 16), 0.8s animation
+
+**CSS classes used (animations.css):**
+- `.cell-current` - Drop shadow pulse effect on the cell group
+- `.connector-glow` - Opacity pulse (0.5 → 0.8)
+- `.energy-flow-slow` - Dash offset animation at 1.2s
+- `.energy-flow-fast` - Dash offset animation at 0.8s
+
+**Trigger condition:**
+```typescript
+const isPulsing = state === 'current' || state === 'start'
+```
 
 ### View Solution Fix
 
@@ -597,6 +622,30 @@ Fixed the "View Solution" button that wasn't working:
 - `showSolution` prop was defined but not destructured in PuzzleGrid
 - Added `isConnectorOnSolutionPath()` helper function
 - Solution path connectors now highlight when View Solution is activated
+- Traversal direction correctly follows solution path order
+
+### Animation System (animations.css)
+
+Complete animation definitions:
+
+| Animation | Duration | Effect |
+|-----------|----------|--------|
+| `electricFlow` | 0.8s / 1.2s | Stroke dash offset for energy flow |
+| `connectorPulse` | 1.5s | Opacity pulse 0.5 → 0.8 |
+| `cellPulse` | 1s | Drop shadow intensity surge |
+| `strokePulse` | 1s | Stroke width/opacity pulse |
+| `visitedPulse` | 2s | Subtle glow on visited cells |
+| `heartPulse` | 1.2s | Scale pulse for hearts |
+| `heartBreak` | 0.5s | Break animation when life lost |
+| `floatUp/Down` | 0.8s | Coin floating animation |
+| `screenShake` | 0.3s | Wrong answer feedback |
+| `twinkle` | 4s (var) | Background star effect |
+
+### SVG Filter Definitions (GridDefs.tsx)
+
+Required filters for effects:
+- `cc-connectorGlowFilter` - Gaussian blur for glow effects
+- `cc-cellShadowFilter` - Drop shadow for 3D cell effect
 
 ---
 
