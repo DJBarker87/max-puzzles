@@ -140,29 +140,6 @@ export default function HexCell({
         strokeWidth={gradients.strokeWidth}
       />
 
-      {/* Pulsing glow for current/start cell */}
-      {isPulsing && (
-        <polygon
-          points={topPoints}
-          fill="none"
-          stroke="#00ffc8"
-          strokeWidth={4}
-        >
-          <animate
-            attributeName="stroke-opacity"
-            values="0.3;1;0.3"
-            dur="1s"
-            repeatCount="indefinite"
-          />
-          <animate
-            attributeName="stroke-width"
-            values="2;6;2"
-            dur="1s"
-            repeatCount="indefinite"
-          />
-        </polygon>
-      )}
-
       {/* Layer 5: Inner shadow */}
       <polygon points={innerPoints} fill="url(#cc-cellInnerShadow)" />
 
@@ -174,18 +151,30 @@ export default function HexCell({
         strokeWidth={1.5}
       />
 
-      {/* Expression text */}
+      {/* Expression text - MUST BE WHITE */}
       <text
         x={cx}
         y={cy + 2}
         textAnchor="middle"
         dominantBaseline="middle"
+        fill={state === 'finish' ? '#ffdd44' : '#ffffff'}
         fontSize={getFontSize()}
         fontWeight="900"
-        fill={state === 'finish' ? '#ffdd44' : '#ffffff'}
+        style={{ fill: state === 'finish' ? '#ffdd44' : '#ffffff' }}
       >
         {expression}
       </text>
+
+      {/* Pulsing glow for current/start cell - ON TOP */}
+      {isPulsing && (
+        <polygon
+          points={topPoints}
+          fill="none"
+          stroke="#00ffc8"
+          strokeWidth={4}
+          className="cell-pulse-stroke"
+        />
+      )}
     </g>
   )
 }

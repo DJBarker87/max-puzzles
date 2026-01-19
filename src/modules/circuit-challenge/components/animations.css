@@ -43,6 +43,22 @@
   animation: cellPulse 1s ease-in-out infinite;
 }
 
+/* Pulsing stroke for current cell overlay */
+@keyframes strokePulse {
+  0%, 100% {
+    stroke-opacity: 0.3;
+    stroke-width: 2;
+  }
+  50% {
+    stroke-opacity: 1;
+    stroke-width: 6;
+  }
+}
+
+.cell-pulse-stroke {
+  animation: strokePulse 1s ease-in-out infinite;
+}
+
 /* Visited cell subtle pulse */
 @keyframes visitedPulse {
   0%, 100% {
