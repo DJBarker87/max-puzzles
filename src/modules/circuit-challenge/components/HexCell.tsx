@@ -168,7 +168,11 @@ export default function HexCell({
         fontWeight={700}
         letterSpacing={state === 'finish' ? 1 : 0}
         fill={getTextColor()}
-        style={{ fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif" }}
+        style={{
+          fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
+          textShadow: '0 0 8px rgba(0,0,0,0.8), 0 1px 2px rgba(0,0,0,0.9)',
+        }}
+        filter={state === 'normal' ? 'url(#cc-textGlow)' : undefined}
       >
         {expression}
       </text>

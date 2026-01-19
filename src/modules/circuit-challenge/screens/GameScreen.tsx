@@ -142,8 +142,8 @@ export default function GameScreen() {
       <div className={`h-screen flex relative overflow-hidden ${shakeClassName}`}>
         <StarryBackground />
 
-        {/* Left Panel: Back button + Action buttons (vertical) */}
-        <div className="shrink-0 flex flex-col items-center justify-between py-2 px-1 bg-background-dark/80 backdrop-blur-sm border-r border-white/10 z-20">
+        {/* Left Panel: Back button + Action buttons (vertical, centered) */}
+        <div className="shrink-0 flex flex-col items-center justify-center gap-3 py-2 px-1 bg-background-dark/80 backdrop-blur-sm border-r border-white/10 z-20">
           <Button
             variant="ghost"
             size="sm"
