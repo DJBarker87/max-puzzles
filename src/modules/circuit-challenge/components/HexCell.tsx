@@ -1,4 +1,5 @@
 import type { CellState } from '../types'
+import './animations.css'
 
 interface HexCellProps {
   cx: number
