@@ -102,16 +102,15 @@ export default function HexCell({
   const innerPoints = getHexagonPoints(cx, cy, size * 0.9)
 
   const isClickable = onClick && !disabled
-  // Start cell also pulses (it's the current position at game start)
-  const animationClass =
-    state === 'current' || state === 'start' ? 'cell-current' :
-    state === 'visited' ? 'cell-visited' : ''
+  const isPulsing = state === 'current' || state === 'start'
 
-  // Get text color based on state - all white for visibility
-  const getTextColor = () => {
-    if (state === 'finish') return '#ffdd44'
-    return '#ffffff' // Bright white for all cells
-  }
+  // Inline animation style for pulse effect
+  const pulseStyle = isPulsing ? {
+    animation: 'cellPulse 1s ease-in-out infinite',
+  } : {}
+
+  // Get text color - bright white for all, gold for finish
+  const textColor = state === 'finish' ? '#ffdd44' : '#ffffff'
 
   // Get font size - smaller for FINISH text
   const getFontSize = () => {
@@ -123,7 +122,7 @@ export default function HexCell({
 
   return (
     <g
-      className={`hex-cell ${animationClass} ${isClickable ? 'cursor-pointer' : ''}`}
+      className={`hex-cell ${isClickable ? 'cursor-pointer' : ''} ${isPulsing ? 'cell-current' : ''}`}
       onClick={isClickable ? onClick : undefined}
       role={isClickable ? 'button' : undefined}
       tabIndex={isClickable ? 0 : undefined}
@@ -131,6 +130,7 @@ export default function HexCell({
       style={{
         cursor: isClickable ? 'pointer' : 'default',
         opacity: disabled && !isClickable ? 0.5 : 1,
+        ...pulseStyle,
       }}
     >
       {/* Layer 1: Shadow */}
@@ -172,12 +172,12 @@ export default function HexCell({
         letterSpacing={state === 'finish' ? 1 : 0}
         fill="#000000"
         stroke="#000000"
-        strokeWidth={3}
+        strokeWidth={4}
         style={{ fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif" }}
       >
         {expression}
       </text>
-      {/* Expression text - main layer */}
+      {/* Expression text - main layer - BRIGHT WHITE */}
       <text
         x={cx}
         y={cy + 2}
@@ -186,8 +186,11 @@ export default function HexCell({
         fontSize={getFontSize()}
         fontWeight={700}
         letterSpacing={state === 'finish' ? 1 : 0}
-        fill={getTextColor()}
-        style={{ fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif" }}
+        fill={textColor}
+        style={{
+          fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
+          fill: textColor,
+        }}
       >
         {expression}
       </text>
