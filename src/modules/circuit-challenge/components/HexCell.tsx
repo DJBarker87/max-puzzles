@@ -150,6 +150,29 @@ export default function HexCell({
         strokeWidth={gradients.strokeWidth}
       />
 
+      {/* Pulsing glow for current/start cell */}
+      {isPulsing && (
+        <polygon
+          points={topPoints}
+          fill="none"
+          stroke="#00ffc8"
+          strokeWidth={4}
+        >
+          <animate
+            attributeName="stroke-opacity"
+            values="0.3;1;0.3"
+            dur="1s"
+            repeatCount="indefinite"
+          />
+          <animate
+            attributeName="stroke-width"
+            values="2;6;2"
+            dur="1s"
+            repeatCount="indefinite"
+          />
+        </polygon>
+      )}
+
       {/* Layer 5: Inner shadow */}
       <polygon points={innerPoints} fill="url(#cc-cellInnerShadow)" />
 
@@ -161,36 +184,18 @@ export default function HexCell({
         strokeWidth={1.5}
       />
 
-      {/* Expression text - shadow layer for visibility */}
+      {/* Expression text */}
       <text
         x={cx}
         y={cy + 2}
         textAnchor="middle"
         dominantBaseline="middle"
         fontSize={getFontSize()}
-        fontWeight={700}
-        letterSpacing={state === 'finish' ? 1 : 0}
-        fill="#000000"
-        stroke="#000000"
-        strokeWidth={4}
-        style={{ fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif" }}
-      >
-        {expression}
-      </text>
-      {/* Expression text - main layer - BRIGHT WHITE */}
-      <text
-        x={cx}
-        y={cy + 2}
-        textAnchor="middle"
-        dominantBaseline="middle"
-        fontSize={getFontSize()}
-        fontWeight={700}
-        letterSpacing={state === 'finish' ? 1 : 0}
+        fontWeight="bold"
         fill={textColor}
-        style={{
-          fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
-          fill: textColor,
-        }}
+        stroke="#000"
+        strokeWidth={0.5}
+        paintOrder="stroke fill"
       >
         {expression}
       </text>
