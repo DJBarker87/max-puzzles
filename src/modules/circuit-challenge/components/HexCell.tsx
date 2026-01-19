@@ -160,7 +160,23 @@ export default function HexCell({
         strokeWidth={1.5}
       />
 
-      {/* Expression text */}
+      {/* Expression text - shadow layer for visibility */}
+      <text
+        x={cx}
+        y={cy + 2}
+        textAnchor="middle"
+        dominantBaseline="middle"
+        fontSize={getFontSize()}
+        fontWeight={700}
+        letterSpacing={state === 'finish' ? 1 : 0}
+        fill="#000000"
+        stroke="#000000"
+        strokeWidth={3}
+        style={{ fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif" }}
+      >
+        {expression}
+      </text>
+      {/* Expression text - main layer */}
       <text
         x={cx}
         y={cy + 2}
