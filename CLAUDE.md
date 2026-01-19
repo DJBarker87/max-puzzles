@@ -562,4 +562,42 @@ When in doubt: **fun first, quality over speed**.
 
 ---
 
+## Recent Changes (January 2025)
+
+### Mobile Landscape Layout
+
+Added optimized layout for mobile devices in landscape orientation:
+
+**New files:**
+- `src/shared/hooks/useOrientation.ts` - Hook to detect device orientation
+  - `isLandscape`: true when width > height
+  - `isMobileLandscape`: true when landscape AND height <= 500px
+  - `isPortrait`: true when in portrait mode
+
+**Layout changes (GameScreen.tsx):**
+- Portrait/Desktop: Vertical stack (header → grid → action buttons)
+- Mobile Landscape: Horizontal layout
+  - Left panel: Back button + action buttons (vertical)
+  - Center: Puzzle grid (maximized)
+  - Right panel: Lives, timer, coins (vertical)
+
+**Tailwind config:**
+- Added `landscape-mobile` variant: `@media (orientation: landscape) and (max-height: 500px)`
+
+### Cell Text Visibility
+
+Improved text readability on hex cells:
+- Added black shadow text layer behind white text for contrast
+- All cell text now renders as bright white (#ffffff)
+- Current cell (and START at game start) pulses with electric surge glow effect
+
+### View Solution Fix
+
+Fixed the "View Solution" button that wasn't working:
+- `showSolution` prop was defined but not destructured in PuzzleGrid
+- Added `isConnectorOnSolutionPath()` helper function
+- Solution path connectors now highlight when View Solution is activated
+
+---
+
 *End of CLAUDE.md*
