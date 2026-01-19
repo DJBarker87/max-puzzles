@@ -29,6 +29,7 @@ export default function PuzzleGrid({
   wrongConnectors,
   onCellClick,
   disabled = false,
+  showSolution = false,
   className = '',
 }: PuzzleGridProps) {
   // Fixed dimensions matching the spec exactly
@@ -67,7 +68,27 @@ export default function PuzzleGrid({
     return 'normal'
   }
 
+  // Check if connector is on the solution path
+  const isConnectorOnSolutionPath = (cellA: Coordinate, cellB: Coordinate): boolean => {
+    const path = puzzle.solution.path
+    for (let i = 0; i < path.length - 1; i++) {
+      const from = path[i]
+      const to = path[i + 1]
+      if ((from.row === cellA.row && from.col === cellA.col &&
+           to.row === cellB.row && to.col === cellB.col) ||
+          (from.row === cellB.row && from.col === cellB.col &&
+           to.row === cellA.row && to.col === cellA.col)) {
+        return true
+      }
+    }
+    return false
+  }
+
   const isConnectorTraversed = (cellA: Coordinate, cellB: Coordinate): boolean => {
+    // If showing solution, highlight all solution path connectors
+    if (showSolution && isConnectorOnSolutionPath(cellA, cellB)) {
+      return true
+    }
     return traversedConnectors.some(tc =>
       (tc.cellA.row === cellA.row && tc.cellA.col === cellA.col &&
        tc.cellB.row === cellB.row && tc.cellB.col === cellB.col) ||
@@ -78,14 +99,30 @@ export default function PuzzleGrid({
 
   // Get the actual traversal direction - returns the coordinates in the order they were traversed
   const getTraversalDirection = (cellA: Coordinate, cellB: Coordinate): { from: Coordinate; to: Coordinate } | null => {
+    // Check traversed connectors first
     const match = traversedConnectors.find(tc =>
       (tc.cellA.row === cellA.row && tc.cellA.col === cellA.col &&
        tc.cellB.row === cellB.row && tc.cellB.col === cellB.col) ||
       (tc.cellA.row === cellB.row && tc.cellA.col === cellB.col &&
        tc.cellB.row === cellA.row && tc.cellB.col === cellA.col)
     )
-    if (!match) return null
-    return { from: match.cellA, to: match.cellB }
+    if (match) return { from: match.cellA, to: match.cellB }
+
+    // If showing solution, get direction from solution path
+    if (showSolution) {
+      const path = puzzle.solution.path
+      for (let i = 0; i < path.length - 1; i++) {
+        const from = path[i]
+        const to = path[i + 1]
+        if ((from.row === cellA.row && from.col === cellA.col &&
+             to.row === cellB.row && to.col === cellB.col) ||
+            (from.row === cellB.row && from.col === cellB.col &&
+             to.row === cellA.row && to.col === cellA.col)) {
+          return { from, to }
+        }
+      }
+    }
+    return null
   }
 
   const isConnectorWrong = (cellA: Coordinate, cellB: Coordinate): boolean => {
