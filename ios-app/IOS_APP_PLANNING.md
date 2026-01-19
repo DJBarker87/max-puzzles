@@ -1749,41 +1749,174 @@ Improved text readability on hex cells:
 - Current cell pulses with electric surge glow effect
 - START cell also pulses at game start
 
-### 3. View Solution Fix
+### 3. View Solution Feature (Complete Implementation)
 
-The View Solution button now works correctly:
+The View Solution feature allows players to see the correct path after losing.
 
-- When player loses (runs out of lives), they can tap "View Solution"
-- Solution path connectors highlight with the active/traversed animation
-- All cells on solution path show as visited (green, pulsing)
-- Entire path reveals at once (instant, not animated step-by-step)
+**User Flow:**
+1. Player runs out of lives (5 mistakes in standard mode)
+2. Summary screen shows "Out of Lives" with "See Solution" button
+3. Tapping "See Solution" returns to game screen with `showSolution: true`
+4. Entire solution path displays with electric flow animation
+5. Game is in view-only mode (no interaction)
 
-**Implementation in iOS:**
+**Summary Screen (SummaryView.swift):**
+
+```swift
+// Game Over screen - show "See Solution" button
+struct GameOverView: View {
+    let puzzle: Puzzle
+    let difficulty: DifficultySettings
+    let correctMoves: Int
+    let coins: Int
+
+    @EnvironmentObject var router: Router
+
+    var body: some View {
+        VStack(spacing: 24) {
+            Text("💔").font(.system(size: 60))
+            Text("Out of Lives")
+                .font(.title.bold())
+
+            Text("You made \(correctMoves) correct moves before running out of lives.")
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+
+            Text("Coins: +\(coins)")
+                .font(.title2)
+
+            VStack(spacing: 12) {
+                Button("Try Again") {
+                    router.navigate(to: .game(difficulty: difficulty))
+                }
+                .buttonStyle(PrimaryButtonStyle())
+
+                Button("See Solution") {
+                    router.navigate(to: .game(
+                        difficulty: difficulty,
+                        showSolution: true,
+                        puzzle: puzzle  // Pass same puzzle to show solution
+                    ))
+                }
+                .buttonStyle(SecondaryButtonStyle())
+
+                Button("Exit") {
+                    router.navigate(to: .moduleMenu)
+                }
+                .buttonStyle(GhostButtonStyle())
+            }
+        }
+    }
+}
+```
+
+**PuzzleGrid Implementation:**
 
 ```swift
 struct PuzzleGridView: View {
     let puzzle: Puzzle
-    let gameState: GameState
-    let showSolution: Bool
+    let currentPosition: Coordinate
+    let visitedCells: [Coordinate]
+    let traversedConnectors: [(Coordinate, Coordinate)]
+    let showSolution: Bool  // When true, show entire solution path
+    let onCellTap: ((Coordinate) -> Void)?
 
-    private func isConnectorOnSolutionPath(connector: Connector) -> Bool {
-        guard showSolution else { return false }
-
+    // Check if connector is on the solution path
+    private func isConnectorOnSolutionPath(cellA: Coordinate, cellB: Coordinate) -> Bool {
         let path = puzzle.solution.path
         for i in 0..<(path.count - 1) {
-            let current = path[i]
-            let next = path[i + 1]
-            if connector.connects(current, next) {
+            let from = path[i]
+            let to = path[i + 1]
+            // Check both directions (connectors are bidirectional)
+            if (from == cellA && to == cellB) || (from == cellB && to == cellA) {
                 return true
             }
         }
         return false
     }
 
-    // Use isConnectorOnSolutionPath to highlight connectors
-    // when View Solution is active
+    // Connector is "traversed" if player walked it OR if showing solution
+    private func isConnectorTraversed(cellA: Coordinate, cellB: Coordinate) -> Bool {
+        // If showing solution, highlight all solution path connectors
+        if showSolution && isConnectorOnSolutionPath(cellA: cellA, cellB: cellB) {
+            return true
+        }
+        // Otherwise check if player actually traversed it
+        return traversedConnectors.contains { tc in
+            (tc.0 == cellA && tc.1 == cellB) || (tc.0 == cellB && tc.1 == cellA)
+        }
+    }
+
+    // Get traversal direction for animation flow
+    private func getTraversalDirection(cellA: Coordinate, cellB: Coordinate) -> (from: Coordinate, to: Coordinate)? {
+        // Check player's actual traversal first
+        if let match = traversedConnectors.first(where: { tc in
+            (tc.0 == cellA && tc.1 == cellB) || (tc.0 == cellB && tc.1 == cellA)
+        }) {
+            return (from: match.0, to: match.1)
+        }
+
+        // If showing solution, get direction from solution path
+        if showSolution {
+            let path = puzzle.solution.path
+            for i in 0..<(path.count - 1) {
+                let from = path[i]
+                let to = path[i + 1]
+                if (from == cellA && to == cellB) || (from == cellB && to == cellA) {
+                    return (from: from, to: to)
+                }
+            }
+        }
+        return nil
+    }
+
+    var body: some View {
+        // When showSolution is true:
+        // - All solution path connectors render with electric flow animation
+        // - All cells on solution path show as "visited" state (green, pulsing)
+        // - onCellTap is disabled (view-only mode)
+        // - Grid displays instantly (no step-by-step animation)
+
+        Canvas { context, size in
+            // Render connectors
+            for connector in puzzle.connectors {
+                let isTraversed = isConnectorTraversed(
+                    cellA: connector.cellA,
+                    cellB: connector.cellB
+                )
+                // If traversed, use electric flow animation
+                // Otherwise use default brown connector
+            }
+
+            // Render cells
+            for (row, cells) in puzzle.grid.enumerated() {
+                for (col, cell) in cells.enumerated() {
+                    let coord = Coordinate(row: row, col: col)
+                    let state = getCellState(coord)
+                    // Render hex cell with appropriate state
+                }
+            }
+        }
+    }
+
+    private func getCellState(_ coord: Coordinate) -> CellState {
+        // When showing solution, mark all path cells as visited
+        if showSolution && puzzle.solution.path.contains(coord) {
+            if coord == Coordinate(row: 0, col: 0) { return .visited }  // START
+            if coord == puzzle.finishCoord { return .finish }
+            return .visited
+        }
+        // Normal state logic...
+    }
 }
 ```
+
+**Key Points:**
+- Pass the SAME puzzle to the game view when showing solution (don't generate new)
+- All solution path connectors display electric flow animation simultaneously
+- All cells on path show as visited (green with 2s pulse)
+- Disable all touch interaction when `showSolution: true`
+- User can only go back or try again from the solution view
 
 ---
 
