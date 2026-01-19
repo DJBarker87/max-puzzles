@@ -36,6 +36,27 @@ function getHexagonPoints(cx: number, cy: number, radius: number): string {
 }
 
 /**
+ * Generate a hexagon as an SVG path (for proper dash animation)
+ */
+function getHexagonPath(cx: number, cy: number, radius: number): string {
+  const w = radius * Math.sqrt(3) / 2
+  const h = radius / 2
+
+  const points = [
+    [cx, cy - radius],           // top
+    [cx + w, cy - h],            // top-right
+    [cx + w, cy + h],            // bottom-right
+    [cx, cy + radius],           // bottom
+    [cx - w, cy + h],            // bottom-left
+    [cx - w, cy - h],            // top-left
+  ]
+
+  return `M ${points[0][0]},${points[0][1]} ` +
+    points.slice(1).map(p => `L ${p[0]},${p[1]}`).join(' ') +
+    ' Z'
+}
+
+/**
  * Get gradient IDs based on cell state
  */
 function getGradients(state: CellState) {
@@ -165,43 +186,60 @@ export default function HexCell({
         {expression}
       </text>
 
-      {/* Electric glow for current/start cell - matching connector style */}
+      {/* Electric glow for current/start cell - matching connector style exactly */}
       {isPulsing && (
         <>
-          {/* Glow layer */}
-          <polygon
-            points={topPoints}
+          {/* Layer 1: Glow */}
+          <path
+            d={getHexagonPath(cx, cy, size)}
             fill="none"
             stroke="#00ff88"
-            strokeWidth={8}
+            strokeWidth={18}
+            strokeLinecap="round"
+            strokeLinejoin="round"
             opacity={0.5}
             filter="url(#cc-connectorGlowFilter)"
             className="connector-glow"
           />
-          {/* Main stroke */}
-          <polygon
-            points={topPoints}
+          {/* Layer 2: Main line */}
+          <path
+            d={getHexagonPath(cx, cy, size)}
             fill="none"
             stroke="#00dd77"
-            strokeWidth={4}
+            strokeWidth={10}
+            strokeLinecap="round"
+            strokeLinejoin="round"
           />
-          {/* Energy flow slow */}
-          <polygon
-            points={topPoints}
+          {/* Layer 3: Energy flow slow */}
+          <path
+            d={getHexagonPath(cx, cy, size)}
             fill="none"
             stroke="#88ffcc"
-            strokeWidth={3}
-            strokeDasharray="8 20"
+            strokeWidth={6}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeDasharray="6 30"
             className="energy-flow-slow"
           />
-          {/* Energy flow fast */}
-          <polygon
-            points={topPoints}
+          {/* Layer 4: Energy flow fast */}
+          <path
+            d={getHexagonPath(cx, cy, size)}
             fill="none"
             stroke="#ffffff"
-            strokeWidth={2}
-            strokeDasharray="4 16"
+            strokeWidth={4}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeDasharray="4 20"
             className="energy-flow-fast"
+          />
+          {/* Layer 5: Bright core */}
+          <path
+            d={getHexagonPath(cx, cy, size)}
+            fill="none"
+            stroke="#aaffcc"
+            strokeWidth={3}
+            strokeLinecap="round"
+            strokeLinejoin="round"
           />
         </>
       )}
