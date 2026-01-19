@@ -14,11 +14,12 @@
 4. [Feature Parity Requirements](#feature-parity-requirements)
 5. [Shared Logic & Code Reuse](#shared-logic--code-reuse)
 6. [iOS-Specific Considerations](#ios-specific-considerations)
-7. [Implementation Phases](#implementation-phases)
-8. [Data & Storage](#data--storage)
-9. [API Integration](#api-integration)
-10. [Testing Strategy](#testing-strategy)
-11. [App Store Requirements](#app-store-requirements)
+7. [iPad Optimization](#ipad-optimization)
+8. [Implementation Phases](#implementation-phases)
+9. [Data & Storage](#data--storage)
+10. [API Integration](#api-integration)
+11. [Testing Strategy](#testing-strategy)
+12. [App Store Requirements](#app-store-requirements)
 
 ---
 
@@ -487,6 +488,655 @@ struct MaxPuzzlesApp: App {
     }
 }
 ```
+
+---
+
+## iPad Optimization
+
+iPad deserves a **first-class experience**, not just a scaled-up iPhone app. The larger screen enables enhanced layouts, bigger touch targets, and richer visual effects.
+
+### iPad Device Targets
+
+| Device | Screen Size | Resolution | Notes |
+|--------|-------------|------------|-------|
+| iPad mini | 8.3" | 2266×1488 | Smallest iPad, still larger than iPhone |
+| iPad | 10.9" | 2360×1640 | Standard iPad |
+| iPad Air | 10.9" | 2360×1640 | Same as standard |
+| iPad Pro 11" | 11" | 2388×1668 | ProMotion 120Hz |
+| iPad Pro 12.9" | 12.9" | 2732×2048 | Largest, ProMotion 120Hz |
+
+### Detection Strategy
+
+```swift
+struct DeviceInfo {
+    static var isIPad: Bool {
+        UIDevice.current.userInterfaceIdiom == .pad
+    }
+
+    static var screenWidth: CGFloat {
+        UIScreen.main.bounds.width
+    }
+
+    static var isLargeIPad: Bool {
+        isIPad && min(UIScreen.main.bounds.width, UIScreen.main.bounds.height) >= 1024
+    }
+}
+
+// In SwiftUI views
+struct GameView: View {
+    @Environment(\.horizontalSizeClass) var horizontalSizeClass
+    @Environment(\.verticalSizeClass) var verticalSizeClass
+
+    var isIPad: Bool {
+        horizontalSizeClass == .regular && verticalSizeClass == .regular
+    }
+
+    var isIPadLandscape: Bool {
+        isIPad && UIScreen.main.bounds.width > UIScreen.main.bounds.height
+    }
+}
+```
+
+---
+
+### iPad Game Screen Layout
+
+#### Portrait Mode (iPad)
+
+Two-column layout with sidebar:
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  ←  Circuit Challenge                        🪙 1,234   │
+├───────────────────┬─────────────────────────────────────┤
+│                   │                                     │
+│   Quick Play      │                                     │
+│                   │         ┌─────────────────┐         │
+│   ───────────     │         │                 │         │
+│                   │         │                 │         │
+│   Difficulty:     │         │   PUZZLE GRID   │         │
+│   Level 5         │         │                 │         │
+│                   │         │   (LARGER)      │         │
+│   ───────────     │         │                 │         │
+│                   │         │                 │         │
+│   ♥ ♥ ♥ ♥ ♥      │         └─────────────────┘         │
+│   Lives           │                                     │
+│                   │                                     │
+│   ⏱ 0:45         │    [🔄 Reset]  [✨ New Puzzle]      │
+│   Timer           │    [⚙️ Difficulty]  [🖨️ Print]     │
+│                   │                                     │
+└───────────────────┴─────────────────────────────────────┘
+```
+
+#### Landscape Mode (iPad)
+
+Maximized grid with floating panels:
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│  ←  Circuit Challenge                                    🪙 1,234   │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                     │
+│  ┌─────────┐                                         ┌─────────┐   │
+│  │ Level 5 │      ┌───────────────────────────┐      │ ♥♥♥♥♥   │   │
+│  │         │      │                           │      │         │   │
+│  │ Hidden  │      │                           │      │ ⏱ 0:45  │   │
+│  │ Mode: ○ │      │      PUZZLE GRID          │      │         │   │
+│  │         │      │                           │      │ 🪙 +80   │   │
+│  │─────────│      │      (MAXIMIZED)          │      │         │   │
+│  │ [Reset] │      │                           │      │─────────│   │
+│  │ [New]   │      │                           │      │ Stats   │   │
+│  │ [Print] │      └───────────────────────────┘      │ 47 games│   │
+│  └─────────┘                                         └─────────┘   │
+│                                                                     │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+### iPad Cell Sizing
+
+Larger cells for iPad's bigger screen:
+
+| Device | Cell Width | Cell Height | Touch Target | Text Size |
+|--------|------------|-------------|--------------|-----------|
+| iPhone | 60-70px | 52-60px | 70px | 14px |
+| iPad mini | 90-100px | 78-86px | 100px | 18px |
+| iPad | 100-120px | 86-103px | 120px | 20px |
+| iPad Pro 12.9" | 120-140px | 103-120px | 140px | 24px |
+
+```swift
+struct HexCellView: View {
+    @Environment(\.horizontalSizeClass) var horizontalSizeClass
+
+    var cellSize: CGFloat {
+        switch horizontalSizeClass {
+        case .regular:
+            return DeviceInfo.isLargeIPad ? 130 : 110
+        default:
+            return 65
+        }
+    }
+
+    var fontSize: CGFloat {
+        switch horizontalSizeClass {
+        case .regular:
+            return DeviceInfo.isLargeIPad ? 24 : 20
+        default:
+            return 14
+        }
+    }
+}
+```
+
+---
+
+### Visual Style Consistency (CRITICAL)
+
+**All visual styles must match the web app exactly.** The visual design was carefully crafted - do not deviate.
+
+#### Hex Cell 3D "Poker Chip" Effect
+
+Exact layer structure (scales proportionally on iPad):
+
+```swift
+struct HexCellView: View {
+    let state: CellState
+    let expression: String
+
+    // EXACT offsets from web (scale for iPad)
+    var shadowOffset: CGFloat { cellSize * 0.1 }  // ~14px at 140px cell
+    var edgeOffset: CGFloat { cellSize * 0.086 }  // ~12px
+    var baseOffset: CGFloat { cellSize * 0.043 }  // ~6px
+
+    var body: some View {
+        ZStack {
+            // Layer 1: Shadow
+            HexagonShape()
+                .fill(Color.black.opacity(0.5))
+                .offset(x: 4, y: shadowOffset)
+                .blur(radius: 4)
+
+            // Layer 2: Edge (3D depth)
+            HexagonShape()
+                .fill(edgeGradient)
+                .offset(y: edgeOffset)
+
+            // Layer 3: Base
+            HexagonShape()
+                .fill(baseGradient)
+                .offset(y: baseOffset)
+
+            // Layer 4: Top face
+            HexagonShape()
+                .fill(topGradient)
+
+            // Layer 5: Inner shadow (on top face)
+            HexagonShape()
+                .stroke(Color.black.opacity(0.3), lineWidth: 2)
+                .blur(radius: 1)
+
+            // Layer 6: Rim highlight
+            HexagonShape()
+                .stroke(rimColor, lineWidth: 1.5)
+
+            // Expression text with shadow
+            CellTextView(expression: expression, state: state)
+        }
+        .frame(width: cellSize, height: cellSize * 0.866)
+    }
+}
+```
+
+#### Cell State Colors (EXACT from web)
+
+```swift
+extension Color {
+    // Normal cell
+    static let cellNormalTop1 = Color(hex: "3a3a4a")
+    static let cellNormalTop2 = Color(hex: "252530")
+    static let cellNormalEdge1 = Color(hex: "1a1a25")
+    static let cellNormalEdge2 = Color(hex: "0f0f15")
+    static let cellNormalBorder = Color(hex: "4a4a5a")
+
+    // Start cell
+    static let cellStartTop1 = Color(hex: "15803d")
+    static let cellStartTop2 = Color(hex: "0d5025")
+    static let cellStartBorder = Color(hex: "00ff88")
+
+    // Finish cell
+    static let cellFinishTop1 = Color(hex: "ca8a04")
+    static let cellFinishTop2 = Color(hex: "854d0e")
+    static let cellFinishBorder = Color(hex: "ffcc00")
+    static let cellFinishText = Color(hex: "ffdd44")
+
+    // Current cell
+    static let cellCurrentTop1 = Color(hex: "0d9488")
+    static let cellCurrentTop2 = Color(hex: "086560")
+    static let cellCurrentBorder = Color(hex: "00ffcc")
+
+    // Visited cell
+    static let cellVisitedTop1 = Color(hex: "1a5c38")
+    static let cellVisitedTop2 = Color(hex: "103822")
+    static let cellVisitedBorder = Color(hex: "00ff88")
+
+    // Wrong (reveal)
+    static let cellWrongTop = Color(hex: "ef4444")
+    static let cellWrongBorder = Color(hex: "dc2626")
+}
+```
+
+#### Connector Styles (EXACT from web)
+
+```swift
+// Default connector
+static let connectorDefault = Color(hex: "3d3428")
+
+// Active/traversed connector - multi-layer electric effect
+struct TraversedConnectorView: View {
+    @State private var flowPhase1: CGFloat = 0
+    @State private var flowPhase2: CGFloat = 0
+    @State private var glowIntensity: CGFloat = 0.6
+
+    var body: some View {
+        ZStack {
+            // Layer 1: Glow (18px, blurred)
+            connectorPath
+                .stroke(Color(hex: "00ff88").opacity(glowIntensity), lineWidth: 18)
+                .blur(radius: 8)
+
+            // Layer 2: Main line (10px)
+            connectorPath
+                .stroke(Color(hex: "00dd77"), lineWidth: 10)
+
+            // Layer 3: Energy particles 2 (6px, slower)
+            connectorPath
+                .stroke(
+                    Color(hex: "88ffcc"),
+                    style: StrokeStyle(lineWidth: 6, dash: [6, 30], dashPhase: flowPhase2)
+                )
+
+            // Layer 4: Energy particles 1 (4px, faster)
+            connectorPath
+                .stroke(
+                    Color.white,
+                    style: StrokeStyle(lineWidth: 4, dash: [4, 20], dashPhase: flowPhase1)
+                )
+
+            // Layer 5: Bright core (3px)
+            connectorPath
+                .stroke(Color(hex: "aaffcc"), lineWidth: 3)
+
+            // Number badge
+            ConnectorBadge(value: value)
+        }
+        .onAppear {
+            // Energy flow animation (0.8s fast, 1.2s slow)
+            withAnimation(.linear(duration: 0.8).repeatForever(autoreverses: false)) {
+                flowPhase1 = -36
+            }
+            withAnimation(.linear(duration: 1.2).repeatForever(autoreverses: false)) {
+                flowPhase2 = -36
+            }
+            // Glow pulse (1.5s)
+            withAnimation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true)) {
+                glowIntensity = 0.9
+            }
+        }
+    }
+}
+```
+
+#### Connector Badge (Number Display)
+
+```swift
+struct ConnectorBadge: View {
+    let value: Int
+
+    var body: some View {
+        Text("\(value)")
+            .font(.system(size: badgeFontSize, weight: .bold))
+            .foregroundColor(Color(hex: "ff9f43"))  // Orange text
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(Color(hex: "15151f"))  // Dark background
+            )
+    }
+
+    var badgeFontSize: CGFloat {
+        DeviceInfo.isIPad ? 18 : 14
+    }
+}
+```
+
+#### Cell Pulse Animations
+
+```swift
+// Current cell pulse (1.5s cycle)
+struct CurrentCellPulse: ViewModifier {
+    @State private var glowAmount: CGFloat = 0.3
+
+    func body(content: Content) -> some View {
+        content
+            .shadow(color: Color(hex: "00ffcc").opacity(glowAmount), radius: 12)
+            .onAppear {
+                withAnimation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true)) {
+                    glowAmount = 0.7
+                }
+            }
+    }
+}
+
+// Visited cell pulse (2s cycle)
+struct VisitedCellPulse: ViewModifier {
+    @State private var glowAmount: CGFloat = 0.3
+
+    func body(content: Content) -> some View {
+        content
+            .shadow(color: Color(hex: "00ff88").opacity(glowAmount), radius: 8)
+            .onAppear {
+                withAnimation(.easeInOut(duration: 2.0).repeatForever(autoreverses: true)) {
+                    glowAmount = 0.6
+                }
+            }
+    }
+}
+```
+
+#### Hearts Pulse Animation
+
+```swift
+// Active hearts pulse (1.2s heartbeat)
+struct HeartPulse: ViewModifier {
+    @State private var scale: CGFloat = 1.0
+
+    func body(content: Content) -> some View {
+        content
+            .scaleEffect(scale)
+            .onAppear {
+                withAnimation(.easeInOut(duration: 1.2).repeatForever(autoreverses: true)) {
+                    scale = 1.15
+                }
+            }
+    }
+}
+
+struct LivesDisplay: View {
+    let lives: Int
+    let maxLives: Int = 5
+
+    var body: some View {
+        HStack(spacing: DeviceInfo.isIPad ? 12 : 8) {
+            ForEach(0..<maxLives, id: \.self) { index in
+                Image(systemName: "heart.fill")
+                    .foregroundColor(index < lives ? Color(hex: "ff3366") : Color(hex: "2a2a3a"))
+                    .font(.system(size: DeviceInfo.isIPad ? 28 : 20))
+                    .modifier(index < lives ? HeartPulse() : nil)
+            }
+        }
+    }
+}
+```
+
+#### Starry Background
+
+```swift
+struct StarryBackground: View {
+    let starCount = 80
+
+    var body: some View {
+        ZStack {
+            // Gradient background
+            LinearGradient(
+                colors: [
+                    Color(hex: "0a0a12"),
+                    Color(hex: "12121f"),
+                    Color(hex: "0d0d18")
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+
+            // Stars
+            ForEach(0..<starCount, id: \.self) { i in
+                StarView(seed: i)
+            }
+
+            // Ambient green glow (3% opacity)
+            Color(hex: "00ff88").opacity(0.03)
+        }
+    }
+}
+
+struct StarView: View {
+    let seed: Int
+    @State private var opacity: Double = 0.3
+
+    var body: some View {
+        Circle()
+            .fill(Color.white)
+            .frame(width: CGFloat.random(in: 1...3), height: CGFloat.random(in: 1...3))
+            .position(
+                x: CGFloat.random(in: 0...UIScreen.main.bounds.width),
+                y: CGFloat.random(in: 0...UIScreen.main.bounds.height)
+            )
+            .opacity(opacity)
+            .onAppear {
+                // Twinkle animation (3-5s cycle, staggered)
+                withAnimation(
+                    .easeInOut(duration: Double.random(in: 3...5))
+                    .repeatForever(autoreverses: true)
+                    .delay(Double(seed) * 0.05)
+                ) {
+                    opacity = 0.8
+                }
+            }
+    }
+}
+```
+
+---
+
+### iPad Multitasking Support
+
+#### Split View & Slide Over
+
+The app should work properly in all multitasking modes:
+
+```swift
+struct ContentView: View {
+    @Environment(\.horizontalSizeClass) var horizontalSizeClass
+
+    var body: some View {
+        // Adapt layout based on available width
+        // Split View gives .compact horizontalSizeClass
+        if horizontalSizeClass == .compact {
+            // Use iPhone-style layout
+            CompactGameView()
+        } else {
+            // Use iPad-optimized layout
+            RegularGameView()
+        }
+    }
+}
+```
+
+**Requirements:**
+- Support all Split View sizes (1/3, 1/2, 2/3)
+- Support Slide Over (compact width overlay)
+- Grid scales appropriately
+- No content gets cut off
+
+#### Stage Manager (iPadOS 16+)
+
+- Support resizable windows
+- Minimum window size: 320×480
+- Adapt grid and UI to window size
+
+---
+
+### iPad Pointer/Trackpad Support
+
+iPad supports mouse and trackpad - add hover effects:
+
+```swift
+struct HexCellView: View {
+    @State private var isHovered = false
+
+    var body: some View {
+        cellContent
+            .scaleEffect(isHovered ? 1.05 : 1.0)
+            .shadow(
+                color: isHovered ? Color(hex: "00ffcc").opacity(0.5) : .clear,
+                radius: 8
+            )
+            .onHover { hovering in
+                withAnimation(.easeInOut(duration: 0.15)) {
+                    isHovered = hovering
+                }
+            }
+    }
+}
+
+struct PrimaryButton: View {
+    @State private var isHovered = false
+
+    var body: some View {
+        button
+            .brightness(isHovered ? 0.1 : 0)
+            .onHover { isHovered = $0 }
+    }
+}
+```
+
+---
+
+### iPad Keyboard Support
+
+Add keyboard shortcuts for parents and power users:
+
+```swift
+struct GameView: View {
+    var body: some View {
+        gameContent
+            .keyboardShortcut("r", modifiers: .command)  // Reset
+            .keyboardShortcut("n", modifiers: .command)  // New Puzzle
+            .keyboardShortcut("p", modifiers: .command)  // Print
+    }
+}
+
+// Arrow key navigation for cells
+struct PuzzleGridView: View {
+    @FocusState private var focusedCell: Coordinate?
+
+    var body: some View {
+        gridContent
+            .focusable()
+            .onKeyPress(.leftArrow) { moveFocus(.left); return .handled }
+            .onKeyPress(.rightArrow) { moveFocus(.right); return .handled }
+            .onKeyPress(.upArrow) { moveFocus(.up); return .handled }
+            .onKeyPress(.downArrow) { moveFocus(.down); return .handled }
+            .onKeyPress(.return) { selectFocusedCell(); return .handled }
+            .onKeyPress(.space) { selectFocusedCell(); return .handled }
+    }
+}
+```
+
+**Keyboard Shortcuts:**
+| Shortcut | Action |
+|----------|--------|
+| ⌘R | Reset puzzle |
+| ⌘N | New puzzle |
+| ⌘P | Print |
+| Arrow keys | Navigate cells |
+| Return/Space | Select cell |
+| Escape | Back/Cancel |
+
+---
+
+### iPad Parent Dashboard
+
+Enhanced layout using iPad's space:
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│  ←  Parent Dashboard                                                │
+├───────────────────────────────────────────────────────────────────  │
+│                                                                     │
+│  ┌─────────────────────────────────────────────────────────────┐   │
+│  │  Your Family                                                 │   │
+│  │                                                              │   │
+│  │  ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────────────┐│   │
+│  │  │  👽 Max │  │ 👽 Lily │  │ 👽 Tom  │  │  + Add Child    ││   │
+│  │  │ 🪙 1,234│  │ 🪙 567  │  │ 🪙 890  │  │                 ││   │
+│  │  │ ⭐ 38   │  │ ⭐ 12   │  │ ⭐ 25   │  │                 ││   │
+│  │  └─────────┘  └─────────┘  └─────────┘  └─────────────────┘│   │
+│  └─────────────────────────────────────────────────────────────┘   │
+│                                                                     │
+│  ┌────────────────────────────┐  ┌────────────────────────────┐    │
+│  │  Max's Progress            │  │  This Week's Activity      │    │
+│  │                            │  │                            │    │
+│  │  Circuit Challenge         │  │  ┌────────────────────┐   │    │
+│  │  ████████████░░░░ 15/30    │  │  │   [Activity Chart] │   │    │
+│  │                            │  │  │                    │   │    │
+│  │  Quick Play: 47 games      │  │  │   Mon Tue Wed ...  │   │    │
+│  │  Accuracy: 87%             │  │  └────────────────────┘   │    │
+│  │  Best streak: 12           │  │                            │    │
+│  │                            │  │  Total: 2h 15m             │    │
+│  └────────────────────────────┘  └────────────────────────────┘    │
+│                                                                     │
+│  ┌──────────────────────────────────────────────────────────────┐  │
+│  │  Recent Sessions                                              │  │
+│  │  Today 4:30pm │ Circuit Challenge │ 15 min │ +80 coins       │  │
+│  │  Yesterday    │ Circuit Challenge │ 22 min │ +120 coins      │  │
+│  │  2 days ago   │ Circuit Challenge │ 18 min │ +60 coins       │  │
+│  └──────────────────────────────────────────────────────────────┘  │
+│                                                                     │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+Use Swift Charts for activity visualization:
+
+```swift
+import Charts
+
+struct ActivityChart: View {
+    let weeklyData: [DayActivity]
+
+    var body: some View {
+        Chart(weeklyData) { day in
+            BarMark(
+                x: .value("Day", day.name),
+                y: .value("Minutes", day.minutes)
+            )
+            .foregroundStyle(Color.accentPrimary)
+        }
+        .chartYAxisLabel("Minutes")
+        .frame(height: 200)
+    }
+}
+```
+
+---
+
+### iPad-Specific Testing Checklist
+
+- [ ] All layouts work in portrait AND landscape
+- [ ] Split View 1/3, 1/2, 2/3 all work
+- [ ] Slide Over works correctly
+- [ ] Stage Manager resizing works
+- [ ] Pointer hover effects work
+- [ ] Keyboard shortcuts work
+- [ ] External keyboard navigation works
+- [ ] Cell sizes scale correctly per device
+- [ ] Animations match web exactly
+- [ ] All colors match web exactly
+- [ ] Electric flow effect matches web
+- [ ] Starry background matches web
+- [ ] Text is readable at all sizes
+- [ ] Touch targets are large enough
 
 ---
 
