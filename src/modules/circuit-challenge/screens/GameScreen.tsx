@@ -266,8 +266,8 @@ export default function GameScreen() {
           </div>
         </Modal>
 
-        {/* Game Over Overlay */}
-        {isGameOver && (
+        {/* Game Over Overlay - hide when viewing solution */}
+        {isGameOver && !state.showingSolution && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
             <div className="text-center animate-pulse">
               <div className="text-6xl mb-4">
@@ -375,8 +375,8 @@ export default function GameScreen() {
         </div>
       </Modal>
 
-      {/* Game Over Overlay */}
-      {isGameOver && (
+      {/* Game Over Overlay - hide when viewing solution */}
+      {isGameOver && !state.showingSolution && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="text-center animate-pulse">
             <div className="text-6xl mb-4">
