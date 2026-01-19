@@ -26,18 +26,21 @@
   animation: connectorPulse 1.5s ease-in-out infinite;
 }
 
-/* Cell pulsing for current position */
+/* Cell pulsing for current position - scale and glow */
 @keyframes cellPulse {
   0%, 100% {
-    filter: drop-shadow(0 0 20px rgba(0, 255, 200, 0.5));
+    transform: scale(1);
+    filter: drop-shadow(0 0 15px rgba(0, 255, 200, 0.6));
   }
   50% {
-    filter: drop-shadow(0 0 35px rgba(0, 255, 200, 0.9));
+    transform: scale(1.08);
+    filter: drop-shadow(0 0 30px rgba(0, 255, 200, 1));
   }
 }
 
 .cell-current {
-  animation: cellPulse 1.5s ease-in-out infinite;
+  animation: cellPulse 1.2s ease-in-out infinite;
+  transform-origin: center;
 }
 
 /* Visited cell subtle pulse */
