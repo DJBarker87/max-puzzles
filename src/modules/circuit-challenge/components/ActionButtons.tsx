@@ -6,8 +6,10 @@ interface ActionButtonsProps {
   onChangeDifficulty: () => void
   onPrint: () => void
   onViewSolution?: () => void
+  onContinue?: () => void
   disabled?: boolean
   showViewSolution?: boolean
+  showContinue?: boolean
   vertical?: boolean
   className?: string
 }
@@ -21,8 +23,10 @@ export default function ActionButtons({
   onChangeDifficulty,
   onPrint,
   onViewSolution,
+  onContinue,
   disabled = false,
   showViewSolution = false,
+  showContinue = false,
   vertical = false,
   className = '',
 }: ActionButtonsProps) {
@@ -35,6 +39,10 @@ export default function ActionButtons({
 
   if (showViewSolution && onViewSolution) {
     buttons.push({ id: 'solution', icon: '👁️', label: 'Solution', onClick: onViewSolution })
+  }
+
+  if (showContinue && onContinue) {
+    buttons.push({ id: 'continue', icon: '➡️', label: 'Continue', onClick: onContinue })
   }
 
   // Vertical layout for landscape mobile
