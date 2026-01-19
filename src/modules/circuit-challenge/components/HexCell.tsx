@@ -104,14 +104,6 @@ export default function HexCell({
   const isClickable = onClick && !disabled
   const isPulsing = state === 'current' || state === 'start'
 
-  // Inline animation style for pulse effect
-  const pulseStyle = isPulsing ? {
-    animation: 'cellPulse 1s ease-in-out infinite',
-  } : {}
-
-  // Get text color - bright white for all, gold for finish
-  const textColor = state === 'finish' ? '#ffdd44' : '#ffffff'
-
   // Get font size - smaller for FINISH text
   const getFontSize = () => {
     if (state === 'finish') return 13
@@ -129,8 +121,6 @@ export default function HexCell({
       aria-label={expression}
       style={{
         cursor: isClickable ? 'pointer' : 'default',
-        opacity: disabled && !isClickable ? 0.5 : 1,
-        ...pulseStyle,
       }}
     >
       {/* Layer 1: Shadow */}
@@ -191,11 +181,8 @@ export default function HexCell({
         textAnchor="middle"
         dominantBaseline="middle"
         fontSize={getFontSize()}
-        fontWeight="bold"
-        fill={textColor}
-        stroke="#000"
-        strokeWidth={0.5}
-        paintOrder="stroke fill"
+        fontWeight="900"
+        fill={state === 'finish' ? '#ffdd44' : '#ffffff'}
       >
         {expression}
       </text>
