@@ -104,14 +104,6 @@ export default function HexCell({
   const isClickable = onClick && !disabled
   const isPulsing = state === 'current' || state === 'start'
 
-  // Inline animation style for pulse effect
-  const pulseStyle = isPulsing ? {
-    animation: 'cellPulse 1s ease-in-out infinite',
-  } : {}
-
-  // Get text color - bright white for all, gold for finish
-  const textColor = state === 'finish' ? '#ffdd44' : '#ffffff'
-
   // Get font size - smaller for FINISH text
   const getFontSize = () => {
     if (state === 'finish') return 13
@@ -129,8 +121,6 @@ export default function HexCell({
       aria-label={expression}
       style={{
         cursor: isClickable ? 'pointer' : 'default',
-        opacity: disabled && !isClickable ? 0.5 : 1,
-        ...pulseStyle,
       }}
     >
       {/* Layer 1: Shadow */}
@@ -150,29 +140,6 @@ export default function HexCell({
         strokeWidth={gradients.strokeWidth}
       />
 
-      {/* Pulsing glow for current/start cell */}
-      {isPulsing && (
-        <polygon
-          points={topPoints}
-          fill="none"
-          stroke="#00ffc8"
-          strokeWidth={4}
-        >
-          <animate
-            attributeName="stroke-opacity"
-            values="0.3;1;0.3"
-            dur="1s"
-            repeatCount="indefinite"
-          />
-          <animate
-            attributeName="stroke-width"
-            values="2;6;2"
-            dur="1s"
-            repeatCount="indefinite"
-          />
-        </polygon>
-      )}
-
       {/* Layer 5: Inner shadow */}
       <polygon points={innerPoints} fill="url(#cc-cellInnerShadow)" />
 
@@ -184,21 +151,30 @@ export default function HexCell({
         strokeWidth={1.5}
       />
 
-      {/* Expression text */}
+      {/* Expression text - MUST BE WHITE */}
       <text
         x={cx}
         y={cy + 2}
         textAnchor="middle"
         dominantBaseline="middle"
+        fill={state === 'finish' ? '#ffdd44' : '#ffffff'}
         fontSize={getFontSize()}
-        fontWeight="bold"
-        fill={textColor}
-        stroke="#000"
-        strokeWidth={0.5}
-        paintOrder="stroke fill"
+        fontWeight="900"
+        style={{ fill: state === 'finish' ? '#ffdd44' : '#ffffff' }}
       >
         {expression}
       </text>
+
+      {/* Pulsing glow for current/start cell - ON TOP */}
+      {isPulsing && (
+        <polygon
+          points={topPoints}
+          fill="none"
+          stroke="#00ffc8"
+          strokeWidth={4}
+          className="cell-pulse-stroke"
+        />
+      )}
     </g>
   )
 }
