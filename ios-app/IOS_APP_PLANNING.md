@@ -733,14 +733,15 @@ extension Color {
 static let connectorDefault = Color(hex: "3d3428")
 
 // Active/traversed connector - multi-layer electric effect
+// CSS: connectorPulse opacity 0.5 → 0.8 over 1.5s
 struct TraversedConnectorView: View {
     @State private var flowPhase1: CGFloat = 0
     @State private var flowPhase2: CGFloat = 0
-    @State private var glowIntensity: CGFloat = 0.6
+    @State private var glowIntensity: CGFloat = 0.5  // Start at 0.5 (CSS min)
 
     var body: some View {
         ZStack {
-            // Layer 1: Glow (18px, blurred)
+            // Layer 1: Glow (18px, blurred) - pulses 0.5 → 0.8 opacity
             connectorPath
                 .stroke(Color(hex: "00ff88").opacity(glowIntensity), lineWidth: 18)
                 .blur(radius: 8)
@@ -749,14 +750,14 @@ struct TraversedConnectorView: View {
             connectorPath
                 .stroke(Color(hex: "00dd77"), lineWidth: 10)
 
-            // Layer 3: Energy particles 2 (6px, slower)
+            // Layer 3: Energy particles 2 (6px, slower, 1.2s)
             connectorPath
                 .stroke(
                     Color(hex: "88ffcc"),
                     style: StrokeStyle(lineWidth: 6, dash: [6, 30], dashPhase: flowPhase2)
                 )
 
-            // Layer 4: Energy particles 1 (4px, faster)
+            // Layer 4: Energy particles 1 (4px, faster, 0.8s)
             connectorPath
                 .stroke(
                     Color.white,
@@ -771,16 +772,18 @@ struct TraversedConnectorView: View {
             ConnectorBadge(value: value)
         }
         .onAppear {
-            // Energy flow animation (0.8s fast, 1.2s slow)
+            // Energy flow animation - dashOffset 0 → -36
+            // Fast particles (0.8s linear infinite)
             withAnimation(.linear(duration: 0.8).repeatForever(autoreverses: false)) {
                 flowPhase1 = -36
             }
+            // Slow particles (1.2s linear infinite)
             withAnimation(.linear(duration: 1.2).repeatForever(autoreverses: false)) {
                 flowPhase2 = -36
             }
-            // Glow pulse (1.5s)
+            // Glow pulse (1.5s ease-in-out infinite) - opacity 0.5 → 0.8
             withAnimation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true)) {
-                glowIntensity = 0.9
+                glowIntensity = 0.8
             }
         }
     }
@@ -811,44 +814,102 @@ struct ConnectorBadge: View {
 }
 ```
 
-#### Cell Pulse Animations
+#### Cell Pulse Animations (EXACT from animations.css)
+
+The current/start cell has **TWO** simultaneous animations:
+1. **cellPulse**: Multi-layer drop-shadow glow (1s cycle)
+2. **strokePulse**: Overlay stroke width 2px → 6px (1s cycle)
 
 ```swift
-// Current cell pulse (1.5s cycle)
+// Current/Start cell - DUAL animation effect (1s cycle each)
+// Color: #00ffc8 (cyan-green)
+
 struct CurrentCellPulse: ViewModifier {
-    @State private var glowAmount: CGFloat = 0.3
+    @State private var phase: CGFloat = 0  // 0 = min, 1 = max
 
     func body(content: Content) -> some View {
         content
-            .shadow(color: Color(hex: "00ffcc").opacity(glowAmount), radius: 12)
+            // Multi-layer drop shadow (matches CSS filter exactly)
+            // Min: drop-shadow(0 0 8px rgba(0,255,200,0.4)) drop-shadow(0 0 15px rgba(0,255,200,0.2))
+            // Max: drop-shadow(0 0 20px rgba(0,255,200,1)) drop-shadow(0 0 40px rgba(0,255,200,0.8)) drop-shadow(0 0 60px rgba(0,255,200,0.4))
+            .shadow(
+                color: Color(hex: "00ffc8").opacity(phase == 0 ? 0.4 : 1.0),
+                radius: phase == 0 ? 8 : 20
+            )
+            .shadow(
+                color: Color(hex: "00ffc8").opacity(phase == 0 ? 0.2 : 0.8),
+                radius: phase == 0 ? 15 : 40
+            )
+            .shadow(
+                color: Color(hex: "00ffc8").opacity(phase == 0 ? 0 : 0.4),
+                radius: phase == 0 ? 0 : 60
+            )
             .onAppear {
-                withAnimation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true)) {
-                    glowAmount = 0.7
+                withAnimation(.easeInOut(duration: 1.0).repeatForever(autoreverses: true)) {
+                    phase = 1
                 }
             }
     }
 }
 
-// Visited cell pulse (2s cycle)
-struct VisitedCellPulse: ViewModifier {
-    @State private var glowAmount: CGFloat = 0.3
+// Stroke pulse overlay for current/start cell (runs simultaneously with above)
+struct CurrentCellStrokePulse: ViewModifier {
+    @State private var strokeWidth: CGFloat = 2
+    @State private var strokeOpacity: CGFloat = 0.3
 
     func body(content: Content) -> some View {
         content
-            .shadow(color: Color(hex: "00ff88").opacity(glowAmount), radius: 8)
+            .overlay(
+                HexagonShape()
+                    .stroke(Color(hex: "00ffc8").opacity(strokeOpacity), lineWidth: strokeWidth)
+            )
+            .onAppear {
+                withAnimation(.easeInOut(duration: 1.0).repeatForever(autoreverses: true)) {
+                    strokeWidth = 6
+                    strokeOpacity = 1.0
+                }
+            }
+    }
+}
+
+// Visited cell pulse (2s cycle) - matches visitedPulse keyframes
+// Color: #00ff88 (green)
+struct VisitedCellPulse: ViewModifier {
+    @State private var phase: CGFloat = 0
+
+    func body(content: Content) -> some View {
+        content
+            // Min: drop-shadow(0 0 8px rgba(0,255,136,0.3))
+            // Max: drop-shadow(0 0 20px rgba(0,255,136,0.6))
+            .shadow(
+                color: Color(hex: "00ff88").opacity(phase == 0 ? 0.3 : 0.6),
+                radius: phase == 0 ? 8 : 20
+            )
             .onAppear {
                 withAnimation(.easeInOut(duration: 2.0).repeatForever(autoreverses: true)) {
-                    glowAmount = 0.6
+                    phase = 1
                 }
             }
     }
 }
 ```
 
-#### Hearts Pulse Animation
+**Animation Timing Summary (from animations.css):**
+| Animation | Duration | Easing |
+|-----------|----------|--------|
+| cellPulse (current/start glow) | 1.0s | ease-in-out |
+| strokePulse (current/start stroke) | 1.0s | ease-in-out |
+| visitedPulse | 2.0s | ease-in-out |
+| heartPulse | 1.2s | ease-in-out |
+| electricFlow (fast) | 0.8s | linear |
+| electricFlow (slow) | 1.2s | linear |
+| connectorPulse | 1.5s | ease-in-out |
+| twinkle (stars) | 3-5s (random) | ease-in-out |
+
+#### Hearts Pulse & Break Animations
 
 ```swift
-// Active hearts pulse (1.2s heartbeat)
+// Active hearts pulse (1.2s heartbeat) - scale 1 → 1.15
 struct HeartPulse: ViewModifier {
     @State private var scale: CGFloat = 1.0
 
@@ -860,6 +921,46 @@ struct HeartPulse: ViewModifier {
                     scale = 1.15
                 }
             }
+    }
+}
+
+// Heart break animation (0.5s) - plays when losing a life
+struct HeartBreak: ViewModifier {
+    @State private var phase: Int = 0
+
+    func body(content: Content) -> some View {
+        content
+            .scaleEffect(scaleForPhase)
+            .rotationEffect(.degrees(rotationForPhase))
+            .opacity(opacityForPhase)
+            .onAppear {
+                // Sequence: scale up, shrink + rotate, fade, restore
+                withAnimation(.easeOut(duration: 0.5)) {
+                    phase = 4
+                }
+            }
+    }
+
+    var scaleForPhase: CGFloat {
+        switch phase {
+        case 0: return 1.0
+        case 1: return 1.3
+        case 2: return 0.8
+        case 3: return 0.5
+        default: return 1.0
+        }
+    }
+
+    var rotationForPhase: Double {
+        switch phase {
+        case 2: return 10
+        case 3: return -10
+        default: return 0
+        }
+    }
+
+    var opacityForPhase: Double {
+        phase == 3 ? 0.5 : 1.0
     }
 }
 
@@ -876,6 +977,93 @@ struct LivesDisplay: View {
                     .modifier(index < lives ? HeartPulse() : nil)
             }
         }
+    }
+}
+```
+
+#### Screen Shake Animation (Wrong Answer)
+
+```swift
+// Screen shake for wrong answer (0.3s, 5 oscillations)
+struct ScreenShake: ViewModifier {
+    @State private var offset: CGFloat = 0
+
+    func body(content: Content) -> some View {
+        content
+            .offset(x: offset)
+    }
+
+    func shake() {
+        // Oscillate: 0 → -5 → 5 → -5 → 5 → -5 → 5 → -5 → 5 → 0
+        withAnimation(.easeOut(duration: 0.3)) {
+            // Use keyframe animation in iOS 17+
+            // Or approximate with spring animation
+        }
+    }
+}
+
+// iOS 17+ version with keyframes
+struct ScreenShakeKeyframes: ViewModifier {
+    var trigger: Bool
+
+    func body(content: Content) -> some View {
+        content
+            .keyframeAnimator(initialValue: CGFloat.zero, trigger: trigger) { view, value in
+                view.offset(x: value)
+            } keyframes: { _ in
+                KeyframeTrack(\.self) {
+                    LinearKeyframe(0, duration: 0.03)
+                    LinearKeyframe(-5, duration: 0.03)
+                    LinearKeyframe(5, duration: 0.03)
+                    LinearKeyframe(-5, duration: 0.03)
+                    LinearKeyframe(5, duration: 0.03)
+                    LinearKeyframe(-5, duration: 0.03)
+                    LinearKeyframe(5, duration: 0.03)
+                    LinearKeyframe(-5, duration: 0.03)
+                    LinearKeyframe(5, duration: 0.03)
+                    LinearKeyframe(0, duration: 0.03)
+                }
+            }
+    }
+}
+```
+
+#### Coin Float Animations
+
+```swift
+// Coin earned - float up and fade (0.8s)
+struct CoinFloatUp: ViewModifier {
+    @State private var offset: CGFloat = 0
+    @State private var opacity: Double = 1
+
+    func body(content: Content) -> some View {
+        content
+            .offset(y: offset)
+            .opacity(opacity)
+            .onAppear {
+                withAnimation(.easeOut(duration: 0.8)) {
+                    offset = -30
+                    opacity = 0
+                }
+            }
+    }
+}
+
+// Coin lost - float down and fade (0.8s)
+struct CoinFloatDown: ViewModifier {
+    @State private var offset: CGFloat = 0
+    @State private var opacity: Double = 1
+
+    func body(content: Content) -> some View {
+        content
+            .offset(y: offset)
+            .opacity(opacity)
+            .onAppear {
+                withAnimation(.easeOut(duration: 0.8)) {
+                    offset = 20
+                    opacity = 0
+                }
+            }
     }
 }
 ```
