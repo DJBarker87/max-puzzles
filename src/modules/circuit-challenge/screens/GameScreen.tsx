@@ -71,9 +71,9 @@ export default function GameScreen() {
     }
   }, [state.moveHistory, state.isHiddenMode, triggerShake])
 
-  // Navigate to summary when game ends
+  // Navigate to summary when game ends (but not if viewing solution)
   useEffect(() => {
-    if (state.status === 'won' || state.status === 'lost') {
+    if ((state.status === 'won' || state.status === 'lost') && !state.showingSolution) {
       // Small delay to show final state
       const timer = setTimeout(() => {
         navigate('/play/circuit-challenge/summary', {
@@ -91,7 +91,7 @@ export default function GameScreen() {
       }, 1000)
       return () => clearTimeout(timer)
     }
-  }, [state.status, navigate, state])
+  }, [state.status, state.showingSolution, navigate, state])
 
   // Handle revealing hidden mode results
   useEffect(() => {
@@ -121,6 +121,21 @@ export default function GameScreen() {
     if (state.puzzle) {
       printCurrentPuzzle(state.puzzle, state.showingSolution)
     }
+  }
+
+  const handleContinueToSummary = () => {
+    navigate('/play/circuit-challenge/summary', {
+      state: {
+        won: state.status === 'won',
+        isHiddenMode: state.isHiddenMode,
+        elapsedMs: state.elapsedMs,
+        puzzleCoins: state.puzzleCoins,
+        moveHistory: state.moveHistory,
+        hiddenModeResults: state.hiddenModeResults,
+        difficulty: state.difficulty,
+        puzzle: state.puzzle,
+      },
+    })
   }
 
   // Get the most recent coin animation
@@ -161,6 +176,8 @@ export default function GameScreen() {
             onPrint={handlePrint}
             onViewSolution={state.status === 'lost' ? showSolution : undefined}
             showViewSolution={state.status === 'lost' && !state.showingSolution}
+            onContinue={handleContinueToSummary}
+            showContinue={state.showingSolution}
             disabled={!state.puzzle}
             vertical
           />
@@ -325,6 +342,8 @@ export default function GameScreen() {
         onPrint={handlePrint}
         onViewSolution={state.status === 'lost' ? showSolution : undefined}
         showViewSolution={state.status === 'lost' && !state.showingSolution}
+        onContinue={handleContinueToSummary}
+        showContinue={state.showingSolution}
         disabled={!state.puzzle}
         className="shrink-0"
       />

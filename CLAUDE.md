@@ -582,7 +582,7 @@ Added optimized layout for mobile devices in landscape orientation:
   - Right panel: Lives, timer, coins (vertical stack)
 
 **Component updates:**
-- `ActionButtons.tsx` - Added `vertical` prop for stacked layout
+- `ActionButtons.tsx` - Added `vertical` prop for stacked layout, `onContinue`/`showContinue` for View Solution flow
 - `LivesDisplay.tsx` - Added `vertical` prop for stacked hearts
 
 **Tailwind config:**
@@ -599,11 +599,17 @@ Improved text readability on hex cells:
 
 Current and START cells now pulse with connector-matching energy flow effect:
 
-**Animation layers (HexCell.tsx):**
-1. Glow layer - #00ff88, 8px stroke, 50% opacity with blur filter
-2. Main stroke - #00dd77, 4px solid stroke
-3. Energy flow slow - #88ffcc, 3px dashed (8 20), 1.2s animation
-4. Energy flow fast - #ffffff, 2px dashed (4 16), 0.8s animation
+**Animation layers (HexCell.tsx) - uses SVG `<path>` for proper dash animation:**
+1. Glow layer - #00ff88, 18px stroke, 50% opacity with blur filter
+2. Main line - #00dd77, 10px solid stroke
+3. Energy flow slow - #88ffcc, 6px dashed (6 30), 1.2s animation
+4. Energy flow fast - #ffffff, 4px dashed (4 20), 0.8s animation
+5. Bright core - #aaffcc, 3px solid stroke
+
+**Key implementation details:**
+- Uses `getHexagonPath()` to generate SVG path (not polygon) for proper stroke-dashoffset animation
+- `strokeLinecap="round"` and `strokeLinejoin="round"` for smooth flowing dots
+- Matches Connector component style exactly
 
 **CSS classes used (animations.css):**
 - `.cell-current` - Drop shadow pulse effect on the cell group
@@ -616,13 +622,25 @@ Current and START cells now pulse with connector-matching energy flow effect:
 const isPulsing = state === 'current' || state === 'start'
 ```
 
-### View Solution Fix
+### View Solution Feature
 
-Fixed the "View Solution" button that wasn't working:
-- `showSolution` prop was defined but not destructured in PuzzleGrid
-- Added `isConnectorOnSolutionPath()` helper function
-- Solution path connectors now highlight when View Solution is activated
+Complete View Solution implementation:
+
+**PuzzleGrid.tsx:**
+- `showSolution` prop controls solution path visibility
+- `isConnectorOnSolutionPath()` helper identifies solution connectors
+- Solution path connectors highlight when View Solution is activated
 - Traversal direction correctly follows solution path order
+
+**GameScreen.tsx:**
+- Auto-navigation to summary prevented while `state.showingSolution` is true
+- User stays on game screen to view the solution path
+- Continue button appears to proceed to summary when ready
+
+**ActionButtons.tsx:**
+- Added `onContinue` and `showContinue` props
+- Continue button (➡️) shown when viewing solution
+- Allows user to proceed to summary after viewing solution
 
 ### Animation System (animations.css)
 
