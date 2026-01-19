@@ -101,15 +101,15 @@ export default function HexCell({
   const innerPoints = getHexagonPoints(cx, cy, size * 0.9)
 
   const isClickable = onClick && !disabled
-  const animationClass = state === 'current' ? 'cell-current' : state === 'visited' ? 'cell-visited' : ''
+  // Start cell also pulses (it's the current position at game start)
+  const animationClass =
+    state === 'current' || state === 'start' ? 'cell-current' :
+    state === 'visited' ? 'cell-visited' : ''
 
-  // Get text color based on state
+  // Get text color based on state - all white for visibility
   const getTextColor = () => {
     if (state === 'finish') return '#ffdd44'
-    if (state === 'current') return '#ffffff' // Bright white for current
-    if (state === 'visited') return 'rgba(255,255,255,0.7)'
-    if (state === 'start') return '#ffffff'
-    return '#e0e0e0' // Slightly dimmer for normal cells (not the question)
+    return '#ffffff' // Bright white for all cells
   }
 
   // Get font size - smaller for FINISH text
@@ -160,7 +160,23 @@ export default function HexCell({
         strokeWidth={1.5}
       />
 
-      {/* Expression text */}
+      {/* Expression text - shadow layer for visibility */}
+      <text
+        x={cx}
+        y={cy + 2}
+        textAnchor="middle"
+        dominantBaseline="middle"
+        fontSize={getFontSize()}
+        fontWeight={700}
+        letterSpacing={state === 'finish' ? 1 : 0}
+        fill="#000000"
+        stroke="#000000"
+        strokeWidth={3}
+        style={{ fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif" }}
+      >
+        {expression}
+      </text>
+      {/* Expression text - main layer */}
       <text
         x={cx}
         y={cy + 2}
