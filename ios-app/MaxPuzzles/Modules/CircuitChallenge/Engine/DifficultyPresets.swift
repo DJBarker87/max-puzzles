@@ -247,10 +247,22 @@ enum DifficultyPresets {
         return settings
     }
 
-    /// Calculate minimum path length (~60% of cells)
+    /// Calculate minimum path length based on grid size
+    /// Larger grids need lower percentages for reliable generation
     static func calculateMinPathLength(rows: Int, cols: Int) -> Int {
         let totalCells = rows * cols
-        return max(4, Int(floor(Double(totalCells) * 0.6)))
+        // Graduated percentages based on grid complexity
+        let percentage: Double
+        if totalCells <= 16 {
+            percentage = 0.50  // Small grids: 50%
+        } else if totalCells <= 25 {
+            percentage = 0.55  // Medium grids: 55%
+        } else if totalCells <= 42 {
+            percentage = 0.50  // Large grids: 50%
+        } else {
+            percentage = 0.45  // Very large grids (8×9=72): 45%
+        }
+        return max(4, Int(floor(Double(totalCells) * percentage)))
     }
 
     /// Calculate maximum path length (~85% of cells)

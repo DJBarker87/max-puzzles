@@ -4,7 +4,7 @@ import Foundation
 
 /// Options for puzzle generation
 struct GenerationOptions {
-    var maxAttempts: Int = 20
+    var maxAttempts: Int = 30  // Increased from 20 for better success on complex grids
     var validateResult: Bool = true
 }
 
@@ -28,6 +28,10 @@ enum PuzzleGenerator {
             settings.maxPathLength = DifficultyPresets.calculateMaxPathLength(rows: settings.gridRows, cols: settings.gridCols)
         }
 
+        var pathFailures = 0
+        var connectorFailures = 0
+        var validationFailures = 0
+
         for attempt in 1...options.maxAttempts {
             // Step 1: Generate solution path
             let pathResult = PathFinder.generatePath(
@@ -38,6 +42,7 @@ enum PuzzleGenerator {
             )
 
             guard pathResult.success else {
+                pathFailures += 1
                 continue
             }
 
@@ -66,6 +71,7 @@ enum PuzzleGenerator {
             )
 
             guard valueResult.success else {
+                connectorFailures += 1
                 continue
             }
 
@@ -99,6 +105,7 @@ enum PuzzleGenerator {
                 let validation = PuzzleValidator.validatePuzzle(puzzle)
                 if !validation.valid {
                     print("Attempt \(attempt) failed validation: \(validation.errors)")
+                    validationFailures += 1
                     continue
                 }
             }
@@ -107,7 +114,10 @@ enum PuzzleGenerator {
             return .success(puzzle)
         }
 
-        // All attempts failed
+        // All attempts failed - log detailed breakdown
+        print("Generation failed for \(settings.gridRows)×\(settings.gridCols) grid, connector range \(settings.connectorMin)-\(settings.connectorMax)")
+        print("  Path failures: \(pathFailures), Connector failures: \(connectorFailures), Validation failures: \(validationFailures)")
+
         return .failure("Failed to generate puzzle after \(options.maxAttempts) attempts. Try adjusting difficulty settings.")
     }
 }

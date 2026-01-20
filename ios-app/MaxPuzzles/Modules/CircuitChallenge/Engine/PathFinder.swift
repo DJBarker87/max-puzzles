@@ -45,7 +45,7 @@ enum PathFinder {
         cols: Int,
         minLength: Int,
         maxLength: Int,
-        maxAttempts: Int = 100
+        maxAttempts: Int = 200  // Increased from 100 for better success on larger grids
     ) -> PathResult {
         let start = Coordinate(row: 0, col: 0)
         let finish = Coordinate(row: rows - 1, col: cols - 1)
@@ -78,12 +78,43 @@ enum PathFinder {
 
                 let next: Coordinate
                 let progressRatio = Double(path.count) / Double(maxLength)
-                if Double.random(in: 0...1) < progressRatio * 0.7 {
-                    next = validMoves.min(by: { a, b in
-                        manhattanDistance(a, finish) < manhattanDistance(b, finish)
-                    })!
+                let totalCells = rows * cols
+                let isSmallGrid = totalCells <= 20
+
+                // For small grids, use mostly random moves with occasional bias toward finish
+                // For large grids, use smarter scoring with dead-end avoidance
+                if isSmallGrid {
+                    // Small grid: mostly random with light progress bias
+                    if progressRatio > 0.6 && Double.random(in: 0...1) < 0.4 {
+                        next = validMoves.min(by: { a, b in
+                            manhattanDistance(a, finish) < manhattanDistance(b, finish)
+                        })!
+                    } else {
+                        next = validMoves.randomElement()!
+                    }
                 } else {
-                    next = validMoves.randomElement()!
+                    // Large grid: smart scoring with dead-end avoidance
+                    let scoredMoves = validMoves.map { move -> (Coordinate, Double) in
+                        var score = 0.0
+                        let distToFinish = manhattanDistance(move, finish)
+
+                        // Stronger finish bias as we approach max length
+                        if progressRatio > 0.7 {
+                            score -= Double(distToFinish) * (progressRatio - 0.5) * 2
+                        }
+
+                        // Dead-end avoidance
+                        let futureOptions = getAdjacent(move, rows: rows, cols: cols)
+                            .filter { !visited.contains($0.key) && $0 != current }
+                            .count
+                        score += Double(futureOptions) * 0.5
+
+                        // Random factor for variety
+                        score += Double.random(in: 0...0.5)
+
+                        return (move, score)
+                    }
+                    next = scoredMoves.max(by: { $0.1 < $1.1 })!.0
                 }
 
                 if isDiagonalMove(from: current, to: next) {
@@ -195,8 +226,17 @@ enum PathFinder {
     }
 
     /// Check if path is "interesting" (has enough direction changes)
+    /// Shorter paths need fewer direction changes
     static func isInterestingPath(_ path: [Coordinate]) -> Bool {
-        countDirectionChanges(path) >= 3
+        let minChanges: Int
+        if path.count < 6 {
+            minChanges = 1  // Very short paths just need 1 turn
+        } else if path.count < 8 {
+            minChanges = 2  // Short paths need 2 turns
+        } else {
+            minChanges = 3  // Normal paths need 3 turns
+        }
+        return countDirectionChanges(path) >= minChanges
     }
 
     /// Check if two cells are adjacent (including diagonally)

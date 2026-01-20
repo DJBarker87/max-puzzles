@@ -8,8 +8,11 @@ struct SummaryScreenView: View {
 
     @Environment(\.dismiss) private var dismiss
 
-    /// Callback when user wants to play again
+    /// Callback when user wants to play again / retry
     var onPlayAgain: (() -> Void)?
+
+    /// Callback when user wants to go to next level (story mode wins only)
+    var onNextLevel: (() -> Void)?
 
     /// Callback when user wants to change difficulty
     var onChangeDifficulty: (() -> Void)?
@@ -409,21 +412,52 @@ struct SummaryScreenView: View {
         let spacing: CGFloat = compact ? 8 : 12
 
         return VStack(spacing: spacing) {
-            // Play Again / Next Level
-            Button(action: {
-                onPlayAgain?()
-            }) {
-                Text(data.isStoryMode ? "Next Level" : "Play Again")
-                    .font(.system(size: fontSize, weight: .semibold))
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, buttonPadding)
-                    .background(AppTheme.accentPrimary)
-                    .cornerRadius(12)
-            }
+            if data.isStoryMode {
+                // Story mode: Show both Retry and Next Level
+                // Next Level is primary (green)
+                Button(action: {
+                    onNextLevel?()
+                }) {
+                    Text("Next Level")
+                        .font(.system(size: fontSize, weight: .semibold))
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, buttonPadding)
+                        .background(AppTheme.accentPrimary)
+                        .cornerRadius(12)
+                }
 
-            // Change Difficulty - only show for quick play
-            if !data.isStoryMode {
+                // Retry to try for more stars (secondary style)
+                Button(action: {
+                    onPlayAgain?()
+                }) {
+                    Text("Retry")
+                        .font(.system(size: fontSize, weight: .semibold))
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, buttonPadding)
+                        .background(AppTheme.backgroundDark)
+                        .cornerRadius(12)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                        )
+                }
+            } else {
+                // Quick Play: Play Again button
+                Button(action: {
+                    onPlayAgain?()
+                }) {
+                    Text("Play Again")
+                        .font(.system(size: fontSize, weight: .semibold))
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, buttonPadding)
+                        .background(AppTheme.accentPrimary)
+                        .cornerRadius(12)
+                }
+
+                // Change Difficulty
                 Button(action: {
                     onChangeDifficulty?()
                 }) {

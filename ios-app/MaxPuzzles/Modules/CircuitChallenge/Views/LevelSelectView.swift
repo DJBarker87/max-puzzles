@@ -69,31 +69,12 @@ struct LevelSelectView: View {
         }
     }
 
-    // MARK: - Chapter Header
+    // MARK: - Chapter Header (Top Trumps Style Card)
 
     private var chapterHeader: some View {
-        HStack(spacing: 16) {
-            Image(alien.imageName)
-                .resizable()
-                .scaledToFit()
-                .frame(width: 60, height: 60)
-                .alienIdleAnimation(style: .float, intensity: 0.7)
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text(alien.name)
-                    .font(.system(size: 24, weight: .heavy, design: .rounded))
-                    .foregroundColor(.white)
-                    .shadow(color: AppTheme.connectorGlow.opacity(0.7), radius: 6)
-
-                Text(alien.words.joined(separator: " • "))
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(AppTheme.accentPrimary)
-            }
-
-            Spacer()
-        }
-        .padding(.horizontal, 24)
-        .padding(.top, 16)
+        AlienTopTrumpsCard(alien: alien, chapter: chapter)
+            .padding(.horizontal, 16)
+            .padding(.top, 8)
     }
 
     // MARK: - Horizontal Level Path
@@ -243,10 +224,31 @@ struct LargeHexTile: View {
         return String(format: "%d:%02d", mins, secs)
     }
 
+    // 3D layer offsets (proportional to hex size like game cells)
+    private var shadowOffset: CGFloat { hexSize * 0.12 }
+    private var edgeOffset: CGFloat { hexSize * 0.1 }
+    private var baseOffset: CGFloat { hexSize * 0.05 }
+
+    private var edgeGradient: LinearGradient {
+        LinearGradient(
+            colors: [Color(hex: "1a1a25"), Color(hex: "0f0f15")],
+            startPoint: .top,
+            endPoint: .bottom
+        )
+    }
+
+    private var baseGradient: LinearGradient {
+        LinearGradient(
+            colors: [Color(hex: "2a2a3a"), Color(hex: "1a1a25")],
+            startPoint: .top,
+            endPoint: .bottom
+        )
+    }
+
     var body: some View {
         Button(action: onTap) {
             VStack(spacing: 10) {
-                // Hexagon tile
+                // 3D Hexagon tile (poker chip style)
                 ZStack {
                     // Pulsing glow for current/completed levels
                     if shouldPulse {
@@ -280,7 +282,25 @@ struct LargeHexTile: View {
                             .frame(width: hexSize + 10, height: hexSize + 10)
                     }
 
-                    // Main hexagon
+                    // Layer 1: Shadow
+                    HexagonShape()
+                        .fill(Color.black.opacity(0.6))
+                        .frame(width: hexSize, height: hexSize)
+                        .offset(x: 3, y: shadowOffset)
+
+                    // Layer 2: Edge (3D depth)
+                    HexagonShape()
+                        .fill(edgeGradient)
+                        .frame(width: hexSize, height: hexSize)
+                        .offset(y: edgeOffset)
+
+                    // Layer 3: Base
+                    HexagonShape()
+                        .fill(baseGradient)
+                        .frame(width: hexSize, height: hexSize)
+                        .offset(y: baseOffset)
+
+                    // Layer 4: Top face
                     HexagonShape()
                         .fill(hexagonGradient)
                         .frame(width: hexSize, height: hexSize)
@@ -288,17 +308,31 @@ struct LargeHexTile: View {
                             HexagonShape()
                                 .stroke(borderColor, lineWidth: shouldPulse ? 3 : 2)
                         )
-                        .shadow(
-                            color: shouldPulse ? AppTheme.connectorGlow.opacity(0.5) : .clear,
-                            radius: 10
+
+                    // Layer 5: Inner shadow (radial gradient)
+                    HexagonShape()
+                        .fill(
+                            RadialGradient(
+                                colors: [.clear, .clear, Color.black.opacity(0.25)],
+                                center: .center,
+                                startRadius: 0,
+                                endRadius: hexSize * 0.4
+                            )
                         )
+                        .frame(width: hexSize * 0.9, height: hexSize * 0.9)
+
+                    // Layer 6: Rim highlight
+                    HexagonShape()
+                        .stroke(Color.white.opacity(0.15), lineWidth: 1)
+                        .frame(width: hexSize, height: hexSize)
 
                     // Level number or lock
                     if isUnlocked {
                         VStack(spacing: 4) {
                             Text("\(level)")
-                                .font(.system(size: hexSize * 0.4, weight: .bold))
+                                .font(.system(size: hexSize * 0.4, weight: .black))
                                 .foregroundColor(.white)
+                                .shadow(color: .black, radius: 1, x: 1, y: 1)
 
                             if isHiddenMode {
                                 Image(systemName: "eye.slash.fill")
@@ -389,55 +423,94 @@ struct LargeHexTile: View {
 
 // MARK: - Horizontal Level Connector
 
+/// Game-style electric connector between level hexagons
 struct HorizontalLevelConnector: View {
     let isActive: Bool
     let isPulsing: Bool
     let width: CGFloat
 
-    @State private var flowPhase: CGFloat = 0
+    @State private var flowPhase1: CGFloat = 0
+    @State private var flowPhase2: CGFloat = 0
+    @State private var glowOpacity: CGFloat = 0.5
+
+    // Connector height (thicker for level select)
+    private let connectorHeight: CGFloat = 10
 
     var body: some View {
         ZStack {
-            // Base connector line
-            Rectangle()
-                .fill(isActive ? AppTheme.connectorActive : AppTheme.connectorDefault)
-                .frame(width: width, height: 6)
-
-            // Pulsing energy effect
             if isPulsing {
-                // Glow
-                Rectangle()
-                    .fill(AppTheme.connectorGlow.opacity(0.5))
-                    .frame(width: width, height: 12)
-                    .blur(radius: 4)
+                // Layer 1: Glow (blur effect)
+                RoundedRectangle(cornerRadius: connectorHeight / 2)
+                    .fill(AppTheme.connectorGlow.opacity(glowOpacity))
+                    .frame(width: width, height: connectorHeight + 10)
+                    .blur(radius: 6)
 
-                // Energy dots flowing right
-                Rectangle()
-                    .fill(Color.white)
-                    .frame(width: width, height: 4)
+                // Layer 2: Main line
+                RoundedRectangle(cornerRadius: connectorHeight / 2)
+                    .fill(Color(hex: "00dd77"))
+                    .frame(width: width, height: connectorHeight)
+
+                // Layer 3: Energy flow slow (dash effect)
+                RoundedRectangle(cornerRadius: connectorHeight / 2)
+                    .fill(Color(hex: "88ffcc"))
+                    .frame(width: width, height: connectorHeight - 2)
                     .mask(
-                        Rectangle()
-                            .fill(
-                                LinearGradient(
-                                    stops: [
-                                        .init(color: .clear, location: 0),
-                                        .init(color: .white, location: 0.3),
-                                        .init(color: .white, location: 0.7),
-                                        .init(color: .clear, location: 1)
-                                    ],
-                                    startPoint: .leading,
-                                    endPoint: .trailing
-                                )
-                            )
-                            .offset(x: flowPhase * (width + 20) - (width / 2 + 10))
+                        HStack(spacing: 0) {
+                            ForEach(0..<20, id: \.self) { i in
+                                let offset = CGFloat(i) * 12 - flowPhase2 * 40
+                                Circle()
+                                    .frame(width: 6, height: 6)
+                                    .offset(x: offset)
+                            }
+                        }
+                        .frame(width: width)
                     )
+
+                // Layer 4: Energy flow fast
+                RoundedRectangle(cornerRadius: connectorHeight / 2)
+                    .fill(Color.white)
+                    .frame(width: width, height: connectorHeight - 4)
+                    .mask(
+                        HStack(spacing: 0) {
+                            ForEach(0..<30, id: \.self) { i in
+                                let offset = CGFloat(i) * 8 - flowPhase1 * 50
+                                Circle()
+                                    .frame(width: 4, height: 4)
+                                    .offset(x: offset)
+                            }
+                        }
+                        .frame(width: width)
+                    )
+
+                // Layer 5: Bright core
+                RoundedRectangle(cornerRadius: connectorHeight / 2)
+                    .fill(Color(hex: "aaffcc"))
+                    .frame(width: width, height: 3)
+            } else if isActive {
+                // Active but not pulsing - just green
+                RoundedRectangle(cornerRadius: connectorHeight / 2)
+                    .fill(AppTheme.connectorActive)
+                    .frame(width: width, height: connectorHeight)
+            } else {
+                // Inactive connector
+                RoundedRectangle(cornerRadius: connectorHeight / 2)
+                    .fill(AppTheme.connectorDefault)
+                    .frame(width: width, height: connectorHeight - 2)
             }
         }
-        .frame(width: width, height: 20)
+        .frame(width: width, height: 24)
         .onAppear {
             if isPulsing {
+                // Energy flow animations
                 withAnimation(.linear(duration: 0.8).repeatForever(autoreverses: false)) {
-                    flowPhase = 1
+                    flowPhase1 = 1
+                }
+                withAnimation(.linear(duration: 1.2).repeatForever(autoreverses: false)) {
+                    flowPhase2 = 1
+                }
+                // Glow pulse
+                withAnimation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true)) {
+                    glowOpacity = 0.8
                 }
             }
         }
@@ -594,6 +667,103 @@ private struct LevelStarDisplay: View {
     }
 }
 
+// MARK: - Alien Top Trumps Card
+
+/// Boxing/Top Trumps style character card for the chapter alien
+struct AlienTopTrumpsCard: View {
+    let alien: ChapterAlien
+    let chapter: Int
+
+    @State private var glowPhase: CGFloat = 0.5
+
+    // Chapter color themes
+    private var accentColor: Color {
+        switch chapter {
+        case 1: return Color(hex: "4ade80")   // Bob - Green
+        case 2: return Color(hex: "60a5fa")   // Blink - Blue
+        case 3: return Color(hex: "c084fc")   // Drift - Purple
+        case 4: return Color(hex: "fb923c")   // Fuzz - Orange
+        case 5: return Color(hex: "f472b6")   // Prism - Pink
+        case 6: return Color(hex: "fbbf24")   // Nova - Yellow/Gold
+        case 7: return Color(hex: "f87171")   // Clicker - Red
+        case 8: return Color(hex: "2dd4bf")   // Bolt - Teal
+        case 9: return Color(hex: "94a3b8")   // Sage - Silver
+        case 10: return Color(hex: "fcd34d")  // Bibomic - Gold
+        default: return AppTheme.accentPrimary
+        }
+    }
+
+    var body: some View {
+        HStack(spacing: 12) {
+            // Left: Large alien image with glow
+            ZStack {
+                // Glow backdrop
+                Circle()
+                    .fill(accentColor.opacity(0.3))
+                    .frame(width: 100, height: 100)
+                    .blur(radius: 15)
+                    .opacity(glowPhase)
+
+                // Alien image
+                Image(alien.imageName)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 90, height: 90)
+                    .alienIdleAnimation(style: .bounce, intensity: 0.8)
+            }
+
+            // Right: Name and traits
+            VStack(alignment: .leading, spacing: 6) {
+                // Chapter badge
+                Text("CHAPTER \(chapter)")
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundColor(accentColor)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(accentColor.opacity(0.2))
+                    .cornerRadius(4)
+
+                // Alien name
+                Text(alien.name.uppercased())
+                    .font(.system(size: 28, weight: .black, design: .rounded))
+                    .foregroundColor(.white)
+                    .shadow(color: accentColor.opacity(0.8), radius: 8)
+                    .shadow(color: accentColor.opacity(0.5), radius: 4)
+
+                // Trait pills
+                HStack(spacing: 6) {
+                    ForEach(alien.words, id: \.self) { word in
+                        Text(word)
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(accentColor.opacity(0.25))
+                            .cornerRadius(8)
+                    }
+                }
+            }
+
+            Spacer()
+        }
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(AppTheme.backgroundMid.opacity(0.85))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(accentColor.opacity(0.5), lineWidth: 2)
+                )
+        )
+        .shadow(color: accentColor.opacity(0.3), radius: 12)
+        .onAppear {
+            withAnimation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true)) {
+                glowPhase = 0.8
+            }
+        }
+    }
+}
+
 // MARK: - Preview
 
 #Preview("Level Select") {
@@ -621,6 +791,22 @@ private struct LevelStarDisplay: View {
             hexSize: 90,
             onTap: {}
         )
+    }
+}
+
+#Preview("Alien Card - Bob") {
+    ZStack {
+        Color(hex: "0f0f23").ignoresSafeArea()
+        AlienTopTrumpsCard(alien: ChapterAlien.all[0], chapter: 1)
+            .padding()
+    }
+}
+
+#Preview("Alien Card - Bibomic") {
+    ZStack {
+        Color(hex: "0f0f23").ignoresSafeArea()
+        AlienTopTrumpsCard(alien: ChapterAlien.all[9], chapter: 10)
+            .padding()
     }
 }
 

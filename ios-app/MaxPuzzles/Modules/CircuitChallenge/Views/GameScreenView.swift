@@ -102,9 +102,17 @@ struct GameScreenView: View {
                 SummaryScreenView(
                     data: data,
                     onPlayAgain: {
+                        // Retry the same level
                         navigateToSummary = false
                         handleNewPuzzle()
                     },
+                    onNextLevel: data.isStoryMode && data.won ? {
+                        // For story mode wins, go back to level select to advance
+                        navigateToSummary = false
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                            dismiss()
+                        }
+                    } : nil,
                     onChangeDifficulty: {
                         navigateToSummary = false
                         dismiss()

@@ -152,7 +152,9 @@ enum StoryDifficulty {
         let weights = calculateWeights(operations: config.operations)
 
         // Calculate connector range based on max values
-        let connectorMax = max(config.addSubMax, config.multDivMax)
+        // Ensure at least 20 values available for connector assignment (prevents generation failures)
+        let baseConnectorMax = max(config.addSubMax, config.multDivMax)
+        let connectorMax = max(baseConnectorMax, 25)  // Minimum of 25 to ensure enough unique values
 
         // Calculate mult/div range (for operands, derive from max answer)
         // e.g., max answer 50 → operands up to ~7 (7×7=49)

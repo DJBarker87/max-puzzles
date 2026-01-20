@@ -181,7 +181,7 @@ export default function SummaryScreen() {
 
   const handlePlayAgain = () => {
     if (isStoryMode && data.storyChapter && data.storyLevel) {
-      // Go back to story game with skip intro
+      // Retry the same level with skip intro
       navigate(`/play/circuit-challenge/story/${data.storyChapter}/${data.storyLevel}`, {
         state: { skipIntro: true },
       })
@@ -189,6 +189,24 @@ export default function SummaryScreen() {
       navigate('/play/circuit-challenge/game', {
         state: { difficulty: data.difficulty },
       })
+    }
+  }
+
+  const handleNextLevel = () => {
+    if (!isStoryMode || !data.storyChapter || !data.storyLevel) return
+
+    const currentLevel = data.storyLevel
+    const currentChapter = data.storyChapter
+
+    if (currentLevel < 5) {
+      // Go to next level in same chapter
+      navigate(`/play/circuit-challenge/story/${currentChapter}/${currentLevel + 1}`)
+    } else if (currentChapter < 10) {
+      // Go to first level of next chapter
+      navigate(`/play/circuit-challenge/story/${currentChapter + 1}/1`)
+    } else {
+      // Completed all chapters, go back to chapter select
+      navigate('/play/circuit-challenge/story')
     }
   }
 
@@ -419,12 +437,27 @@ export default function SummaryScreen() {
           </div>
 
           <div className="space-y-3">
-            <Button variant="primary" fullWidth onClick={handlePlayAgain}>
-              Play Again
-            </Button>
-            <Button variant="ghost" fullWidth onClick={handleChangeDifficulty}>
-              Change Difficulty
-            </Button>
+            {isStoryMode ? (
+              <>
+                {/* Story mode hidden: Next Level + Retry */}
+                <Button variant="primary" fullWidth onClick={handleNextLevel}>
+                  Next Level
+                </Button>
+                <Button variant="secondary" fullWidth onClick={handlePlayAgain}>
+                  Retry
+                </Button>
+              </>
+            ) : (
+              <>
+                {/* Quick play: Play Again + Change Difficulty */}
+                <Button variant="primary" fullWidth onClick={handlePlayAgain}>
+                  Play Again
+                </Button>
+                <Button variant="ghost" fullWidth onClick={handleChangeDifficulty}>
+                  Change Difficulty
+                </Button>
+              </>
+            )}
             <Button variant="ghost" fullWidth onClick={handleExit}>
               Exit
             </Button>
@@ -476,13 +509,26 @@ export default function SummaryScreen() {
 
           {/* Actions */}
           <div className="space-y-3">
-            <Button variant="primary" fullWidth onClick={handlePlayAgain}>
-              {isStoryMode ? 'Next Level' : 'Play Again'}
-            </Button>
-            {!isStoryMode && (
-              <Button variant="ghost" fullWidth onClick={handleChangeDifficulty}>
-                Change Difficulty
-              </Button>
+            {isStoryMode ? (
+              <>
+                {/* Story mode: Next Level + Retry */}
+                <Button variant="primary" fullWidth onClick={handleNextLevel}>
+                  Next Level
+                </Button>
+                <Button variant="secondary" fullWidth onClick={handlePlayAgain}>
+                  Retry
+                </Button>
+              </>
+            ) : (
+              <>
+                {/* Quick play: Play Again + Change Difficulty */}
+                <Button variant="primary" fullWidth onClick={handlePlayAgain}>
+                  Play Again
+                </Button>
+                <Button variant="ghost" fullWidth onClick={handleChangeDifficulty}>
+                  Change Difficulty
+                </Button>
+              </>
             )}
             <Button variant="ghost" fullWidth onClick={handleExit}>
               Exit
