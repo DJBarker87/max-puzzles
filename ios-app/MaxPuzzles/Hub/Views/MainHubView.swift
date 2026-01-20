@@ -86,6 +86,7 @@ struct MainHubView: View {
                 title: "Circuit Challenge",
                 description: "Path-finding puzzle with arithmetic",
                 iconName: "bolt.fill",
+                imageName: "circuit_challenge_icon",
                 isLocked: false
             ) {
                 showCircuitChallenge = true

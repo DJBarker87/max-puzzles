@@ -5,6 +5,7 @@ struct ModuleCardView: View {
     let title: String
     let description: String
     let iconName: String
+    var imageName: String? = nil  // Optional custom image instead of SF Symbol
     let isLocked: Bool
     let action: () -> Void
 
@@ -18,52 +19,65 @@ struct ModuleCardView: View {
             VStack(spacing: AppSpacing.md) {
                 // Icon with glow
                 ZStack {
-                    // Outer glow
-                    Circle()
-                        .fill(AppTheme.accentPrimary.opacity(0.2 + glowPulse * 0.15))
-                        .frame(width: 90, height: 90)
-                        .blur(radius: 12)
+                    // Custom image or SF Symbol icon
+                    if let imageName = imageName {
+                        // Custom image (like the electric hexagon)
+                        Image(imageName)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 120, height: 120)
+                            .shadow(color: AppTheme.accentPrimary.opacity(0.6), radius: 15)
+                            .scaleEffect(iconBounce ? 1.08 : 1.0)
+                    } else {
+                        // Outer glow
+                        Circle()
+                            .fill(AppTheme.accentPrimary.opacity(0.2 + glowPulse * 0.15))
+                            .frame(width: 90, height: 90)
+                            .blur(radius: 12)
 
-                    // Glass circle
-                    Circle()
-                        .fill(
-                            LinearGradient(
-                                colors: [
-                                    AppTheme.accentPrimary.opacity(0.35),
-                                    AppTheme.accentPrimary.opacity(0.15)
-                                ],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                        .frame(width: 80, height: 80)
-                        .overlay(
-                            Circle()
-                                .stroke(
-                                    LinearGradient(
-                                        colors: [
-                                            Color.white.opacity(0.4),
-                                            Color.white.opacity(0.1)
-                                        ],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    ),
-                                    lineWidth: 1
+                        // Glass circle
+                        Circle()
+                            .fill(
+                                LinearGradient(
+                                    colors: [
+                                        AppTheme.accentPrimary.opacity(0.35),
+                                        AppTheme.accentPrimary.opacity(0.15)
+                                    ],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
                                 )
-                        )
+                            )
+                            .frame(width: 80, height: 80)
+                            .overlay(
+                                Circle()
+                                    .stroke(
+                                        LinearGradient(
+                                            colors: [
+                                                Color.white.opacity(0.4),
+                                                Color.white.opacity(0.1)
+                                            ],
+                                            startPoint: .topLeading,
+                                            endPoint: .bottomTrailing
+                                        ),
+                                        lineWidth: 1
+                                    )
+                            )
 
-                    // Icon
-                    Image(systemName: iconName)
-                        .font(.system(size: 36, weight: .semibold))
-                        .foregroundColor(AppTheme.accentPrimary)
-                        .shadow(color: AppTheme.accentPrimary.opacity(0.5), radius: 6)
-                        .scaleEffect(iconBounce ? 1.1 : 1.0)
+                        // Icon
+                        Image(systemName: iconName)
+                            .font(.system(size: 36, weight: .semibold))
+                            .foregroundColor(AppTheme.accentPrimary)
+                            .shadow(color: AppTheme.accentPrimary.opacity(0.5), radius: 6)
+                            .scaleEffect(iconBounce ? 1.1 : 1.0)
+                    }
                 }
 
-                // Title with premium typography
+                // Title with electric typography - bold with glow effect
                 Text(title)
-                    .font(.system(size: 20, weight: .bold, design: .rounded))
-                    .foregroundColor(AppTheme.textPrimary)
+                    .font(.system(size: 22, weight: .heavy, design: .rounded))
+                    .foregroundColor(.white)
+                    .shadow(color: AppTheme.connectorGlow.opacity(0.8), radius: 8)
+                    .shadow(color: AppTheme.accentPrimary.opacity(0.5), radius: 4)
 
                 // Description
                 Text(description)
