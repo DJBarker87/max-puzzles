@@ -1,6 +1,8 @@
 import XCTest
+import SwiftUI
 @testable import MaxPuzzles
 
+@MainActor
 final class MaxPuzzlesTests: XCTestCase {
 
     override func setUpWithError() throws {

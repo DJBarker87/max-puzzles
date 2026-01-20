@@ -27,6 +27,18 @@
 		AA0002011111111111111111 /* MaxPuzzlesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0002001111111111111111 /* MaxPuzzlesTests.swift */; };
 		AA0003011111111111111111 /* MaxPuzzlesUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0003001111111111111111 /* MaxPuzzlesUITests.swift */; };
 		AA0003031111111111111111 /* MaxPuzzlesUITestsLaunchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0003021111111111111111 /* MaxPuzzlesUITestsLaunchTests.swift */; };
+		BB0001011111111111111111 /* Types.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0001001111111111111111 /* Types.swift */; };
+		BB0001031111111111111111 /* DifficultyPresets.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0001021111111111111111 /* DifficultyPresets.swift */; };
+		BB0001051111111111111111 /* PathFinder.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0001041111111111111111 /* PathFinder.swift */; };
+		BB0001071111111111111111 /* ConnectorBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0001061111111111111111 /* ConnectorBuilder.swift */; };
+		BB0001091111111111111111 /* ExpressionGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0001081111111111111111 /* ExpressionGenerator.swift */; };
+		BB0001111111111111111111 /* CellAssigner.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0001101111111111111111 /* CellAssigner.swift */; };
+		BB0001131111111111111111 /* PuzzleValidator.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0001121111111111111111 /* PuzzleValidator.swift */; };
+		BB0001151111111111111111 /* PuzzleGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0001141111111111111111 /* PuzzleGenerator.swift */; };
+		CC0001011111111111111111 /* PathFinderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC0001001111111111111111 /* PathFinderTests.swift */; };
+		CC0001031111111111111111 /* ConnectorBuilderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC0001021111111111111111 /* ConnectorBuilderTests.swift */; };
+		CC0001051111111111111111 /* ExpressionGeneratorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC0001041111111111111111 /* ExpressionGeneratorTests.swift */; };
+		CC0001071111111111111111 /* PuzzleGeneratorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC0001061111111111111111 /* PuzzleGeneratorTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -70,6 +82,18 @@
 		AA0003001111111111111111 /* MaxPuzzlesUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MaxPuzzlesUITests.swift; sourceTree = "<group>"; };
 		AA0003021111111111111111 /* MaxPuzzlesUITestsLaunchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MaxPuzzlesUITestsLaunchTests.swift; sourceTree = "<group>"; };
 		AA0003111111111111111111 /* MaxPuzzlesUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MaxPuzzlesUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		BB0001001111111111111111 /* Types.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Types.swift; sourceTree = "<group>"; };
+		BB0001021111111111111111 /* DifficultyPresets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DifficultyPresets.swift; sourceTree = "<group>"; };
+		BB0001041111111111111111 /* PathFinder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PathFinder.swift; sourceTree = "<group>"; };
+		BB0001061111111111111111 /* ConnectorBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectorBuilder.swift; sourceTree = "<group>"; };
+		BB0001081111111111111111 /* ExpressionGenerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExpressionGenerator.swift; sourceTree = "<group>"; };
+		BB0001101111111111111111 /* CellAssigner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CellAssigner.swift; sourceTree = "<group>"; };
+		BB0001121111111111111111 /* PuzzleValidator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PuzzleValidator.swift; sourceTree = "<group>"; };
+		BB0001141111111111111111 /* PuzzleGenerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PuzzleGenerator.swift; sourceTree = "<group>"; };
+		CC0001001111111111111111 /* PathFinderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PathFinderTests.swift; sourceTree = "<group>"; };
+		CC0001021111111111111111 /* ConnectorBuilderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectorBuilderTests.swift; sourceTree = "<group>"; };
+		CC0001041111111111111111 /* ExpressionGeneratorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExpressionGeneratorTests.swift; sourceTree = "<group>"; };
+		CC0001061111111111111111 /* PuzzleGeneratorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PuzzleGeneratorTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -253,6 +277,14 @@
 		AA0000551111111111111111 /* Engine */ = {
 			isa = PBXGroup;
 			children = (
+				BB0001001111111111111111 /* Types.swift */,
+				BB0001021111111111111111 /* DifficultyPresets.swift */,
+				BB0001041111111111111111 /* PathFinder.swift */,
+				BB0001061111111111111111 /* ConnectorBuilder.swift */,
+				BB0001081111111111111111 /* ExpressionGenerator.swift */,
+				BB0001101111111111111111 /* CellAssigner.swift */,
+				BB0001121111111111111111 /* PuzzleValidator.swift */,
+				BB0001141111111111111111 /* PuzzleGenerator.swift */,
 			);
 			path = Engine;
 			sourceTree = "<group>";
@@ -329,8 +361,20 @@
 			isa = PBXGroup;
 			children = (
 				AA0002001111111111111111 /* MaxPuzzlesTests.swift */,
+				CC0000001111111111111111 /* EngineTests */,
 			);
 			path = MaxPuzzlesTests;
+			sourceTree = "<group>";
+		};
+		CC0000001111111111111111 /* EngineTests */ = {
+			isa = PBXGroup;
+			children = (
+				CC0001001111111111111111 /* PathFinderTests.swift */,
+				CC0001021111111111111111 /* ConnectorBuilderTests.swift */,
+				CC0001041111111111111111 /* ExpressionGeneratorTests.swift */,
+				CC0001061111111111111111 /* PuzzleGeneratorTests.swift */,
+			);
+			path = EngineTests;
 			sourceTree = "<group>";
 		};
 		AA0003201111111111111111 /* MaxPuzzlesUITests */ = {
@@ -487,6 +531,14 @@
 				AA0001271111111111111111 /* ModuleCardView.swift in Sources */,
 				AA0001291111111111111111 /* StarryBackground.swift in Sources */,
 				AA0001311111111111111111 /* CoinDisplay.swift in Sources */,
+				BB0001011111111111111111 /* Types.swift in Sources */,
+				BB0001031111111111111111 /* DifficultyPresets.swift in Sources */,
+				BB0001051111111111111111 /* PathFinder.swift in Sources */,
+				BB0001071111111111111111 /* ConnectorBuilder.swift in Sources */,
+				BB0001091111111111111111 /* ExpressionGenerator.swift in Sources */,
+				BB0001111111111111111111 /* CellAssigner.swift in Sources */,
+				BB0001131111111111111111 /* PuzzleValidator.swift in Sources */,
+				BB0001151111111111111111 /* PuzzleGenerator.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -495,6 +547,10 @@
 			buildActionMask = 2147483647;
 			files = (
 				AA0002011111111111111111 /* MaxPuzzlesTests.swift in Sources */,
+				CC0001011111111111111111 /* PathFinderTests.swift in Sources */,
+				CC0001031111111111111111 /* ConnectorBuilderTests.swift in Sources */,
+				CC0001051111111111111111 /* ExpressionGeneratorTests.swift in Sources */,
+				CC0001071111111111111111 /* PuzzleGeneratorTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
