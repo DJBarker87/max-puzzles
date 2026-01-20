@@ -169,32 +169,28 @@ struct ModuleMenuView: View {
     private var quickPlayCard: some View {
         Button(action: { showQuickPlay = true }) {
             HStack(spacing: 16) {
-                // Icon
-                ZStack {
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(AppTheme.accentPrimary.opacity(0.2))
-                        .frame(width: 56, height: 56)
-
-                    Image(systemName: "play.fill")
-                        .font(.system(size: 24))
-                        .foregroundColor(AppTheme.accentPrimary)
-                }
+                // Custom quick play icon
+                Image("quick_play_icon")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 56, height: 56)
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Quick Play")
-                        .font(.system(size: 18, weight: .semibold))
+                        .font(.system(size: 18, weight: .heavy, design: .rounded))
                         .foregroundColor(.white)
+                        .shadow(color: AppTheme.connectorGlow.opacity(0.6), radius: 4)
 
                     Text("Play at any difficulty level")
                         .font(.system(size: 14))
-                        .foregroundColor(AppTheme.textSecondary)
+                        .foregroundColor(.white.opacity(0.8))
                 }
 
                 Spacer()
 
                 Image(systemName: "chevron.right")
                     .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(AppTheme.textSecondary)
+                    .foregroundColor(.white.opacity(0.7))
             }
             .padding(16)
             .background(AppTheme.backgroundMid.opacity(0.8))
@@ -211,39 +207,35 @@ struct ModuleMenuView: View {
     private var progressionCard: some View {
         Button(action: { showStoryMode = true }) {
             HStack(spacing: 16) {
-                // Icon
-                ZStack {
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(AppTheme.accentSecondary.opacity(0.2))
-                        .frame(width: 56, height: 56)
-
-                    Image(systemName: "star.fill")
-                        .font(.system(size: 24))
-                        .foregroundColor(AppTheme.accentSecondary)
-                }
+                // Custom story mode icon
+                Image("story_mode_icon")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 56, height: 56)
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Story Mode")
-                        .font(.system(size: 18, weight: .semibold))
+                        .font(.system(size: 18, weight: .heavy, design: .rounded))
                         .foregroundColor(.white)
+                        .shadow(color: AppTheme.connectorGlow.opacity(0.6), radius: 4)
 
                     Text("Help the aliens solve puzzles!")
                         .font(.system(size: 14))
-                        .foregroundColor(AppTheme.textSecondary)
+                        .foregroundColor(.white.opacity(0.8))
                 }
 
                 Spacer()
 
                 Image(systemName: "chevron.right")
                     .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(AppTheme.textSecondary)
+                    .foregroundColor(.white.opacity(0.7))
             }
             .padding(16)
             .background(AppTheme.backgroundMid.opacity(0.8))
             .cornerRadius(16)
             .overlay(
                 RoundedRectangle(cornerRadius: 16)
-                    .stroke(AppTheme.accentSecondary.opacity(0.3), lineWidth: 1)
+                    .stroke(AppTheme.accentTertiary.opacity(0.3), lineWidth: 1)
             )
         }
     }
@@ -253,32 +245,28 @@ struct ModuleMenuView: View {
     private var puzzleMakerCard: some View {
         Button(action: { showPuzzleMaker = true }) {
             HStack(spacing: 16) {
-                // Icon
-                ZStack {
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(AppTheme.accentTertiary.opacity(0.2))
-                        .frame(width: 56, height: 56)
-
-                    Image(systemName: "printer.fill")
-                        .font(.system(size: 24))
-                        .foregroundColor(AppTheme.accentTertiary)
-                }
+                // Custom puzzle maker icon
+                Image("puzzle_maker_icon")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 56, height: 56)
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Puzzle Maker")
-                        .font(.system(size: 18, weight: .semibold))
+                        .font(.system(size: 18, weight: .heavy, design: .rounded))
                         .foregroundColor(.white)
+                        .shadow(color: AppTheme.connectorGlow.opacity(0.6), radius: 4)
 
                     Text("Print puzzles for offline play")
                         .font(.system(size: 14))
-                        .foregroundColor(AppTheme.textSecondary)
+                        .foregroundColor(.white.opacity(0.8))
                 }
 
                 Spacer()
 
                 Image(systemName: "chevron.right")
                     .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(AppTheme.textSecondary)
+                    .foregroundColor(.white.opacity(0.7))
             }
             .padding(16)
             .background(AppTheme.backgroundMid.opacity(0.8))
