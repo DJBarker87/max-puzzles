@@ -84,8 +84,9 @@ struct ModuleMenuView: View {
                     progressionCard
                     puzzleMakerCard
                 }
-                .padding(.horizontal)
+                .frame(maxWidth: 400)  // Limit button width
             }
+            .frame(maxWidth: .infinity)  // Center the content
             .padding(.vertical, 24)
         }
     }
