@@ -17,7 +17,15 @@ struct LevelSelectView: View {
     var body: some View {
         GeometryReader { geometry in
             ZStack {
-                StarryBackground(useHubImage: true)
+                // Colorful splash background
+                Image("splash_background")
+                    .resizable()
+                    .scaledToFill()
+                    .ignoresSafeArea()
+
+                // Dark overlay for readability
+                Color.black.opacity(0.35)
+                    .ignoresSafeArea()
 
                 VStack(spacing: 16) {
                     // Chapter header with alien
@@ -73,12 +81,13 @@ struct LevelSelectView: View {
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(alien.name)
-                    .font(.system(size: 22, weight: .bold))
+                    .font(.system(size: 24, weight: .heavy, design: .rounded))
                     .foregroundColor(.white)
+                    .shadow(color: AppTheme.connectorGlow.opacity(0.7), radius: 6)
 
                 Text(alien.words.joined(separator: " • "))
-                    .font(.system(size: 12))
-                    .foregroundColor(AppTheme.accentPrimary.opacity(0.8))
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(AppTheme.accentPrimary)
             }
 
             Spacer()

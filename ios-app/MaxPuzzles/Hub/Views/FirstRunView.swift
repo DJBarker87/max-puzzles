@@ -20,7 +20,15 @@ struct FirstRunView: View {
 
     var body: some View {
         ZStack {
-            StarryBackground(useHubImage: true)
+            // Colorful splash background
+            Image("splash_background")
+                .resizable()
+                .scaledToFill()
+                .ignoresSafeArea()
+
+            // Dark overlay for readability
+            Color.black.opacity(0.4)
+                .ignoresSafeArea()
 
             VStack(spacing: 20) {
                 Spacer()

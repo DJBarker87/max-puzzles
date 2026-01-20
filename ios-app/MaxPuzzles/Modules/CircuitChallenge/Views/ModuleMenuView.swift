@@ -21,7 +21,15 @@ struct ModuleMenuView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                StarryBackground(useHubImage: true)
+                // Colorful splash background
+                Image("splash_background")
+                    .resizable()
+                    .scaledToFill()
+                    .ignoresSafeArea()
+
+                // Dark overlay for readability
+                Color.black.opacity(0.35)
+                    .ignoresSafeArea()
 
                 if isLandscape {
                     landscapeLayout
@@ -99,14 +107,16 @@ struct ModuleMenuView: View {
                         )
                         .frame(width: 70, height: 70)
 
-                    Image(systemName: "bolt.fill")
-                        .font(.system(size: 32))
-                        .foregroundColor(AppTheme.connectorGlow)
+                    Image("circuit_challenge_icon")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 80, height: 80)
                 }
 
                 Text("Circuit Challenge")
-                    .font(.system(size: 20, weight: .bold))
+                    .font(.system(size: 20, weight: .heavy, design: .rounded))
                     .foregroundColor(.white)
+                    .shadow(color: AppTheme.connectorGlow.opacity(0.8), radius: 6)
 
                 Text("Find the path by solving arithmetic!")
                     .font(.system(size: 12))
@@ -133,30 +143,22 @@ struct ModuleMenuView: View {
 
     private var moduleHeader: some View {
         VStack(spacing: 12) {
-            // Icon
-            ZStack {
-                Circle()
-                    .fill(
-                        LinearGradient(
-                            colors: [AppTheme.accentPrimary.opacity(0.3), AppTheme.accentPrimary.opacity(0.1)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .frame(width: 100, height: 100)
-
-                Image(systemName: "bolt.fill")
-                    .font(.system(size: 44))
-                    .foregroundColor(AppTheme.connectorGlow)
-            }
+            // Electric hexagon icon
+            Image("circuit_challenge_icon")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 120, height: 120)
+                .shadow(color: AppTheme.connectorGlow.opacity(0.5), radius: 15)
 
             Text("Circuit Challenge")
-                .font(.system(size: 28, weight: .bold))
+                .font(.system(size: 30, weight: .heavy, design: .rounded))
                 .foregroundColor(.white)
+                .shadow(color: AppTheme.connectorGlow.opacity(0.8), radius: 8)
+                .shadow(color: AppTheme.accentPrimary.opacity(0.5), radius: 4)
 
             Text("Find the path from START to FINISH by solving arithmetic problems!")
-                .font(.system(size: 15))
-                .foregroundColor(AppTheme.textSecondary)
+                .font(.system(size: 15, weight: .medium, design: .rounded))
+                .foregroundColor(.white.opacity(0.9))
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 32)
         }

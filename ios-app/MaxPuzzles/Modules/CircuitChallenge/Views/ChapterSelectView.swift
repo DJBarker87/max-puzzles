@@ -14,19 +14,29 @@ struct ChapterSelectView: View {
     var body: some View {
         GeometryReader { geometry in
             ZStack {
-                StarryBackground(useHubImage: true)
+                // Colorful splash background
+                Image("splash_background")
+                    .resizable()
+                    .scaledToFill()
+                    .ignoresSafeArea()
+
+                // Dark overlay for readability
+                Color.black.opacity(0.35)
+                    .ignoresSafeArea()
 
                 VStack(spacing: 0) {
                     // Title with total stars
                     VStack(spacing: 4) {
                         Text("Story Mode")
-                            .font(.system(size: 28, weight: .bold))
+                            .font(.system(size: 30, weight: .heavy, design: .rounded))
                             .foregroundColor(.white)
+                            .shadow(color: AppTheme.connectorGlow.opacity(0.8), radius: 8)
+                            .shadow(color: AppTheme.accentPrimary.opacity(0.5), radius: 4)
 
                         HStack(spacing: 16) {
                             Text("Help the aliens by solving puzzles!")
-                                .font(.system(size: 14))
-                                .foregroundColor(AppTheme.textSecondary)
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundColor(.white.opacity(0.9))
 
                             // Total stars badge
                             HStack(spacing: 4) {
@@ -395,7 +405,14 @@ struct ChapterIntroView: View {
 
     var body: some View {
         ZStack {
-            StarryBackground(useHubImage: true)
+            // Colorful splash background
+            Image("splash_background")
+                .resizable()
+                .scaledToFill()
+                .ignoresSafeArea()
+
+            Color.black.opacity(0.35)
+                .ignoresSafeArea()
 
             VStack(spacing: 24) {
                 Spacer()
@@ -406,8 +423,9 @@ struct ChapterIntroView: View {
                     .frame(width: 200, height: 200)
 
                 Text(alien.name)
-                    .font(.system(size: 36, weight: .bold))
+                    .font(.system(size: 36, weight: .heavy, design: .rounded))
                     .foregroundColor(.white)
+                    .shadow(color: AppTheme.connectorGlow.opacity(0.8), radius: 8)
 
                 SpeechBubble {
                     Text("Let's try Chapter \(alien.chapter)!")
