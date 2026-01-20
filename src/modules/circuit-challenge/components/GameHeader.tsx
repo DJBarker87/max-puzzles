@@ -2,6 +2,7 @@ import { Button } from '@/ui'
 import LivesDisplay from './LivesDisplay'
 import TimerDisplay from './TimerDisplay'
 import GameCoinDisplay from './GameCoinDisplay'
+import { MusicToggleButton } from './MusicToggleButton'
 
 interface GameHeaderProps {
   title?: string
@@ -42,7 +43,7 @@ export default function GameHeader({
         ${className}
       `}
     >
-      {/* Left section: Back + Title */}
+      {/* Left section: Back + Music + Title */}
       <div className="flex items-center gap-4">
         <Button
           variant="ghost"
@@ -53,6 +54,8 @@ export default function GameHeader({
         >
           <span className="text-xl">←</span>
         </Button>
+
+        <MusicToggleButton size="sm" />
 
         {title && (
           <h1 className="text-xl md:text-2xl font-display font-bold text-white">

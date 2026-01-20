@@ -7,8 +7,10 @@ import SwiftUI
 struct ModuleMenuView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.verticalSizeClass) private var verticalSizeClass
+    @EnvironmentObject var musicService: MusicService
 
     @State private var showQuickPlay = false
+    @State private var showStoryMode = false
     @State private var showPuzzleMaker = false
     @State private var selectedDifficulty: DifficultySettings?
 
@@ -36,11 +38,17 @@ struct ModuleMenuView: View {
                             .foregroundColor(.white)
                     }
                 }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    MusicToggleButton(size: .small, showBackground: false)
+                }
             }
             .navigationDestination(isPresented: $showQuickPlay) {
                 QuickPlaySetupView { difficulty in
                     selectedDifficulty = difficulty
                 }
+            }
+            .navigationDestination(isPresented: $showStoryMode) {
+                ChapterSelectView()
             }
             .navigationDestination(isPresented: $showPuzzleMaker) {
                 PuzzleMakerView()
@@ -195,44 +203,46 @@ struct ModuleMenuView: View {
         }
     }
 
-    // MARK: - Progression Card (V2)
+    // MARK: - Story Mode Card
 
     private var progressionCard: some View {
-        HStack(spacing: 16) {
-            // Icon
-            ZStack {
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(Color.gray.opacity(0.2))
-                    .frame(width: 56, height: 56)
+        Button(action: { showStoryMode = true }) {
+            HStack(spacing: 16) {
+                // Icon
+                ZStack {
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(AppTheme.accentSecondary.opacity(0.2))
+                        .frame(width: 56, height: 56)
 
-                Image(systemName: "star.fill")
-                    .font(.system(size: 24))
-                    .foregroundColor(.gray)
+                    Image(systemName: "star.fill")
+                        .font(.system(size: 24))
+                        .foregroundColor(AppTheme.accentSecondary)
+                }
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Story Mode")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundColor(.white)
+
+                    Text("Help the aliens solve puzzles!")
+                        .font(.system(size: 14))
+                        .foregroundColor(AppTheme.textSecondary)
+                }
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(AppTheme.textSecondary)
             }
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Progression Levels")
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundColor(.gray)
-
-                Text("Coming in Version 2!")
-                    .font(.system(size: 14))
-                    .foregroundColor(.gray.opacity(0.7))
-            }
-
-            Spacer()
-
-            Text("V2")
-                .font(.system(size: 12, weight: .bold))
-                .foregroundColor(.white)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(Color.gray.opacity(0.5))
-                .cornerRadius(6)
+            .padding(16)
+            .background(AppTheme.backgroundMid.opacity(0.8))
+            .cornerRadius(16)
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(AppTheme.accentSecondary.opacity(0.3), lineWidth: 1)
+            )
         }
-        .padding(16)
-        .background(AppTheme.backgroundMid.opacity(0.4))
-        .cornerRadius(16)
     }
 
     // MARK: - Puzzle Maker Card

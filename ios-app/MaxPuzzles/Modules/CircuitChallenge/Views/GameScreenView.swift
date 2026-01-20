@@ -135,6 +135,8 @@ struct GameScreenView: View {
                         .cornerRadius(8)
                 }
 
+                MusicToggleButton(size: .small)
+
                 Spacer()
 
                 ActionButtons(

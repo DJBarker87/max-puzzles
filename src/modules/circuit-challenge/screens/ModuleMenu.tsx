@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import { Card } from '@/ui'
 import Header from '@/hub/components/Header'
-import { StarryBackground } from '../components'
+import { StarryBackground, MusicToggleButton } from '../components'
 
 /**
  * Circuit Challenge module menu screen
@@ -18,9 +18,12 @@ export default function ModuleMenu() {
 
       {/* Title section */}
       <div className="px-4 md:px-8 pb-4 relative z-10">
-        <h1 className="text-2xl md:text-3xl font-display font-bold">
-          <span className="text-accent-primary">⚡</span> Circuit Challenge
-        </h1>
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl md:text-3xl font-display font-bold">
+            <span className="text-accent-primary">⚡</span> Circuit Challenge
+          </h1>
+          <MusicToggleButton size="md" />
+        </div>
         <p className="text-text-secondary">Navigate the circuit!</p>
       </div>
 
@@ -41,19 +44,17 @@ export default function ModuleMenu() {
           </div>
         </Card>
 
-        {/* Progression (V2 - disabled) */}
-        <Card variant="default" className="w-full max-w-md p-6 opacity-50">
+        {/* Story Mode */}
+        <Card
+          variant="interactive"
+          className="w-full max-w-md p-6 cursor-pointer hover:scale-[1.02] transition-transform"
+          onClick={() => navigate('/play/circuit-challenge/story')}
+        >
           <div className="flex items-center gap-4">
-            <span className="text-4xl">📈</span>
+            <span className="text-4xl">⭐</span>
             <div>
-              <h2 className="text-xl font-bold">Progression</h2>
-              <p className="text-text-secondary">Coming in V2</p>
-              <div className="flex items-center gap-1 mt-1">
-                <span className="text-yellow-400">🔒</span>
-                <span className="text-sm text-text-secondary">
-                  30 levels to master
-                </span>
-              </div>
+              <h2 className="text-xl font-bold">Story Mode</h2>
+              <p className="text-text-secondary">Help the aliens solve puzzles!</p>
             </div>
           </div>
         </Card>

@@ -11,6 +11,7 @@ import {
   LivesDisplay,
   TimerDisplay,
   GameCoinDisplay,
+  MusicToggleButton,
 } from '../components'
 import { Button, Modal } from '@/ui'
 import { printCurrentPuzzle } from '../services/pdfGenerator'
@@ -168,6 +169,8 @@ export default function GameScreen() {
           >
             <span className="text-lg">←</span>
           </Button>
+
+          <MusicToggleButton size="sm" />
 
           <ActionButtons
             onReset={resetPuzzle}
