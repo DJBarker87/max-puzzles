@@ -1,3 +1,6 @@
+// Import animations CSS
+import './animations.css'
+
 export { default as GridDefs } from './GridDefs'
 export { default as HexCell } from './HexCell'
 export { default as Connector } from './Connector'
@@ -9,4 +12,7 @@ export { default as GameHeader } from './GameHeader'
 export { default as ActionButtons } from './ActionButtons'
 export { default as StarryBackground } from './StarryBackground'
 export { default as PuzzlePreview } from './PuzzlePreview'
+export { default as AnimatedStarReveal } from './AnimatedStarReveal'
+export { default as AnimatedAlien } from './AnimatedAlien'
 export { MusicToggleButton } from './MusicToggleButton'
+export { Confetti } from './Confetti'

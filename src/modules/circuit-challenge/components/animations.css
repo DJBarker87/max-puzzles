@@ -165,3 +165,176 @@
   0% { transform: translateY(-100%); }
   100% { transform: translateY(300%); }
 }
+
+/* ============================================
+   Alien Idle Animations
+   ============================================ */
+
+/* Float animation - gentle up and down with slight rotation */
+@keyframes alienFloat {
+  0%, 100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(calc(-6px * var(--animation-intensity, 1))) rotate(calc(2deg * var(--animation-intensity, 1)));
+  }
+}
+
+.animate-alien-float {
+  animation: alienFloat 3s ease-in-out infinite;
+}
+
+/* Bounce animation - more energetic bouncing */
+@keyframes alienBounce {
+  0%, 100% {
+    transform: translateY(0) scaleY(1);
+  }
+  25% {
+    transform: translateY(calc(-10px * var(--animation-intensity, 1))) scaleY(1.02);
+  }
+  50% {
+    transform: translateY(0) scaleY(0.98);
+  }
+  75% {
+    transform: translateY(calc(-10px * var(--animation-intensity, 1))) scaleY(1.02);
+  }
+}
+
+.animate-alien-bounce {
+  animation: alienBounce 1.2s ease-in-out infinite;
+}
+
+/* Breathe animation - subtle scale pulsing */
+@keyframes alienBreathe {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(calc(1 + 0.03 * var(--animation-intensity, 1)));
+  }
+}
+
+.animate-alien-breathe {
+  animation: alienBreathe 4s ease-in-out infinite;
+}
+
+/* Wiggle animation - side to side with rotation */
+@keyframes alienWiggle {
+  0%, 100% {
+    transform: translateX(0) rotate(0deg);
+  }
+  25% {
+    transform: translateX(calc(4px * var(--animation-intensity, 1))) rotate(calc(3deg * var(--animation-intensity, 1)));
+  }
+  75% {
+    transform: translateX(calc(-4px * var(--animation-intensity, 1))) rotate(calc(-3deg * var(--animation-intensity, 1)));
+  }
+}
+
+.animate-alien-wiggle {
+  animation: alienWiggle 2s ease-in-out infinite;
+}
+
+/* ============================================
+   Confetti Animations
+   ============================================ */
+
+/* Confetti falling animation */
+@keyframes confettiFall {
+  0% {
+    transform: translateY(0) translateX(0);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(100vh) translateX(var(--confetti-drift, 0px));
+    opacity: 0;
+  }
+}
+
+.animate-confetti-fall {
+  animation: confettiFall var(--confetti-duration, 3s) ease-in forwards;
+  animation-delay: var(--confetti-delay, 0s);
+}
+
+/* Confetti spinning animation */
+@keyframes confettiSpin {
+  0% {
+    transform: rotateX(0deg) rotateY(0deg) rotateZ(0deg);
+  }
+  100% {
+    transform: rotateX(720deg) rotateY(360deg) rotateZ(var(--confetti-rotation, 720deg));
+  }
+}
+
+.animate-confetti-spin {
+  animation: confettiSpin 3s linear infinite;
+}
+
+/* ============================================
+   Button Interactions
+   ============================================ */
+
+/* Button press bounce effect */
+@keyframes buttonPress {
+  0% { transform: scale(1); }
+  50% { transform: scale(0.95); }
+  100% { transform: scale(1); }
+}
+
+.animate-button-press {
+  animation: buttonPress 0.15s ease-out;
+}
+
+/* Button hover scale */
+.button-bounce {
+  transition: transform 0.15s ease-out;
+}
+
+.button-bounce:hover {
+  transform: scale(1.02);
+}
+
+.button-bounce:active {
+  transform: scale(0.98);
+}
+
+/* ============================================
+   Star Reveal Animations
+   ============================================ */
+
+@keyframes starPopIn {
+  0% {
+    transform: scale(0) rotate(-180deg);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.3) rotate(10deg);
+    opacity: 1;
+  }
+  75% {
+    transform: scale(0.9) rotate(-5deg);
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
+}
+
+.animate-star-pop-in {
+  animation: starPopIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+  opacity: 0;
+}
+
+/* Star sparkle burst */
+@keyframes starSparkle {
+  0%, 100% {
+    filter: drop-shadow(0 0 4px currentColor);
+  }
+  50% {
+    filter: drop-shadow(0 0 12px currentColor) drop-shadow(0 0 20px currentColor);
+  }
+}
+
+.animate-star-sparkle {
+  animation: starSparkle 1s ease-in-out infinite;
+}

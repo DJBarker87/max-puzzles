@@ -1,4 +1,6 @@
+import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useSound } from '@/app/providers/SoundProvider'
 import { Card } from '@/ui'
 import Header from '@/hub/components/Header'
 import { StarryBackground, MusicToggleButton } from '../components'
@@ -8,6 +10,12 @@ import { StarryBackground, MusicToggleButton } from '../components'
  */
 export default function ModuleMenu() {
   const navigate = useNavigate()
+  const { playMusic } = useSound()
+
+  // Continue hub music on this screen
+  useEffect(() => {
+    playMusic('hub', true)
+  }, [playMusic])
 
   return (
     <div className="min-h-screen flex flex-col relative">

@@ -1,5 +1,6 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useSound } from '@/app/providers/SoundProvider'
 import { Button, Card, Toggle, Slider } from '@/ui'
 import { StarryBackground } from '../components'
 import {
@@ -30,6 +31,12 @@ function getPresetDescription(preset: DifficultySettings): string {
  */
 export default function QuickPlaySetup() {
   const navigate = useNavigate()
+  const { playMusic } = useSound()
+
+  // Continue hub music on this screen
+  useEffect(() => {
+    playMusic('hub', true)
+  }, [playMusic])
 
   const [selectedPreset, setSelectedPreset] = useState(4) // Default to Level 5
   const [isCustomMode, setIsCustomMode] = useState(false)

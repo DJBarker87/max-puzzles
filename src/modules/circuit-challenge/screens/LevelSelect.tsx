@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { useSound } from "@/app/providers/SoundProvider";
 import Header from "@/hub/components/Header";
 import { StarryBackground } from "../components";
 import { StarDisplay } from "../components/StarReveal";
@@ -19,6 +20,7 @@ import {
  */
 export default function LevelSelect() {
   const navigate = useNavigate();
+  const { playMusic } = useSound();
   const { chapterId } = useParams<{ chapterId: string }>();
   const chapter = parseInt(chapterId || "1", 10);
 
@@ -27,6 +29,11 @@ export default function LevelSelect() {
   });
 
   const alien = chapterAliens.find((a) => a.chapter === chapter);
+
+  // Continue hub music on this screen
+  useEffect(() => {
+    playMusic("hub", true);
+  }, [playMusic]);
 
   useEffect(() => {
     setProgress(getStoryProgress());
@@ -92,11 +99,11 @@ export default function LevelSelect() {
         </div>
       </div>
 
-      {/* Horizontal level path */}
-      <div className="flex-1 flex items-center justify-center relative z-10 overflow-x-auto px-4">
-        <div className="flex items-center gap-0 py-8">
+      {/* Horizontal level path - fills screen width */}
+      <div className="flex-1 flex items-center justify-center relative z-10 px-4">
+        <div className="flex items-center w-full max-w-[600px] py-8">
           {[1, 2, 3, 4, 5].map((level) => (
-            <div key={level} className="flex items-center">
+            <div key={level} className="flex items-center flex-1">
               {/* Hexagon level tile */}
               <LargeHexTile
                 level={level}
@@ -158,42 +165,36 @@ function LargeHexTile({
   onClick,
 }: LargeHexTileProps) {
   const shouldPulse = isCurrent || isCompleted;
-  const hexSize = 90; // Larger hexagons
 
   return (
     <button
       onClick={onClick}
       disabled={!isUnlocked}
-      className="flex flex-col items-center gap-3"
+      className="flex flex-col items-center gap-2 flex-1"
     >
-      {/* Hexagon */}
-      <div className="relative" style={{ width: hexSize + 40, height: hexSize + 40 }}>
+      {/* Hexagon - responsive sizing */}
+      <div className="relative w-full aspect-square max-w-[80px] md:max-w-[100px]">
         {/* Pulsing glow for current/completed */}
         {shouldPulse && (
           <>
             {/* Outer glow */}
             <div
-              className="absolute inset-0 animate-pulse"
+              className="absolute inset-[-15%] animate-pulse"
               style={{
                 background: "radial-gradient(circle, rgba(0,255,136,0.4) 0%, transparent 60%)",
               }}
             />
             {/* Inner glow */}
             <div
-              className="absolute"
+              className="absolute inset-[5%]"
               style={{
-                top: 10,
-                left: 10,
-                right: 10,
-                bottom: 10,
                 background: "radial-gradient(circle, rgba(0,255,136,0.3) 0%, transparent 70%)",
                 filter: "blur(8px)",
               }}
             />
             {/* Energy border animation */}
             <svg
-              className="absolute inset-0"
-              style={{ width: hexSize + 40, height: hexSize + 40 }}
+              className="absolute inset-[-15%] w-[130%] h-[130%]"
               viewBox="0 0 130 130"
             >
               <polygon
@@ -219,13 +220,7 @@ function LargeHexTile({
 
         {/* Main hexagon */}
         <svg
-          className="absolute"
-          style={{
-            width: hexSize,
-            height: hexSize,
-            top: 20,
-            left: 20,
-          }}
+          className="absolute inset-0 w-full h-full"
           viewBox="0 0 100 100"
         >
           <defs>
@@ -278,35 +273,31 @@ function LargeHexTile({
         </svg>
 
         {/* Level number or lock */}
-        <div
-          className="absolute flex flex-col items-center justify-center"
-          style={{
-            top: 20,
-            left: 20,
-            width: hexSize,
-            height: hexSize,
-          }}
-        >
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
           {isUnlocked ? (
             <>
-              <span className="text-4xl font-bold text-white">{level}</span>
+              <span className="text-2xl md:text-3xl font-bold text-white">{level}</span>
               {isHiddenMode && (
-                <span className="text-xs text-accent-secondary mt-1">👁️</span>
+                <svg className="w-3 h-3 md:w-4 md:h-4 mt-0.5 text-accent-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                </svg>
               )}
             </>
           ) : (
-            <span className="text-3xl text-gray-500">🔒</span>
+            <svg className="w-6 h-6 md:w-8 md:h-8 text-gray-500" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M12 1C8.676 1 6 3.676 6 7v2H4v14h16V9h-2V7c0-3.324-2.676-6-6-6zm0 2c2.276 0 4 1.724 4 4v2H8V7c0-2.276 1.724-4 4-4zm0 10c1.1 0 2 .9 2 2s-.9 2-2 2-2-.9-2-2 .9-2 2-2z" />
+            </svg>
           )}
         </div>
       </div>
 
       {/* Stars display */}
       {isCompleted ? (
-        <StarDisplay stars={stars} size="medium" />
+        <StarDisplay stars={stars} size="small" />
       ) : isUnlocked ? (
-        <StarDisplay stars={0} size="medium" />
+        <StarDisplay stars={0} size="small" />
       ) : (
-        <span className="text-xs text-gray-500">Need ⭐⭐</span>
+        <span className="text-[10px] text-gray-500">2 stars needed</span>
       )}
     </button>
   );
@@ -321,10 +312,10 @@ interface HorizontalConnectorProps {
 
 function HorizontalConnector({ isActive, isPulsing }: HorizontalConnectorProps) {
   return (
-    <div className="relative h-6 w-8 flex items-center">
+    <div className="relative h-6 w-4 md:w-6 flex items-center shrink-0">
       {/* Base connector */}
       <div
-        className={`absolute h-1.5 w-full rounded-full ${
+        className={`absolute h-1 md:h-1.5 w-full rounded-full ${
           isActive ? "bg-[#00dd77]" : "bg-[#3d3428]"
         }`}
       />
@@ -333,10 +324,10 @@ function HorizontalConnector({ isActive, isPulsing }: HorizontalConnectorProps) 
       {isPulsing && (
         <>
           {/* Glow */}
-          <div className="absolute h-3 w-full rounded-full bg-[#00ff88] opacity-50 blur-sm" />
+          <div className="absolute h-2 md:h-3 w-full rounded-full bg-[#00ff88] opacity-50 blur-sm" />
           {/* Energy flow animation */}
           <div
-            className="absolute h-1 w-full overflow-hidden"
+            className="absolute h-0.5 md:h-1 w-full overflow-hidden"
             style={{ top: "calc(50% - 2px)" }}
           >
             <div

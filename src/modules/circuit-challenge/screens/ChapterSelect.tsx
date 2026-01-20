@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import { useSound } from "@/app/providers/SoundProvider";
 import Header from "@/hub/components/Header";
 import { StarryBackground } from "../components";
 import {
@@ -29,11 +30,17 @@ function countCompletedChapters(progress: StoryProgressData): number {
  */
 export default function ChapterSelect() {
   const navigate = useNavigate();
+  const { playMusic } = useSound();
   const [progress, setProgress] = useState<StoryProgressData>({ levelProgress: {} });
   const [currentIndex, setCurrentIndex] = useState(0);
   const [dragStart, setDragStart] = useState<number | null>(null);
   const [dragOffset, setDragOffset] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Continue hub music on this screen
+  useEffect(() => {
+    playMusic("hub", true);
+  }, [playMusic]);
 
   useEffect(() => {
     setProgress(getStoryProgress());

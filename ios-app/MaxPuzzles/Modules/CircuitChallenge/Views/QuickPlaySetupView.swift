@@ -63,6 +63,7 @@ struct QuickPlaySetupView: View {
         }
         .navigationTitle("Quick Play")
         .navigationBarTitleDisplayMode(.inline)
+        .navigationBarBackButtonHidden(true)
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
                 Button(action: { dismiss() }) {

@@ -1,11 +1,17 @@
 import { useState, useEffect } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
+import { useSound } from '@/app/providers/SoundProvider'
 import { Button, Card } from '@/ui'
-import { StarryBackground } from '../components'
+import { StarryBackground, AnimatedStarReveal, Confetti } from '../components'
+import { chapterAliens, type ChapterAlien } from '@/shared/types/chapterAlien'
+import {
+  getStoryProgress,
+  isChapterCompleted,
+  recordLevelAttempt,
+} from '@/shared/types/storyProgress'
 import type { Puzzle } from '../types'
 import type { DifficultySettings } from '../engine/types'
 import type { GameMoveResult, HiddenModeResults } from '../types/gameState'
-import type { ChapterAlien } from '@/shared/types/chapterAlien'
 
 interface SummaryData {
   won: boolean
@@ -56,11 +62,17 @@ const loseMessages = [
 export default function SummaryScreen() {
   const location = useLocation()
   const navigate = useNavigate()
+  const { playMusic, playSound } = useSound()
   const data = location.state as SummaryData | null
 
   // State for character reveal animation
   const [showingCharacter, setShowingCharacter] = useState(true)
   const [characterVisible, setCharacterVisible] = useState(false)
+
+  // State for chapter unlock celebration
+  const [showChapterUnlock, setShowChapterUnlock] = useState(false)
+  const [unlockedAlien, setUnlockedAlien] = useState<ChapterAlien | null>(null)
+  const [chapterUnlockVisible, setChapterUnlockVisible] = useState(false)
 
   // Redirect if no data
   if (!data) {
@@ -69,6 +81,41 @@ export default function SummaryScreen() {
   }
 
   const isStoryMode = !!data.storyAlien
+
+  // Check if this completion unlocks a new chapter
+  useEffect(() => {
+    if (data.won && isStoryMode && data.storyChapter && data.storyLevel === 5) {
+      // Check if this is the level that completes the chapter
+      const progress = getStoryProgress()
+      const wasChapterCompletedBefore = isChapterCompleted(data.storyChapter, progress)
+
+      // Record this level completion
+      const timeSeconds = Math.floor(data.elapsedMs / 1000)
+      const correctMoves = data.moveHistory.filter(m => m.correct).length
+      const livesLost = data.moveHistory.filter(m => !m.correct).length
+      recordLevelAttempt(data.storyChapter, data.storyLevel, true, livesLost, timeSeconds, correctMoves)
+
+      // If chapter wasn't completed before but would be now, show unlock celebration
+      if (!wasChapterCompletedBefore && data.storyChapter < 10) {
+        const nextChapter = data.storyChapter + 1
+        const nextAlien = chapterAliens.find(a => a.chapter === nextChapter)
+        if (nextAlien) {
+          setUnlockedAlien(nextAlien)
+        }
+      }
+    }
+  }, [data.won, isStoryMode, data.storyChapter, data.storyLevel, data.elapsedMs, data.moveHistory])
+
+  // Play victory or defeat stinger on mount
+  useEffect(() => {
+    if (data.won) {
+      playMusic('victory', false) // Play victory stinger once (no loop)
+      playSound('complete')
+    } else {
+      playMusic('lose', false) // Play defeat stinger once (no loop)
+      playSound('gameOver')
+    }
+  }, [data.won, playMusic, playSound])
 
   // Character reveal animation for non-hidden mode
   useEffect(() => {
@@ -90,7 +137,22 @@ export default function SummaryScreen() {
 
   const dismissCharacter = () => {
     setCharacterVisible(false)
-    setTimeout(() => setShowingCharacter(false), 300)
+    setTimeout(() => {
+      setShowingCharacter(false)
+      // If we have an unlocked alien, show the unlock celebration
+      if (unlockedAlien) {
+        setShowChapterUnlock(true)
+        setTimeout(() => setChapterUnlockVisible(true), 100)
+      }
+    }, 300)
+  }
+
+  const dismissChapterUnlock = () => {
+    setChapterUnlockVisible(false)
+    setTimeout(() => {
+      setShowChapterUnlock(false)
+      setUnlockedAlien(null)
+    }, 300)
   }
 
   // Calculate statistics
@@ -172,22 +234,24 @@ export default function SummaryScreen() {
       >
         <StarryBackground />
 
-        {/* Confetti for wins */}
+        {/* Confetti celebration for wins */}
+        {data.won && <Confetti particleCount={80} />}
+
+        {/* Sparkle effect for wins */}
         {data.won && (
           <div className="absolute inset-0 overflow-hidden pointer-events-none z-10">
-            {Array.from({ length: 30 }).map((_, i) => (
+            {Array.from({ length: 20 }).map((_, i) => (
               <div
                 key={i}
-                className="absolute animate-bounce"
+                className="absolute w-2 h-2 rounded-full bg-accent-tertiary animate-ping"
                 style={{
                   left: `${Math.random() * 100}%`,
                   top: `${Math.random() * 100}%`,
                   animationDelay: `${Math.random() * 2}s`,
-                  animationDuration: `${1 + Math.random()}s`,
+                  animationDuration: `${1.5 + Math.random()}s`,
+                  opacity: 0.6,
                 }}
-              >
-                {['🎉', '⭐', '✨', '🎊'][Math.floor(Math.random() * 4)]}
-              </div>
+              />
             ))}
           </div>
         )}
@@ -217,12 +281,78 @@ export default function SummaryScreen() {
                 />
               </div>
             </>
-          ) : (
-            // Quick play: show emoji
-            <div className="text-[150px] md:text-[200px]">
-              {data.won ? '🎉' : '💔'}
-            </div>
-          )}
+          ) : null}
+        </div>
+      </div>
+    )
+  }
+
+  // Chapter unlock celebration screen
+  if (showChapterUnlock && unlockedAlien) {
+    return (
+      <div
+        className={`min-h-screen flex flex-col items-center justify-center p-4 relative transition-all duration-500 ${
+          chapterUnlockVisible ? 'opacity-100 scale-100' : 'opacity-0 scale-90'
+        }`}
+        onClick={dismissChapterUnlock}
+      >
+        <StarryBackground />
+
+        {/* Epic confetti burst */}
+        <Confetti particleCount={120} />
+
+        {/* Glow effect behind alien */}
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <div
+            className="w-96 h-96 rounded-full animate-pulse"
+            style={{
+              background: 'radial-gradient(circle, rgba(34,197,94,0.4) 0%, transparent 70%)',
+              filter: 'blur(40px)',
+            }}
+          />
+        </div>
+
+        <div className="relative z-20 flex flex-col items-center">
+          {/* "New Chapter Unlocked!" title */}
+          <h1 className="text-3xl md:text-4xl font-display font-bold text-accent-primary mb-4 animate-pulse">
+            New Chapter Unlocked!
+          </h1>
+
+          {/* Alien image with dramatic entrance */}
+          <div className="relative">
+            {/* Spinning glow ring */}
+            <div
+              className="absolute inset-[-20%] rounded-full animate-spin"
+              style={{
+                background: 'conic-gradient(from 0deg, transparent, rgba(34,197,94,0.3), transparent)',
+                animationDuration: '3s',
+              }}
+            />
+            <img
+              src={unlockedAlien.imagePath}
+              alt={unlockedAlien.name}
+              className="w-56 h-56 md:w-72 md:h-72 object-contain relative z-10"
+              style={{
+                filter: 'drop-shadow(0 0 30px rgba(34,197,94,0.5))',
+              }}
+            />
+          </div>
+
+          {/* Alien name and chapter */}
+          <div className="mt-6 text-center">
+            <p className="text-text-secondary text-lg">Chapter {unlockedAlien.chapter}</p>
+            <h2 className="text-4xl font-display font-black text-white mt-1">
+              {unlockedAlien.name}
+            </h2>
+            <p className="text-accent-primary/90 mt-2">
+              {unlockedAlien.words.join(' • ')}
+            </p>
+          </div>
+
+          {/* Tap hint */}
+          <p className="text-text-secondary text-sm mt-8 animate-pulse">
+            Tap to continue
+          </p>
         </div>
       </div>
     )
@@ -318,23 +448,14 @@ export default function SummaryScreen() {
               alt={data.storyAlien.name}
               className="w-24 h-24 mx-auto object-contain mb-4"
             />
-          ) : (
-            <div className="text-6xl mb-4">🎉</div>
-          )}
+          ) : null}
           <h1 className="text-3xl font-display font-bold mb-2">
             Puzzle Complete!
           </h1>
 
-          {/* Stars earned */}
-          <div className="text-4xl mb-6 flex justify-center gap-2">
-            {[1, 2, 3].map((star) => (
-              <span
-                key={star}
-                className={star <= starsEarned ? 'opacity-100' : 'opacity-30'}
-              >
-                ⭐
-              </span>
-            ))}
+          {/* Animated stars reveal */}
+          <div className="mb-6">
+            <AnimatedStarReveal starsEarned={starsEarned} delay={300} />
           </div>
 
           {/* Stats */}
@@ -356,11 +477,13 @@ export default function SummaryScreen() {
           {/* Actions */}
           <div className="space-y-3">
             <Button variant="primary" fullWidth onClick={handlePlayAgain}>
-              Play Again
+              {isStoryMode ? 'Next Level' : 'Play Again'}
             </Button>
-            <Button variant="ghost" fullWidth onClick={handleChangeDifficulty}>
-              Change Difficulty
-            </Button>
+            {!isStoryMode && (
+              <Button variant="ghost" fullWidth onClick={handleChangeDifficulty}>
+                Change Difficulty
+              </Button>
+            )}
             <Button variant="ghost" fullWidth onClick={handleExit}>
               Exit
             </Button>
@@ -384,7 +507,7 @@ export default function SummaryScreen() {
             className="w-24 h-24 mx-auto object-contain mb-4"
           />
         ) : (
-          <div className="text-6xl mb-4">💔</div>
+          <div className="text-6xl mb-4 text-accent-secondary">X</div>
         )}
         <h1 className="text-2xl font-display font-bold mb-4">Out of Lives</h1>
 

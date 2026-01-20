@@ -288,8 +288,9 @@ struct GameScreenView: View {
             .ignoresSafeArea()
             .overlay {
                 VStack(spacing: 16) {
-                    Text(viewModel.state.status == .won ? "🎉" : "💔")
+                    Image(systemName: viewModel.state.status == .won ? "checkmark.circle.fill" : "xmark.circle.fill")
                         .font(.system(size: 64))
+                        .foregroundColor(viewModel.state.status == .won ? AppTheme.accentPrimary : AppTheme.accentSecondary)
                     Text(viewModel.state.status == .won ? "Puzzle Complete!" : "Out of Lives")
                         .font(.system(size: 24, weight: .bold))
                         .foregroundColor(.white)

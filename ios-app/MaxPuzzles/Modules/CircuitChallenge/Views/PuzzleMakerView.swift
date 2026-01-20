@@ -27,6 +27,7 @@ struct PuzzleMakerView: View {
         }
         .navigationTitle("Puzzle Maker")
         .navigationBarTitleDisplayMode(.inline)
+        .navigationBarBackButtonHidden(true)
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
                 Button(action: { dismiss() }) {

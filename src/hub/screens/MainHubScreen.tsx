@@ -1,5 +1,7 @@
+import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/app/providers/AuthProvider'
+import { useSound } from '@/app/providers/SoundProvider'
 import Button from '@/ui/Button'
 import Header from '../components/Header'
 
@@ -10,9 +12,15 @@ import Header from '../components/Header'
 export default function MainHubScreen() {
   const navigate = useNavigate()
   const { user, isGuest, isDemoMode } = useAuth()
+  const { playMusic } = useSound()
 
   const displayName = user?.displayName || 'Guest'
   const coins = user?.coins || 0
+
+  // Play hub music on mount
+  useEffect(() => {
+    playMusic('hub', true)
+  }, [playMusic])
 
   return (
     <div className="min-h-screen flex flex-col bg-background-dark">

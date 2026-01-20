@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useCallback, ReactNode } from 'react'
-import { soundService, SoundEffect } from '@/shared/services/sound'
+import { soundService, SoundEffect, MusicTrack } from '@/shared/services/sound'
 
 interface SoundContextValue {
   /** Play a sound effect */
@@ -14,6 +14,14 @@ interface SoundContextValue {
   volume: number
   /** Set volume */
   setVolume: (volume: number) => void
+  /** Play background music */
+  playMusic: (track: MusicTrack, loop?: boolean) => void
+  /** Stop background music */
+  stopMusic: () => void
+  /** Music volume */
+  musicVolume: number
+  /** Set music volume */
+  setMusicVolume: (volume: number) => void
 }
 
 const SoundContext = createContext<SoundContextValue | null>(null)
@@ -24,11 +32,12 @@ interface SoundProviderProps {
 
 /**
  * Sound provider
- * Manages sound effects and mute state
+ * Manages sound effects, music, and mute state
  */
 export function SoundProvider({ children }: SoundProviderProps) {
   const [isMuted, setIsMuted] = useState(soundService.isMuted())
   const [volume, setVolumeState] = useState(soundService.getVolume())
+  const [musicVolume, setMusicVolumeState] = useState(soundService.getMusicVolume())
 
   const playSound = useCallback((sound: SoundEffect) => {
     soundService.play(sound)
@@ -49,6 +58,19 @@ export function SoundProvider({ children }: SoundProviderProps) {
     setVolumeState(vol)
   }, [])
 
+  const playMusic = useCallback((track: MusicTrack, loop: boolean = true) => {
+    soundService.playMusic(track, loop)
+  }, [])
+
+  const stopMusic = useCallback(() => {
+    soundService.stopMusic()
+  }, [])
+
+  const setMusicVolume = useCallback((vol: number) => {
+    soundService.setMusicVolume(vol)
+    setMusicVolumeState(vol)
+  }, [])
+
   const value: SoundContextValue = {
     playSound,
     isMuted,
@@ -56,6 +78,10 @@ export function SoundProvider({ children }: SoundProviderProps) {
     setMuted,
     volume,
     setVolume,
+    playMusic,
+    stopMusic,
+    musicVolume,
+    setMusicVolume,
   }
 
   return <SoundContext.Provider value={value}>{children}</SoundContext.Provider>

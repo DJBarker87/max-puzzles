@@ -36,6 +36,7 @@ struct LevelSelectView: View {
         }
         .navigationTitle("Chapter \(chapter)")
         .navigationBarTitleDisplayMode(.inline)
+        .navigationBarBackButtonHidden(true)
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
                 Button(action: { dismiss() }) {
@@ -67,6 +68,7 @@ struct LevelSelectView: View {
                 .resizable()
                 .scaledToFit()
                 .frame(width: 60, height: 60)
+                .alienIdleAnimation(style: .float, intensity: 0.7)
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(alien.name)
@@ -87,44 +89,51 @@ struct LevelSelectView: View {
     // MARK: - Horizontal Level Path
 
     private func horizontalLevelPath(geometry: GeometryProxy) -> some View {
-        let availableWidth = geometry.size.width - 48 // padding
-        let hexSize = min((availableWidth - 4 * 20) / 5, 100) // 5 hexagons with connectors
+        // Calculate sizes to fill the screen width
+        let horizontalPadding: CGFloat = 16
+        let availableWidth = geometry.size.width - (horizontalPadding * 2)
 
-        return ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 0) {
-                ForEach(1...5, id: \.self) { level in
-                    HStack(spacing: 0) {
-                        // Hexagon level tile
-                        LargeHexTile(
-                            level: level,
-                            chapter: chapter,
-                            isUnlocked: isLevelUnlocked(level),
-                            isCompleted: isLevelCompleted(level),
-                            isCurrent: isCurrentLevel(level),
-                            stars: starsForLevel(level),
-                            isHiddenMode: isHiddenMode(level: level),
-                            hexSize: hexSize,
-                            onTap: {
-                                if isLevelUnlocked(level) {
-                                    selectedLevel = level
-                                }
+        // 5 hexagons + 4 connectors
+        // connectorWidth = hexSize * 0.25 (proportional)
+        // 5 * hexSize + 4 * (hexSize * 0.25) = availableWidth
+        // 5 * hexSize + hexSize = availableWidth
+        // 6 * hexSize = availableWidth
+        let hexSize = availableWidth / 6
+        let connectorWidth = hexSize * 0.25
+
+        return HStack(spacing: 0) {
+            ForEach(1...5, id: \.self) { level in
+                HStack(spacing: 0) {
+                    // Hexagon level tile
+                    LargeHexTile(
+                        level: level,
+                        chapter: chapter,
+                        isUnlocked: isLevelUnlocked(level),
+                        isCompleted: isLevelCompleted(level),
+                        isCurrent: isCurrentLevel(level),
+                        stars: starsForLevel(level),
+                        isHiddenMode: isHiddenMode(level: level),
+                        hexSize: hexSize,
+                        onTap: {
+                            if isLevelUnlocked(level) {
+                                selectedLevel = level
                             }
-                        )
-
-                        // Connector to next (except for level 5)
-                        if level < 5 {
-                            HorizontalLevelConnector(
-                                isActive: isLevelUnlocked(level + 1),
-                                isPulsing: isLevelCompleted(level),
-                                width: 30
-                            )
                         }
+                    )
+
+                    // Connector to next (except for level 5)
+                    if level < 5 {
+                        HorizontalLevelConnector(
+                            isActive: isLevelUnlocked(level + 1),
+                            isPulsing: isLevelCompleted(level),
+                            width: connectorWidth
+                        )
                     }
                 }
             }
-            .padding(.horizontal, 24)
-            .padding(.vertical, 20)
         }
+        .padding(.horizontal, horizontalPadding)
+        .padding(.vertical, 20)
     }
 
     // MARK: - Chapter Stats
@@ -286,7 +295,7 @@ struct LargeHexTile: View {
                 } else if isUnlocked {
                     LevelStarDisplay(stars: 0, size: .medium)
                 } else {
-                    Text("Need ⭐⭐")
+                    Text("2 stars needed")
                         .font(.system(size: 11))
                         .foregroundColor(.gray.opacity(0.6))
                 }
@@ -465,11 +474,12 @@ struct StoryGameScreenView: View {
             VStack(spacing: 24) {
                 Spacer()
 
-                // Alien image
+                // Alien image with bounce animation
                 Image(alien.imageName)
                     .resizable()
                     .scaledToFit()
                     .frame(width: 200, height: 200)
+                    .alienIdleAnimation(style: .bounce, intensity: 1.0)
 
                 // Speech bubble with intro message
                 SpeechBubble {

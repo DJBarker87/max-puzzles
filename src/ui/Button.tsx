@@ -32,10 +32,12 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       inline-flex items-center justify-center
       font-display font-bold
       rounded-xl
-      transition-all duration-150
+      transition-all duration-150 ease-out
+      transform-gpu
       focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background-dark
-      active:scale-95
-      disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100
+      hover:scale-[1.02]
+      active:scale-95 active:transition-none
+      disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:active:scale-100
     `
 
     const variantStyles = {

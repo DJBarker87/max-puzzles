@@ -1,8 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
-import { StarryBackground } from '../components'
-import { chapterAliens, type ChapterAlien } from '@/shared/types/chapterAlien'
-import { getStoryDifficulty, type StoryLevel } from '../engine/storyDifficulty'
+import { chapterAliens } from '@/shared/types/chapterAlien'
 import GameScreen from './GameScreen'
 
 /**
@@ -52,8 +50,6 @@ export default function StoryGameScreen() {
     return null
   }
 
-  const storyLevel: StoryLevel = { chapter, level }
-  const difficulty = getStoryDifficulty(storyLevel)
   const levelLetter = ['A', 'B', 'C', 'D', 'E'][level - 1]
 
   const dismissIntro = () => {

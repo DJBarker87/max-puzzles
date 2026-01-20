@@ -86,12 +86,13 @@ struct SummaryScreenView: View {
                 }
 
                 VStack(spacing: 20) {
-                    // Story mode: Show the chapter's alien
+                    // Story mode: Show the chapter's alien with animation
                     if let alien = data.storyAlien {
                         Image(alien.imageName)
                             .resizable()
                             .scaledToFit()
                             .frame(width: characterSize, height: characterSize)
+                            .alienIdleAnimation(style: data.won ? .bounce : .float, intensity: 1.0)
 
                         // Speech bubble with message
                         SpeechBubble {
@@ -257,12 +258,13 @@ struct SummaryScreenView: View {
 
     private var winContent: some View {
         VStack(spacing: 24) {
-            // Small character at top of results
+            // Small character at top of results with subtle animation
             if let alien = data.storyAlien {
                 Image(alien.imageName)
                     .resizable()
                     .scaledToFit()
                     .frame(width: 100, height: 100)
+                    .alienIdleAnimation(style: .breathe, intensity: 0.8)
             } else {
                 AnimatedCharacter.boxer(size: 100)
             }
@@ -273,15 +275,9 @@ struct SummaryScreenView: View {
                     .font(.system(size: 32, weight: .bold))
                     .foregroundColor(.white)
 
-                // Stars earned
-                HStack(spacing: 8) {
-                    ForEach(0..<3, id: \.self) { index in
-                        Image(systemName: index < data.starsEarned ? "star.fill" : "star")
-                            .font(.system(size: 32))
-                            .foregroundColor(index < data.starsEarned ? AppTheme.accentTertiary : Color.gray.opacity(0.4))
-                    }
-                }
-                .padding(.vertical, 4)
+                // Animated stars reveal
+                AnimatedStarReveal.summary(starsEarned: data.starsEarned, delay: 0.3)
+                    .padding(.vertical, 4)
 
                 VStack(spacing: 10) {
                     HStack {
@@ -325,12 +321,13 @@ struct SummaryScreenView: View {
 
     private var loseContent: some View {
         VStack(spacing: 24) {
-            // Small character at top of results
+            // Small character at top of results with subtle animation
             if let alien = data.storyAlien {
                 Image(alien.imageName)
                     .resizable()
                     .scaledToFit()
                     .frame(width: 100, height: 100)
+                    .alienIdleAnimation(style: .breathe, intensity: 0.8)
             } else {
                 AnimatedCharacter.spaceOctopus(size: 100)
             }
@@ -369,11 +366,11 @@ struct SummaryScreenView: View {
 
     private var actionButtons: some View {
         VStack(spacing: 12) {
-            // Play Again
+            // Play Again / Next Level
             Button(action: {
                 onPlayAgain?()
             }) {
-                Text("Play Again")
+                Text(data.isStoryMode ? "Next Level" : "Play Again")
                     .font(.system(size: 17, weight: .semibold))
                     .foregroundColor(.white)
                     .frame(maxWidth: .infinity)
@@ -382,21 +379,23 @@ struct SummaryScreenView: View {
                     .cornerRadius(12)
             }
 
-            // Change Difficulty
-            Button(action: {
-                onChangeDifficulty?()
-            }) {
-                Text("Change Difficulty")
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 16)
-                    .background(AppTheme.backgroundDark)
-                    .cornerRadius(12)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 12)
-                            .stroke(Color.white.opacity(0.2), lineWidth: 1)
-                    )
+            // Change Difficulty - only show for quick play
+            if !data.isStoryMode {
+                Button(action: {
+                    onChangeDifficulty?()
+                }) {
+                    Text("Change Difficulty")
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 16)
+                        .background(AppTheme.backgroundDark)
+                        .cornerRadius(12)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                        )
+                }
             }
 
             // Exit

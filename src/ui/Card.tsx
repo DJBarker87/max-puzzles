@@ -37,11 +37,12 @@ const Card = forwardRef<HTMLDivElement, CardProps>(
       `,
       interactive: `
         cursor-pointer
-        hover:translate-y-[-2px]
+        transform-gpu
+        hover:translate-y-[-2px] hover:scale-[1.01]
         hover:shadow-lg hover:shadow-black/30
         hover:border-accent-primary/30
-        active:translate-y-0
-        active:shadow-md
+        active:translate-y-0 active:scale-[0.98]
+        active:shadow-md active:transition-none
       `,
     }
 

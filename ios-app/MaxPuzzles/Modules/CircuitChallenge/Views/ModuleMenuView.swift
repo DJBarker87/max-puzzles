@@ -31,6 +31,7 @@ struct ModuleMenuView: View {
             }
             .navigationTitle("Circuit Challenge")
             .navigationBarTitleDisplayMode(.inline)
+            .navigationBarBackButtonHidden(true)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button(action: { dismiss() }) {

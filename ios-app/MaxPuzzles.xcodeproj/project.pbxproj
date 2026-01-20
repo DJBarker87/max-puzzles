@@ -73,6 +73,8 @@
 		KK0001091111111111111111 /* PuzzleMakerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = KK0001081111111111111111 /* PuzzleMakerView.swift */; };
 		NN0001011111111111111111 /* AnimatedCharacter.swift in Sources */ = {isa = PBXBuildFile; fileRef = NN0001001111111111111111 /* AnimatedCharacter.swift */; };
 		NN0001031111111111111111 /* ConfettiView.swift in Sources */ = {isa = PBXBuildFile; fileRef = NN0001021111111111111111 /* ConfettiView.swift */; };
+		QQ0001031111111111111111 /* AlienIdleAnimation.swift in Sources */ = {isa = PBXBuildFile; fileRef = QQ0001021111111111111111 /* AlienIdleAnimation.swift */; };
+		QQ0001011111111111111111 /* AnimatedStarReveal.swift in Sources */ = {isa = PBXBuildFile; fileRef = QQ0001001111111111111111 /* AnimatedStarReveal.swift */; };
 		OO0001011111111111111111 /* ChapterAlien.swift in Sources */ = {isa = PBXBuildFile; fileRef = OO0001001111111111111111 /* ChapterAlien.swift */; };
 		OO0001031111111111111111 /* StoryProgress.swift in Sources */ = {isa = PBXBuildFile; fileRef = OO0001021111111111111111 /* StoryProgress.swift */; };
 		OO0001051111111111111111 /* StoryDifficulty.swift in Sources */ = {isa = PBXBuildFile; fileRef = OO0001041111111111111111 /* StoryDifficulty.swift */; };
@@ -169,6 +171,8 @@
 		KK0001081111111111111111 /* PuzzleMakerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PuzzleMakerView.swift; sourceTree = "<group>"; };
 		NN0001001111111111111111 /* AnimatedCharacter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnimatedCharacter.swift; sourceTree = "<group>"; };
 		NN0001021111111111111111 /* ConfettiView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfettiView.swift; sourceTree = "<group>"; };
+		QQ0001021111111111111111 /* AlienIdleAnimation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlienIdleAnimation.swift; sourceTree = "<group>"; };
+		QQ0001001111111111111111 /* AnimatedStarReveal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnimatedStarReveal.swift; sourceTree = "<group>"; };
 		OO0001001111111111111111 /* ChapterAlien.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChapterAlien.swift; sourceTree = "<group>"; };
 		OO0001021111111111111111 /* StoryProgress.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoryProgress.swift; sourceTree = "<group>"; };
 		OO0001041111111111111111 /* StoryDifficulty.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoryDifficulty.swift; sourceTree = "<group>"; };
@@ -455,6 +459,8 @@
 				AA0001301111111111111111 /* CoinDisplay.swift */,
 				NN0001001111111111111111 /* AnimatedCharacter.swift */,
 				NN0001021111111111111111 /* ConfettiView.swift */,
+				QQ0001021111111111111111 /* AlienIdleAnimation.swift */,
+				QQ0001001111111111111111 /* AnimatedStarReveal.swift */,
 				OO0001101111111111111111 /* StarRevealView.swift */,
 				PP0001001111111111111111 /* MusicToggleButton.swift */,
 				AA0000641111111111111111 /* Animations */,
@@ -712,6 +718,8 @@
 				KK0001091111111111111111 /* PuzzleMakerView.swift in Sources */,
 				NN0001011111111111111111 /* AnimatedCharacter.swift in Sources */,
 				NN0001031111111111111111 /* ConfettiView.swift in Sources */,
+				QQ0001031111111111111111 /* AlienIdleAnimation.swift in Sources */,
+				QQ0001011111111111111111 /* AnimatedStarReveal.swift in Sources */,
 				OO0001011111111111111111 /* ChapterAlien.swift in Sources */,
 				OO0001031111111111111111 /* StoryProgress.swift in Sources */,
 				OO0001051111111111111111 /* StoryDifficulty.swift in Sources */,

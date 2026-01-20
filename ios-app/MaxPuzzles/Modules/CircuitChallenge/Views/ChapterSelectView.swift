@@ -43,6 +43,7 @@ struct ChapterSelectView: View {
         }
         .navigationTitle("Story Mode")
         .navigationBarTitleDisplayMode(.inline)
+        .navigationBarBackButtonHidden(true)
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
                 Button(action: { dismiss() }) {
@@ -218,13 +219,14 @@ struct LargeChapterCard: View {
                             .frame(width: cardWidth * 0.8, height: cardWidth * 0.8)
                     }
 
-                    // Alien image
+                    // Alien image with idle animation when unlocked and current
                     Image(alien.imageName)
                         .resizable()
                         .scaledToFit()
                         .frame(width: cardWidth * 0.7, height: cardWidth * 0.7)
                         .grayscale(isUnlocked ? 0 : 1)
                         .opacity(isUnlocked ? 1 : 0.5)
+                        .alienIdleAnimation(style: .float, intensity: isCurrent && isUnlocked ? 1.0 : 0)
 
                     // Lock overlay
                     if !isUnlocked {

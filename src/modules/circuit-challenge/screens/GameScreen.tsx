@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { useGame } from '../hooks/useGame'
 import { useFeedback } from '../hooks/useFeedback'
 import { useOrientation } from '@/shared/hooks'
+import { useSound } from '@/app/providers/SoundProvider'
 import {
   PuzzleGrid,
   GameHeader,
@@ -48,6 +49,7 @@ export default function GameScreen({
 
   const { triggerShake, shakeClassName } = useFeedback()
   const { isMobileLandscape } = useOrientation()
+  const { playMusic, playSound } = useSound()
 
   // Redirect to setup if no difficulty
   useEffect(() => {
@@ -75,6 +77,21 @@ export default function GameScreen({
       generateNewPuzzle()
     }
   }, [difficulty, state.puzzle, state.status, generateNewPuzzle])
+
+  // Play game music when puzzle is ready
+  useEffect(() => {
+    if (state.puzzle && (state.status === 'ready' || state.status === 'playing')) {
+      playMusic('game', true)
+    }
+  }, [state.puzzle, state.status, playMusic])
+
+  // Play sound effects for correct/wrong moves
+  useEffect(() => {
+    const lastMove = state.moveHistory[state.moveHistory.length - 1]
+    if (lastMove) {
+      playSound(lastMove.correct ? 'correct' : 'wrong')
+    }
+  }, [state.moveHistory.length, playSound])
 
   // Watch for wrong moves and trigger shake
   useEffect(() => {
