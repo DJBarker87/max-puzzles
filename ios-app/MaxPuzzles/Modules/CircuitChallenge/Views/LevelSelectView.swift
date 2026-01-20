@@ -2,8 +2,8 @@ import SwiftUI
 
 // MARK: - Level Select View
 
-/// Shows 5 hexagon levels connected by pathways within a chapter
-/// Levels unlock when 2+ stars achieved on previous level
+/// Shows 5 large hexagon levels arranged horizontally with connectors
+/// Current level has green glow pulse animation
 struct LevelSelectView: View {
     let chapter: Int
     let alien: ChapterAlien
@@ -13,21 +13,25 @@ struct LevelSelectView: View {
     @State private var selectedLevel: Int?
 
     var body: some View {
-        ZStack {
-            StarryBackground(useHubImage: true)
+        GeometryReader { geometry in
+            ZStack {
+                StarryBackground(useHubImage: true)
 
-            ScrollView {
-                VStack(spacing: 24) {
+                VStack(spacing: 16) {
                     // Chapter header with alien
                     chapterHeader
 
-                    // Hexagon level path
-                    levelPath
+                    Spacer()
+
+                    // Horizontal hexagon level path
+                    horizontalLevelPath(geometry: geometry)
+
+                    Spacer()
 
                     // Chapter stats
                     chapterStats
+                        .padding(.bottom, 20)
                 }
-                .padding(.vertical, 20)
             }
         }
         .navigationTitle("Chapter \(chapter)")
@@ -40,13 +44,18 @@ struct LevelSelectView: View {
                 }
             }
         }
-        .navigationDestination(item: $selectedLevel) { level in
-            StoryGameScreenView(
-                chapter: chapter,
-                level: level,
-                alien: alien,
-                progress: progress
-            )
+        .navigationDestination(isPresented: Binding(
+            get: { selectedLevel != nil },
+            set: { if !$0 { selectedLevel = nil } }
+        )) {
+            if let level = selectedLevel {
+                StoryGameScreenView(
+                    chapter: chapter,
+                    level: level,
+                    alien: alien,
+                    progress: progress
+                )
+            }
         }
     }
 
@@ -57,11 +66,11 @@ struct LevelSelectView: View {
             Image(alien.imageName)
                 .resizable()
                 .scaledToFit()
-                .frame(width: 70, height: 70)
+                .frame(width: 60, height: 60)
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(alien.name)
-                    .font(.system(size: 24, weight: .bold))
+                    .font(.system(size: 22, weight: .bold))
                     .foregroundColor(.white)
 
                 Text(alien.words.joined(separator: " • "))
@@ -72,40 +81,50 @@ struct LevelSelectView: View {
             Spacer()
         }
         .padding(.horizontal, 24)
+        .padding(.top, 16)
     }
 
-    // MARK: - Level Path
+    // MARK: - Horizontal Level Path
 
-    private var levelPath: some View {
-        VStack(spacing: 0) {
-            ForEach(1...5, id: \.self) { level in
-                VStack(spacing: 0) {
-                    // Connector to previous (except for level 1)
-                    if level > 1 {
-                        LevelConnector(
-                            isActive: isLevelUnlocked(level),
-                            isPulsing: isLevelCompleted(level - 1)
-                        )
-                    }
+    private func horizontalLevelPath(geometry: GeometryProxy) -> some View {
+        let availableWidth = geometry.size.width - 48 // padding
+        let hexSize = min((availableWidth - 4 * 20) / 5, 100) // 5 hexagons with connectors
 
-                    // Hexagon level tile
-                    LevelHexTile(
-                        level: level,
-                        chapter: chapter,
-                        isUnlocked: isLevelUnlocked(level),
-                        isCompleted: isLevelCompleted(level),
-                        stars: starsForLevel(level),
-                        isHiddenMode: isHiddenMode(level: level),
-                        onTap: {
-                            if isLevelUnlocked(level) {
-                                selectedLevel = level
+        return ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 0) {
+                ForEach(1...5, id: \.self) { level in
+                    HStack(spacing: 0) {
+                        // Hexagon level tile
+                        LargeHexTile(
+                            level: level,
+                            chapter: chapter,
+                            isUnlocked: isLevelUnlocked(level),
+                            isCompleted: isLevelCompleted(level),
+                            isCurrent: isCurrentLevel(level),
+                            stars: starsForLevel(level),
+                            isHiddenMode: isHiddenMode(level: level),
+                            hexSize: hexSize,
+                            onTap: {
+                                if isLevelUnlocked(level) {
+                                    selectedLevel = level
+                                }
                             }
+                        )
+
+                        // Connector to next (except for level 5)
+                        if level < 5 {
+                            HorizontalLevelConnector(
+                                isActive: isLevelUnlocked(level + 1),
+                                isPulsing: isLevelCompleted(level),
+                                width: 30
+                            )
                         }
-                    )
+                    }
                 }
             }
+            .padding(.horizontal, 24)
+            .padding(.vertical, 20)
         }
-        .padding(.horizontal, 24)
     }
 
     // MARK: - Chapter Stats
@@ -127,23 +146,34 @@ struct LevelSelectView: View {
                 .font(.system(size: 14))
                 .foregroundColor(AppTheme.textSecondary)
         }
-        .padding(.top, 16)
     }
 
     // MARK: - Helpers
 
     private func isLevelUnlocked(_ level: Int) -> Bool {
-        // Level 1 always unlocked if chapter is unlocked
         if level == 1 {
             return progress.isChapterUnlocked(chapter)
         }
-        // Level n+1 unlocks when 2+ stars on level n
         let previousStars = progress.starsForLevel(chapter: chapter, level: level - 1)
         return previousStars >= 2
     }
 
     private func isLevelCompleted(_ level: Int) -> Bool {
         progress.isLevelCompleted(chapter: chapter, level: level)
+    }
+
+    private func isCurrentLevel(_ level: Int) -> Bool {
+        // Current level is the first unlocked but not completed level
+        if !isLevelUnlocked(level) { return false }
+        if isLevelCompleted(level) { return false }
+
+        // Check if all previous levels are completed
+        for prevLevel in 1..<level {
+            if !isLevelCompleted(prevLevel) {
+                return false
+            }
+        }
+        return true
     }
 
     private func starsForLevel(_ level: Int) -> Int {
@@ -155,45 +185,66 @@ struct LevelSelectView: View {
     }
 }
 
-// MARK: - Level Hex Tile
+// MARK: - Large Hex Tile
 
-struct LevelHexTile: View {
+struct LargeHexTile: View {
     let level: Int
     let chapter: Int
     let isUnlocked: Bool
     let isCompleted: Bool
+    let isCurrent: Bool
     let stars: Int
     let isHiddenMode: Bool
+    let hexSize: CGFloat
     let onTap: () -> Void
 
     @State private var flowPhase: CGFloat = 0
+    @State private var glowPhase: CGFloat = 0
 
     private var levelLetter: String {
         ["A", "B", "C", "D", "E"][level - 1]
     }
 
-    private let hexSize: CGFloat = 80
+    // Show glow animation for current level OR completed level
+    private var shouldPulse: Bool {
+        isCurrent || isCompleted
+    }
 
     var body: some View {
         Button(action: onTap) {
-            VStack(spacing: 8) {
+            VStack(spacing: 10) {
                 // Hexagon tile
                 ZStack {
-                    // Pulsing glow for completed
-                    if isCompleted {
+                    // Pulsing glow for current/completed levels
+                    if shouldPulse {
+                        // Outer glow
+                        HexagonShape()
+                            .fill(AppTheme.connectorGlow.opacity(0.4))
+                            .frame(width: hexSize + 30, height: hexSize + 30)
+                            .blur(radius: 15)
+                            .opacity(0.5 + glowPhase * 0.5)
+
+                        // Inner glow
                         HexagonShape()
                             .fill(AppTheme.connectorGlow.opacity(0.3))
-                            .frame(width: hexSize + 20, height: hexSize + 20)
-                            .blur(radius: 10)
-                            .opacity(flowPhase > 0.5 ? 0.8 : 0.4)
+                            .frame(width: hexSize + 15, height: hexSize + 15)
+                            .blur(radius: 8)
 
                         // Energy border animation
                         HexagonShape()
                             .stroke(
                                 AppTheme.connectorGlow,
-                                style: StrokeStyle(lineWidth: 4, dash: [6, 10], dashPhase: flowPhase * 36)
+                                style: StrokeStyle(lineWidth: 4, dash: [8, 12], dashPhase: flowPhase * 40)
                             )
-                            .frame(width: hexSize + 8, height: hexSize + 8)
+                            .frame(width: hexSize + 10, height: hexSize + 10)
+
+                        // Second energy layer (faster)
+                        HexagonShape()
+                            .stroke(
+                                Color.white.opacity(0.8),
+                                style: StrokeStyle(lineWidth: 2, dash: [4, 16], dashPhase: flowPhase * 60)
+                            )
+                            .frame(width: hexSize + 10, height: hexSize + 10)
                     }
 
                     // Main hexagon
@@ -202,38 +253,41 @@ struct LevelHexTile: View {
                         .frame(width: hexSize, height: hexSize)
                         .overlay(
                             HexagonShape()
-                                .stroke(borderColor, lineWidth: 2)
+                                .stroke(borderColor, lineWidth: shouldPulse ? 3 : 2)
+                        )
+                        .shadow(
+                            color: shouldPulse ? AppTheme.connectorGlow.opacity(0.5) : .clear,
+                            radius: 10
                         )
 
                     // Level number or lock
                     if isUnlocked {
-                        VStack(spacing: 2) {
+                        VStack(spacing: 4) {
                             Text("\(level)")
-                                .font(.system(size: 28, weight: .bold))
+                                .font(.system(size: hexSize * 0.4, weight: .bold))
                                 .foregroundColor(.white)
 
                             if isHiddenMode {
                                 Image(systemName: "eye.slash.fill")
-                                    .font(.system(size: 10))
+                                    .font(.system(size: hexSize * 0.15))
                                     .foregroundColor(AppTheme.accentSecondary)
                             }
                         }
                     } else {
                         Image(systemName: "lock.fill")
-                            .font(.system(size: 24))
+                            .font(.system(size: hexSize * 0.3))
                             .foregroundColor(.gray)
                     }
                 }
 
                 // Stars display
                 if isCompleted {
-                    StarDisplay(stars: stars, size: .small)
+                    StarDisplay(stars: stars, size: .medium)
                 } else if isUnlocked {
-                    // Empty star placeholders
-                    StarDisplay(stars: 0, size: .small)
+                    StarDisplay(stars: 0, size: .medium)
                 } else {
                     Text("Need ⭐⭐")
-                        .font(.system(size: 10))
+                        .font(.system(size: 11))
                         .foregroundColor(.gray.opacity(0.6))
                 }
             }
@@ -241,9 +295,14 @@ struct LevelHexTile: View {
         .buttonStyle(PlainButtonStyle())
         .disabled(!isUnlocked)
         .onAppear {
-            if isCompleted {
-                withAnimation(.linear(duration: 1.5).repeatForever(autoreverses: false)) {
+            if shouldPulse {
+                // Flow animation for dashed border
+                withAnimation(.linear(duration: 1.2).repeatForever(autoreverses: false)) {
                     flowPhase = 1
+                }
+                // Glow pulse animation
+                withAnimation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true)) {
+                    glowPhase = 1
                 }
             }
         }
@@ -253,6 +312,12 @@ struct LevelHexTile: View {
         if isCompleted {
             return LinearGradient(
                 colors: [AppTheme.accentPrimary, AppTheme.accentPrimary.opacity(0.7)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        } else if isCurrent {
+            return LinearGradient(
+                colors: [Color(hex: "0d9488"), Color(hex: "086560")],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
@@ -272,7 +337,7 @@ struct LevelHexTile: View {
     }
 
     private var borderColor: Color {
-        if isCompleted {
+        if isCompleted || isCurrent {
             return AppTheme.connectorGlow
         } else if isUnlocked {
             return AppTheme.accentPrimary.opacity(0.5)
@@ -282,11 +347,12 @@ struct LevelHexTile: View {
     }
 }
 
-// MARK: - Level Connector
+// MARK: - Horizontal Level Connector
 
-struct LevelConnector: View {
+struct HorizontalLevelConnector: View {
     let isActive: Bool
     let isPulsing: Bool
+    let width: CGFloat
 
     @State private var flowPhase: CGFloat = 0
 
@@ -295,20 +361,20 @@ struct LevelConnector: View {
             // Base connector line
             Rectangle()
                 .fill(isActive ? AppTheme.connectorActive : AppTheme.connectorDefault)
-                .frame(width: 6, height: 40)
+                .frame(width: width, height: 6)
 
             // Pulsing energy effect
             if isPulsing {
                 // Glow
                 Rectangle()
                     .fill(AppTheme.connectorGlow.opacity(0.5))
-                    .frame(width: 12, height: 40)
+                    .frame(width: width, height: 12)
                     .blur(radius: 4)
 
-                // Energy dots
+                // Energy dots flowing right
                 Rectangle()
                     .fill(Color.white)
-                    .frame(width: 4, height: 40)
+                    .frame(width: width, height: 4)
                     .mask(
                         Rectangle()
                             .fill(
@@ -319,15 +385,15 @@ struct LevelConnector: View {
                                         .init(color: .white, location: 0.7),
                                         .init(color: .clear, location: 1)
                                     ],
-                                    startPoint: .top,
-                                    endPoint: .bottom
+                                    startPoint: .leading,
+                                    endPoint: .trailing
                                 )
                             )
-                            .offset(y: flowPhase * 60 - 30)
+                            .offset(x: flowPhase * (width + 20) - (width / 2 + 10))
                     )
             }
         }
-        .frame(height: 40)
+        .frame(width: width, height: 20)
         .onAppear {
             if isPulsing {
                 withAnimation(.linear(duration: 0.8).repeatForever(autoreverses: false)) {
@@ -352,7 +418,43 @@ struct StoryGameScreenView: View {
         let difficulty = StoryDifficulty.settings(for: storyLevel)
 
         GameScreenView(difficulty: difficulty)
-        // TODO: Integrate star reveal animation and progress recording
+    }
+}
+
+// MARK: - Star Display
+
+struct StarDisplay: View {
+    let stars: Int
+    let size: StarSize
+
+    enum StarSize {
+        case small, medium, large
+
+        var fontSize: CGFloat {
+            switch self {
+            case .small: return 12
+            case .medium: return 16
+            case .large: return 24
+            }
+        }
+
+        var spacing: CGFloat {
+            switch self {
+            case .small: return 2
+            case .medium: return 4
+            case .large: return 6
+            }
+        }
+    }
+
+    var body: some View {
+        HStack(spacing: size.spacing) {
+            ForEach(1...3, id: \.self) { index in
+                Image(systemName: index <= stars ? "star.fill" : "star")
+                    .font(.system(size: size.fontSize))
+                    .foregroundColor(index <= stars ? AppTheme.accentTertiary : Color.gray.opacity(0.4))
+            }
+        }
     }
 }
 
@@ -368,46 +470,35 @@ struct StoryGameScreenView: View {
     }
 }
 
-#Preview("Level Hex Tile - Completed") {
+#Preview("Large Hex Tile - Current") {
     ZStack {
         Color(hex: "0f0f23").ignoresSafeArea()
-        LevelHexTile(
-            level: 1,
-            chapter: 1,
-            isUnlocked: true,
-            isCompleted: true,
-            stars: 3,
-            isHiddenMode: false,
-            onTap: {}
-        )
-    }
-}
-
-#Preview("Level Hex Tile - Unlocked") {
-    ZStack {
-        Color(hex: "0f0f23").ignoresSafeArea()
-        LevelHexTile(
+        LargeHexTile(
             level: 2,
             chapter: 1,
             isUnlocked: true,
             isCompleted: false,
+            isCurrent: true,
             stars: 0,
             isHiddenMode: false,
+            hexSize: 90,
             onTap: {}
         )
     }
 }
 
-#Preview("Level Hex Tile - Locked") {
+#Preview("Large Hex Tile - Completed") {
     ZStack {
         Color(hex: "0f0f23").ignoresSafeArea()
-        LevelHexTile(
-            level: 3,
+        LargeHexTile(
+            level: 1,
             chapter: 1,
-            isUnlocked: false,
-            isCompleted: false,
-            stars: 0,
+            isUnlocked: true,
+            isCompleted: true,
+            isCurrent: false,
+            stars: 3,
             isHiddenMode: false,
+            hexSize: 90,
             onTap: {}
         )
     }

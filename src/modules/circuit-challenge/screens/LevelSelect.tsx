@@ -14,8 +14,8 @@ import {
 } from "@/shared/types/storyProgress";
 
 /**
- * Level selection screen with hexagon tiles for a chapter
- * Shows 5 levels (A-E) with stars and unlock status
+ * Level selection screen with large horizontal hexagon tiles
+ * Current level has green glow pulse animation
  */
 export default function LevelSelect() {
   const navigate = useNavigate();
@@ -49,6 +49,19 @@ export default function LevelSelect() {
     return getStarsForLevel(chapter, level - 1, progress) >= 2;
   };
 
+  // Current level is first unlocked but not completed
+  const isCurrentLevel = (level: number): boolean => {
+    if (!isLevelUnlocked(level)) return false;
+    if (isLevelCompleted(chapter, level, progress)) return false;
+    // Check if all previous levels are completed
+    for (let prev = 1; prev < level; prev++) {
+      if (!isLevelCompleted(chapter, prev, progress)) {
+        return false;
+      }
+    }
+    return true;
+  };
+
   const isHiddenMode = (level: number): boolean => {
     return level === 5 || chapter === 10;
   };
@@ -59,54 +72,57 @@ export default function LevelSelect() {
   ).length;
 
   return (
-    <div className="min-h-screen flex flex-col relative">
+    <div className="h-screen flex flex-col relative overflow-hidden">
       <StarryBackground />
 
-      <Header showMenu className="relative z-10" />
+      <Header showMenu className="relative z-10 shrink-0" />
 
       {/* Chapter header */}
-      <div className="flex items-center gap-4 px-6 py-4 relative z-10">
+      <div className="flex items-center gap-4 px-6 py-4 relative z-10 shrink-0">
         <img
           src={alien.imagePath}
           alt={alien.name}
-          className="w-16 h-16 object-contain"
+          className="w-14 h-14 object-contain"
         />
         <div>
-          <h1 className="text-2xl font-bold text-white">{alien.name}</h1>
-          <p className="text-sm text-accent-primary/80">
+          <h1 className="text-xl font-bold text-white">{alien.name}</h1>
+          <p className="text-xs text-accent-primary/80">
             {alien.words.join(" • ")}
           </p>
         </div>
       </div>
 
-      {/* Level path */}
-      <div className="flex-1 flex flex-col items-center py-6 relative z-10">
-        {[1, 2, 3, 4, 5].map((level) => (
-          <div key={level} className="flex flex-col items-center">
-            {/* Connector (except for level 1) */}
-            {level > 1 && (
-              <LevelConnector
-                isActive={isLevelUnlocked(level)}
-                isPulsing={isLevelCompleted(chapter, level - 1, progress)}
+      {/* Horizontal level path */}
+      <div className="flex-1 flex items-center justify-center relative z-10 overflow-x-auto px-4">
+        <div className="flex items-center gap-0 py-8">
+          {[1, 2, 3, 4, 5].map((level) => (
+            <div key={level} className="flex items-center">
+              {/* Hexagon level tile */}
+              <LargeHexTile
+                level={level}
+                chapter={chapter}
+                isUnlocked={isLevelUnlocked(level)}
+                isCompleted={isLevelCompleted(chapter, level, progress)}
+                isCurrent={isCurrentLevel(level)}
+                stars={getStarsForLevel(chapter, level, progress)}
+                isHiddenMode={isHiddenMode(level)}
+                onClick={() => handleLevelClick(level)}
               />
-            )}
 
-            {/* Hexagon level tile */}
-            <LevelHexTile
-              level={level}
-              chapter={chapter}
-              isUnlocked={isLevelUnlocked(level)}
-              isCompleted={isLevelCompleted(chapter, level, progress)}
-              stars={getStarsForLevel(chapter, level, progress)}
-              isHiddenMode={isHiddenMode(level)}
-              onClick={() => handleLevelClick(level)}
-            />
-          </div>
-        ))}
+              {/* Connector (except after level 5) */}
+              {level < 5 && (
+                <HorizontalConnector
+                  isActive={isLevelUnlocked(level + 1)}
+                  isPulsing={isLevelCompleted(chapter, level, progress)}
+                />
+              )}
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Chapter stats */}
-      <div className="text-center pb-8 relative z-10">
+      <div className="text-center pb-6 relative z-10 shrink-0">
         <div className="flex items-center justify-center gap-1 mb-2">
           <span className="text-accent-tertiary">★</span>
           <span className="text-white font-semibold">{totalStars} / 15</span>
@@ -119,69 +135,110 @@ export default function LevelSelect() {
   );
 }
 
-// MARK: - Level Hex Tile
+// MARK: - Large Hex Tile
 
-interface LevelHexTileProps {
+interface LargeHexTileProps {
   level: number;
   chapter: number;
   isUnlocked: boolean;
   isCompleted: boolean;
+  isCurrent: boolean;
   stars: number;
   isHiddenMode: boolean;
   onClick: () => void;
 }
 
-function LevelHexTile({
+function LargeHexTile({
   level,
   isUnlocked,
   isCompleted,
+  isCurrent,
   stars,
   isHiddenMode,
   onClick,
-}: LevelHexTileProps) {
+}: LargeHexTileProps) {
+  const shouldPulse = isCurrent || isCompleted;
+  const hexSize = 90; // Larger hexagons
+
   return (
     <button
       onClick={onClick}
       disabled={!isUnlocked}
-      className="flex flex-col items-center gap-2"
+      className="flex flex-col items-center gap-3"
     >
       {/* Hexagon */}
-      <div className="relative">
-        {/* Pulsing glow for completed */}
-        {isCompleted && (
+      <div className="relative" style={{ width: hexSize + 40, height: hexSize + 40 }}>
+        {/* Pulsing glow for current/completed */}
+        {shouldPulse && (
           <>
+            {/* Outer glow */}
             <div
               className="absolute inset-0 animate-pulse"
               style={{
-                background: "radial-gradient(circle, rgba(0,255,136,0.3) 0%, transparent 70%)",
-                transform: "scale(1.5)",
+                background: "radial-gradient(circle, rgba(0,255,136,0.4) 0%, transparent 60%)",
               }}
             />
-            {/* Energy border - uses CSS animation */}
+            {/* Inner glow */}
+            <div
+              className="absolute"
+              style={{
+                top: 10,
+                left: 10,
+                right: 10,
+                bottom: 10,
+                background: "radial-gradient(circle, rgba(0,255,136,0.3) 0%, transparent 70%)",
+                filter: "blur(8px)",
+              }}
+            />
+            {/* Energy border animation */}
             <svg
-              className="absolute -inset-1 w-[88px] h-[88px]"
-              viewBox="0 0 100 100"
+              className="absolute inset-0"
+              style={{ width: hexSize + 40, height: hexSize + 40 }}
+              viewBox="0 0 130 130"
             >
               <polygon
-                points="50,3 95,25 95,75 50,97 5,75 5,25"
+                points="65,8 118,35 118,95 65,122 12,95 12,35"
                 fill="none"
                 stroke="#00ff88"
-                strokeWidth="3"
-                strokeDasharray="8 12"
-                className="animate-[dash_1.5s_linear_infinite]"
+                strokeWidth="4"
+                strokeDasharray="10 15"
+                className="animate-[dash_1.2s_linear_infinite]"
+              />
+              <polygon
+                points="65,8 118,35 118,95 65,122 12,95 12,35"
+                fill="none"
+                stroke="white"
+                strokeWidth="2"
+                strokeDasharray="5 20"
+                strokeOpacity="0.8"
+                className="animate-[dash_0.8s_linear_infinite]"
               />
             </svg>
           </>
         )}
 
         {/* Main hexagon */}
-        <svg className="w-20 h-20" viewBox="0 0 100 100">
+        <svg
+          className="absolute"
+          style={{
+            width: hexSize,
+            height: hexSize,
+            top: 20,
+            left: 20,
+          }}
+          viewBox="0 0 100 100"
+        >
           <defs>
-            <linearGradient id={`hex-grad-${level}-${isCompleted}`} x1="0%" y1="0%" x2="100%" y2="100%">
+            <linearGradient id={`hex-grad-${level}-${isCompleted}-${isCurrent}`} x1="0%" y1="0%" x2="100%" y2="100%">
               {isCompleted ? (
                 <>
                   <stop offset="0%" stopColor="#22c55e" />
                   <stop offset="100%" stopColor="#22c55e" stopOpacity="0.7" />
+                </>
+              ) : isCurrent ? (
+                <>
+                  <stop offset="0%" stopColor="#0d9488" />
+                  <stop offset="100%" stopColor="#086560" />
                 </>
               ) : isUnlocked ? (
                 <>
@@ -195,41 +252,59 @@ function LevelHexTile({
                 </>
               )}
             </linearGradient>
+            {shouldPulse && (
+              <filter id={`glow-${level}`}>
+                <feGaussianBlur stdDeviation="3" result="coloredBlur" />
+                <feMerge>
+                  <feMergeNode in="coloredBlur" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+            )}
           </defs>
           <polygon
             points="50,5 93,27 93,73 50,95 7,73 7,27"
-            fill={`url(#hex-grad-${level}-${isCompleted})`}
+            fill={`url(#hex-grad-${level}-${isCompleted}-${isCurrent})`}
             stroke={
-              isCompleted
+              shouldPulse
                 ? "#00ff88"
                 : isUnlocked
                 ? "rgba(34,197,94,0.5)"
                 : "rgba(107,114,128,0.3)"
             }
-            strokeWidth="2"
+            strokeWidth={shouldPulse ? "3" : "2"}
+            filter={shouldPulse ? `url(#glow-${level})` : undefined}
           />
         </svg>
 
         {/* Level number or lock */}
-        <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <div
+          className="absolute flex flex-col items-center justify-center"
+          style={{
+            top: 20,
+            left: 20,
+            width: hexSize,
+            height: hexSize,
+          }}
+        >
           {isUnlocked ? (
             <>
-              <span className="text-2xl font-bold text-white">{level}</span>
+              <span className="text-4xl font-bold text-white">{level}</span>
               {isHiddenMode && (
-                <span className="text-xs text-accent-secondary">👁️</span>
+                <span className="text-xs text-accent-secondary mt-1">👁️</span>
               )}
             </>
           ) : (
-            <span className="text-2xl text-gray-500">🔒</span>
+            <span className="text-3xl text-gray-500">🔒</span>
           )}
         </div>
       </div>
 
       {/* Stars display */}
       {isCompleted ? (
-        <StarDisplay stars={stars} size="small" />
+        <StarDisplay stars={stars} size="medium" />
       ) : isUnlocked ? (
-        <StarDisplay stars={0} size="small" />
+        <StarDisplay stars={0} size="medium" />
       ) : (
         <span className="text-xs text-gray-500">Need ⭐⭐</span>
       )}
@@ -237,19 +312,19 @@ function LevelHexTile({
   );
 }
 
-// MARK: - Level Connector
+// MARK: - Horizontal Connector
 
-interface LevelConnectorProps {
+interface HorizontalConnectorProps {
   isActive: boolean;
   isPulsing: boolean;
 }
 
-function LevelConnector({ isActive, isPulsing }: LevelConnectorProps) {
+function HorizontalConnector({ isActive, isPulsing }: HorizontalConnectorProps) {
   return (
-    <div className="relative w-1.5 h-10">
+    <div className="relative h-6 w-8 flex items-center">
       {/* Base connector */}
       <div
-        className={`absolute inset-0 rounded-full ${
+        className={`absolute h-1.5 w-full rounded-full ${
           isActive ? "bg-[#00dd77]" : "bg-[#3d3428]"
         }`}
       />
@@ -258,13 +333,16 @@ function LevelConnector({ isActive, isPulsing }: LevelConnectorProps) {
       {isPulsing && (
         <>
           {/* Glow */}
-          <div
-            className="absolute inset-0 w-3 -left-0.5 rounded-full bg-[#00ff88] opacity-50 blur-sm"
-          />
+          <div className="absolute h-3 w-full rounded-full bg-[#00ff88] opacity-50 blur-sm" />
           {/* Energy flow animation */}
           <div
-            className="absolute inset-0 w-1 left-0.25 bg-gradient-to-b from-transparent via-white to-transparent animate-[flowDown_0.8s_linear_infinite]"
-          />
+            className="absolute h-1 w-full overflow-hidden"
+            style={{ top: "calc(50% - 2px)" }}
+          >
+            <div
+              className="h-full w-1/3 bg-gradient-to-r from-transparent via-white to-transparent animate-[flowRight_0.8s_linear_infinite]"
+            />
+          </div>
         </>
       )}
     </div>

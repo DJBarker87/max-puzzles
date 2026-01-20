@@ -1,53 +1,44 @@
 import SwiftUI
 
-/// Chapter selection screen with horizontal scrolling aliens
+/// Chapter selection screen with 3D carousel of large alien cards
 struct ChapterSelectView: View {
     @Environment(\.dismiss) private var dismiss
     @StateObject private var progress = StoryProgress()
 
     @State private var selectedChapter: ChapterAlien?
+    @State private var currentIndex: Int = 0
+    @State private var dragOffset: CGFloat = 0
 
     var body: some View {
-        ZStack {
-            StarryBackground(useHubImage: true)
+        GeometryReader { geometry in
+            ZStack {
+                StarryBackground(useHubImage: true)
 
-            VStack(spacing: 24) {
-                // Title
-                VStack(spacing: 8) {
-                    Text("Story Mode")
-                        .font(.system(size: 32, weight: .bold))
-                        .foregroundColor(.white)
+                VStack(spacing: 0) {
+                    // Title
+                    VStack(spacing: 4) {
+                        Text("Story Mode")
+                            .font(.system(size: 28, weight: .bold))
+                            .foregroundColor(.white)
 
-                    Text("Help the aliens by solving puzzles!")
-                        .font(.system(size: 16))
-                        .foregroundColor(AppTheme.textSecondary)
-                }
-                .padding(.top, 20)
-
-                // Horizontal chapter scroll
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 20) {
-                        ForEach(ChapterAlien.all) { alien in
-                            ChapterCard(
-                                alien: alien,
-                                isUnlocked: progress.isChapterUnlocked(alien.chapter),
-                                isCompleted: progress.isChapterCompleted(alien.chapter),
-                                onTap: {
-                                    if progress.isChapterUnlocked(alien.chapter) {
-                                        selectedChapter = alien
-                                    }
-                                }
-                            )
-                        }
+                        Text("Help the aliens by solving puzzles!")
+                            .font(.system(size: 14))
+                            .foregroundColor(AppTheme.textSecondary)
                     }
-                    .padding(.horizontal, 24)
-                    .padding(.vertical, 16)
+                    .padding(.top, 16)
+
+                    // 3D Carousel
+                    Spacer()
+
+                    carousel3D(geometry: geometry)
+                        .frame(height: geometry.size.height * 0.65)
+
+                    Spacer()
+
+                    // Progress indicator
+                    progressIndicator
+                        .padding(.bottom, 20)
                 }
-
-                // Progress indicator
-                progressIndicator
-
-                Spacer()
             }
         }
         .navigationTitle("Story Mode")
@@ -60,14 +51,88 @@ struct ChapterSelectView: View {
                 }
             }
         }
-        .navigationDestination(item: $selectedChapter) { alien in
-            // Navigate to level select for this chapter
-            LevelSelectView(
-                chapter: alien.chapter,
-                alien: alien,
-                progress: progress
-            )
+        .navigationDestination(isPresented: Binding(
+            get: { selectedChapter != nil },
+            set: { if !$0 { selectedChapter = nil } }
+        )) {
+            if let alien = selectedChapter {
+                LevelSelectView(
+                    chapter: alien.chapter,
+                    alien: alien,
+                    progress: progress
+                )
+            }
         }
+    }
+
+    // MARK: - 3D Carousel
+
+    private func carousel3D(geometry: GeometryProxy) -> some View {
+        let cardWidth = geometry.size.width * 0.7
+        let cardHeight = geometry.size.height * 0.6
+        let spacing: CGFloat = 20
+
+        return ZStack {
+            ForEach(Array(ChapterAlien.all.enumerated()), id: \.element.id) { index, alien in
+                let offset = CGFloat(index - currentIndex) + (dragOffset / (cardWidth + spacing))
+                let absOffset = abs(offset)
+
+                // 3D transforms for sphere effect
+                let angle = offset * 35 // degrees of rotation
+                let scale = max(0.6, 1 - absOffset * 0.15)
+                let zIndex = 10 - absOffset
+                let xOffset = offset * cardWidth * 0.4
+
+                // Opacity based on distance
+                let opacity = max(0.3, 1 - absOffset * 0.3)
+
+                LargeChapterCard(
+                    alien: alien,
+                    isUnlocked: progress.isChapterUnlocked(alien.chapter),
+                    isCompleted: progress.isChapterCompleted(alien.chapter),
+                    isCurrent: index == currentIndex,
+                    cardWidth: cardWidth,
+                    cardHeight: cardHeight,
+                    onTap: {
+                        if index == currentIndex && progress.isChapterUnlocked(alien.chapter) {
+                            selectedChapter = alien
+                        } else {
+                            withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                                currentIndex = index
+                            }
+                        }
+                    }
+                )
+                .scaleEffect(scale)
+                .rotation3DEffect(
+                    .degrees(angle),
+                    axis: (x: 0, y: 1, z: 0),
+                    perspective: 0.5
+                )
+                .offset(x: xOffset)
+                .opacity(opacity)
+                .zIndex(zIndex)
+            }
+        }
+        .gesture(
+            DragGesture()
+                .onChanged { value in
+                    dragOffset = value.translation.width
+                }
+                .onEnded { value in
+                    let threshold = cardWidth * 0.3
+                    let velocity = value.predictedEndLocation.x - value.location.x
+
+                    withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                        if dragOffset < -threshold || velocity < -200 {
+                            currentIndex = min(currentIndex + 1, ChapterAlien.all.count - 1)
+                        } else if dragOffset > threshold || velocity > 200 {
+                            currentIndex = max(currentIndex - 1, 0)
+                        }
+                        dragOffset = 0
+                    }
+                }
+        )
     }
 
     // MARK: - Progress Indicator
@@ -79,19 +144,20 @@ struct ChapterSelectView: View {
                 ForEach(1...10, id: \.self) { chapter in
                     Circle()
                         .fill(progressDotColor(for: chapter))
-                        .frame(width: 12, height: 12)
+                        .frame(width: currentIndex == chapter - 1 ? 14 : 10,
+                               height: currentIndex == chapter - 1 ? 14 : 10)
                         .overlay(
                             Circle()
                                 .stroke(progressDotBorder(for: chapter), lineWidth: 2)
                         )
+                        .animation(.spring(response: 0.3), value: currentIndex)
                 }
             }
 
-            Text("\(progress.completedChapters.count) of 10 chapters completed")
+            Text("\(progress.completedChaptersCount) of 10 chapters completed")
                 .font(.system(size: 14))
                 .foregroundColor(AppTheme.textSecondary)
         }
-        .padding(.bottom, 20)
     }
 
     private func progressDotColor(for chapter: Int) -> Color {
@@ -115,54 +181,59 @@ struct ChapterSelectView: View {
     }
 }
 
-// MARK: - Chapter Card
+// MARK: - Large Chapter Card
 
-struct ChapterCard: View {
+struct LargeChapterCard: View {
     let alien: ChapterAlien
     let isUnlocked: Bool
     let isCompleted: Bool
+    let isCurrent: Bool
+    let cardWidth: CGFloat
+    let cardHeight: CGFloat
     let onTap: () -> Void
 
     @State private var isPressed = false
 
     var body: some View {
         Button(action: onTap) {
-            VStack(spacing: 12) {
-                // Alien image
+            VStack(spacing: 16) {
+                Spacer()
+
+                // Alien image - large and prominent
                 ZStack {
-                    // Background circle
-                    Circle()
-                        .fill(
-                            isUnlocked
-                                ? LinearGradient(
-                                    colors: [AppTheme.backgroundMid, AppTheme.backgroundDark],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
+                    // Glow effect for unlocked
+                    if isUnlocked {
+                        Circle()
+                            .fill(
+                                RadialGradient(
+                                    colors: [
+                                        AppTheme.accentPrimary.opacity(0.3),
+                                        AppTheme.accentPrimary.opacity(0)
+                                    ],
+                                    center: .center,
+                                    startRadius: 0,
+                                    endRadius: cardWidth * 0.4
                                 )
-                                : LinearGradient(
-                                    colors: [Color.gray.opacity(0.3), Color.gray.opacity(0.2)],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                        )
-                        .frame(width: 120, height: 120)
+                            )
+                            .frame(width: cardWidth * 0.8, height: cardWidth * 0.8)
+                    }
 
                     // Alien image
                     Image(alien.imageName)
                         .resizable()
                         .scaledToFit()
-                        .frame(width: 100, height: 100)
+                        .frame(width: cardWidth * 0.7, height: cardWidth * 0.7)
                         .grayscale(isUnlocked ? 0 : 1)
                         .opacity(isUnlocked ? 1 : 0.5)
 
-                    // Lock overlay for locked chapters
+                    // Lock overlay
                     if !isUnlocked {
                         Circle()
-                            .fill(Color.black.opacity(0.4))
-                            .frame(width: 120, height: 120)
+                            .fill(Color.black.opacity(0.5))
+                            .frame(width: cardWidth * 0.6, height: cardWidth * 0.6)
 
                         Image(systemName: "lock.fill")
-                            .font(.system(size: 32))
+                            .font(.system(size: 48))
                             .foregroundColor(.white.opacity(0.8))
                     }
 
@@ -174,57 +245,78 @@ struct ChapterCard: View {
                                 ZStack {
                                     Circle()
                                         .fill(AppTheme.accentPrimary)
-                                        .frame(width: 28, height: 28)
+                                        .frame(width: 44, height: 44)
+                                        .shadow(color: AppTheme.accentPrimary.opacity(0.5), radius: 8)
 
                                     Image(systemName: "checkmark")
-                                        .font(.system(size: 14, weight: .bold))
+                                        .font(.system(size: 22, weight: .bold))
                                         .foregroundColor(.white)
                                 }
+                                .offset(x: -20, y: 20)
                             }
                             Spacer()
                         }
-                        .frame(width: 120, height: 120)
+                        .frame(width: cardWidth * 0.7, height: cardWidth * 0.7)
                     }
                 }
 
-                // Chapter number
-                Text("Chapter \(alien.chapter)")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(isUnlocked ? AppTheme.textSecondary : .gray)
+                Spacer()
 
-                // Alien name
-                Text(alien.name)
-                    .font(.system(size: 18, weight: .bold))
-                    .foregroundColor(isUnlocked ? .white : .gray)
+                // Chapter info
+                VStack(spacing: 8) {
+                    Text("Chapter \(alien.chapter)")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(isUnlocked ? AppTheme.textSecondary : .gray)
 
-                // Fun words
-                if isUnlocked {
-                    Text(alien.words.joined(separator: " • "))
-                        .font(.system(size: 11))
-                        .foregroundColor(AppTheme.accentPrimary.opacity(0.8))
-                        .lineLimit(1)
+                    Text(alien.name)
+                        .font(.system(size: 28, weight: .bold))
+                        .foregroundColor(isUnlocked ? .white : .gray)
+
+                    if isUnlocked {
+                        Text(alien.words.joined(separator: " • "))
+                            .font(.system(size: 13))
+                            .foregroundColor(AppTheme.accentPrimary.opacity(0.9))
+                            .multilineTextAlignment(.center)
+                    }
                 }
+                .padding(.bottom, 24)
             }
-            .frame(width: 140)
-            .padding(.vertical, 16)
+            .frame(width: cardWidth, height: cardHeight)
             .background(
-                RoundedRectangle(cornerRadius: 20)
-                    .fill(AppTheme.backgroundMid.opacity(isUnlocked ? 0.6 : 0.3))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 20)
-                    .stroke(
-                        isUnlocked
-                            ? (isCompleted ? AppTheme.accentPrimary : AppTheme.accentPrimary.opacity(0.3))
-                            : Color.gray.opacity(0.2),
-                        lineWidth: isCompleted ? 2 : 1
+                RoundedRectangle(cornerRadius: 28)
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                AppTheme.backgroundMid.opacity(isUnlocked ? 0.9 : 0.5),
+                                AppTheme.backgroundDark.opacity(isUnlocked ? 0.95 : 0.5)
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
                     )
             )
-            .scaleEffect(isPressed ? 0.95 : 1.0)
+            .overlay(
+                RoundedRectangle(cornerRadius: 28)
+                    .stroke(
+                        isUnlocked
+                            ? (isCurrent
+                                ? AppTheme.accentPrimary
+                                : AppTheme.accentPrimary.opacity(0.4))
+                            : Color.gray.opacity(0.2),
+                        lineWidth: isCurrent ? 3 : 1.5
+                    )
+            )
+            .shadow(
+                color: isCurrent && isUnlocked
+                    ? AppTheme.accentPrimary.opacity(0.3)
+                    : Color.black.opacity(0.3),
+                radius: isCurrent ? 20 : 10,
+                y: 8
+            )
+            .scaleEffect(isPressed ? 0.97 : 1.0)
             .animation(.spring(response: 0.3), value: isPressed)
         }
         .buttonStyle(PlainButtonStyle())
-        .disabled(!isUnlocked)
         .onLongPressGesture(minimumDuration: .infinity, pressing: { pressing in
             isPressed = pressing
         }, perform: {})
@@ -245,18 +337,15 @@ struct ChapterIntroView: View {
             VStack(spacing: 24) {
                 Spacer()
 
-                // Alien image
                 Image(alien.imageName)
                     .resizable()
                     .scaledToFit()
                     .frame(width: 200, height: 200)
 
-                // Alien name
                 Text(alien.name)
                     .font(.system(size: 36, weight: .bold))
                     .foregroundColor(.white)
 
-                // Speech bubble
                 SpeechBubble {
                     Text("Let's try Chapter \(alien.chapter)!")
                         .font(.system(size: 18, weight: .medium))
@@ -265,10 +354,7 @@ struct ChapterIntroView: View {
 
                 Spacer()
 
-                // Start button
-                Button(action: {
-                    // TODO: Navigate to level select
-                }) {
+                Button(action: {}) {
                     Text("Start Chapter")
                         .font(.system(size: 18, weight: .bold))
                         .foregroundColor(.white)
@@ -307,8 +393,7 @@ struct SpeechBubble<Content: View>: View {
                 .background(Color.white)
                 .cornerRadius(16)
 
-            // Tail
-            Triangle()
+            ChapterTriangle()
                 .fill(Color.white)
                 .frame(width: 20, height: 12)
                 .offset(y: -1)
@@ -316,7 +401,7 @@ struct SpeechBubble<Content: View>: View {
     }
 }
 
-struct Triangle: Shape {
+private struct ChapterTriangle: Shape {
     func path(in rect: CGRect) -> Path {
         var path = Path()
         path.move(to: CGPoint(x: rect.midX, y: rect.maxY))
@@ -344,41 +429,5 @@ extension ChapterAlien: Hashable {
 #Preview("Chapter Select") {
     NavigationStack {
         ChapterSelectView()
-    }
-}
-
-#Preview("Chapter Card - Unlocked") {
-    ZStack {
-        Color(hex: "0f0f23")
-        ChapterCard(
-            alien: ChapterAlien.all[0],
-            isUnlocked: true,
-            isCompleted: false,
-            onTap: {}
-        )
-    }
-}
-
-#Preview("Chapter Card - Locked") {
-    ZStack {
-        Color(hex: "0f0f23")
-        ChapterCard(
-            alien: ChapterAlien.all[4],
-            isUnlocked: false,
-            isCompleted: false,
-            onTap: {}
-        )
-    }
-}
-
-#Preview("Chapter Card - Completed") {
-    ZStack {
-        Color(hex: "0f0f23")
-        ChapterCard(
-            alien: ChapterAlien.all[0],
-            isUnlocked: true,
-            isCompleted: true,
-            onTap: {}
-        )
     }
 }
