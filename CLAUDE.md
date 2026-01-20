@@ -665,6 +665,204 @@ Required filters for effects:
 - `cc-connectorGlowFilter` - Gaussian blur for glow effects
 - `cc-cellShadowFilter` - Drop shadow for 3D cell effect
 
+### Story Mode with Chapter Aliens
+
+Added complete Story Mode with 10 unique chapter aliens and level progression:
+
+**Chapter Aliens (`src/shared/types/chapterAlien.ts`, `ios-app/.../ChapterAlien.swift`):**
+
+| Chapter | Alien Name | Color Theme |
+|---------|------------|-------------|
+| 1 | Zix | Green |
+| 2 | Blurp | Blue |
+| 3 | Quasar | Purple |
+| 4 | Nimbus | Cyan |
+| 5 | Flare | Orange |
+| 6 | Echo | Pink |
+| 7 | Cosmo | Indigo |
+| 8 | Nova | Red |
+| 9 | Stellar | Gold |
+| 10 | Nebula | Rainbow |
+
+**Story Mode Screens:**
+- `ChapterSelect` - 3D carousel chapter selection
+- `LevelSelect` - Horizontal level hexagon layout
+- `StoryGameScreen` - Level intro + game wrapper
+
+**Story Difficulty (`storyDifficulty.ts`, `StoryDifficulty.swift`):**
+- Maps chapter/level to difficulty settings
+- 5 levels per chapter (A-E)
+- Progressive difficulty within chapters
+
+### 3D Carousel Chapter Selection
+
+Chapter select uses a 3D sphere-like carousel with swipe gestures:
+
+**Web (ChapterSelect.tsx):**
+```tsx
+const angle = offset * 35  // degrees of rotation per card
+const scale = Math.max(0.6, 1 - absOffset * 0.15)
+style={{ transform: `translateX(${xOffset}px) scale(${scale}) rotateY(${angle}deg)` }}
+```
+
+**iOS (ChapterSelectView.swift):**
+```swift
+.rotation3DEffect(.degrees(angle), axis: (x: 0, y: 1, z: 0), perspective: 0.5)
+```
+
+**Features:**
+- Large cards (~70% viewport width, 60% height)
+- Swipe left/right with spring animations
+- Cards scale down and rotate away from center
+- Touch anywhere to dismiss to level select
+
+### Horizontal Level Selection with Glow Effects
+
+Level selection displays hexagons horizontally with animated connectors:
+
+**Current Level Detection:**
+```typescript
+// First unlocked but not completed level
+const isCurrentLevel = (level: number): boolean => {
+  if (!isLevelUnlocked(level)) return false
+  if (isLevelCompleted(chapter, level, progress)) return false
+  // Check all previous levels completed
+  return allPreviousCompleted
+}
+```
+
+**Glow Animation (current/completed levels):**
+- Green pulsing glow (#00ff88)
+- Animated dashed stroke connectors
+- CSS animations: `dash`, `flowRight`, `flowDown`
+
+### Level Intro Overlay
+
+Before each story level, an overlay shows the chapter alien with a speech bubble:
+
+**Web (StoryGameScreen.tsx):**
+- Alien image with speech bubble
+- Random intro messages: "Let's solve Level X-Y!"
+- Auto-dismisses after 2.5s or tap to start
+- `skipIntro` state preserves when returning from summary
+
+**iOS (LevelSelectView.swift - StoryGameScreenView):**
+- Same overlay pattern in SwiftUI
+- Uses `@State var showIntro` with animation
+
+### Alien Appearances on Win/Lose Screens
+
+Story mode shows the chapter alien on summary screens:
+
+**Character Reveal Animation:**
+- Shows before main results
+- Alien image with speech bubble
+- Random win messages: "Amazing work! You did it!"
+- Random lose messages: "Don't give up! Try again!"
+- Auto-dismisses after 2 seconds or tap
+
+**Result Cards:**
+- Win: Shows alien image instead of 🎉 emoji
+- Lose: Shows alien image instead of 💔 emoji
+- Hidden mode: Shows alien at top of results
+
+**Speech Bubble Messages:**
+```typescript
+const winMessages = [
+  "Amazing work! You did it!",
+  "Fantastic! You're a star!",
+  "Woohoo! Great job!",
+  "You're incredible!",
+  "That was awesome!",
+]
+
+const loseMessages = [
+  "Don't give up! Try again!",
+  "You've got this! One more try!",
+  "Almost there! Keep going!",
+  "You're doing great! Try again!",
+  "Practice makes perfect!",
+]
+```
+
+### Music Toggle Button
+
+Added music control to menu and game screens:
+
+**Web (MusicToggleButton.tsx):**
+```tsx
+export function MusicToggleButton({ size = 'md' }) {
+  const { isMuted, toggleMute } = useSound()
+  return <button onClick={toggleMute}>{isMuted ? '🔇' : '🎵'}</button>
+}
+```
+
+**iOS (MusicToggleButton.swift):**
+```swift
+struct MusicToggleButton: View {
+  @ObservedObject private var storage = StorageService.shared
+  @EnvironmentObject var musicService: MusicService
+  // Shows music.note or speaker.slash.fill
+}
+```
+
+**Placement:**
+- ModuleMenu: Top-right corner
+- GameScreen: In header (portrait) or left panel (landscape)
+
+### Music Service (iOS)
+
+Complete music service for background audio:
+
+**MusicService.swift:**
+```swift
+enum MusicTrack: String {
+  case hub = "hub_music"
+  case game = "game_music"
+  case victory = "victory_music"
+  case lose = "lose_music"
+}
+
+class MusicService: ObservableObject {
+  func play(track: MusicTrack, loop: Bool = true)
+  func stop()
+  func fadeOut(duration: TimeInterval)
+}
+```
+
+**Audio Files (ios-app/MaxPuzzles/Resources/Sounds/):**
+- `hub_music.m4a` - Main menu background
+- `game_music.m4a` - Gameplay loop
+- `victory_music.m4a` - Win celebration
+- `lose_music.wav` - Game over sting
+
+### Story Mode Routes
+
+**Web routes (routes.tsx):**
+```tsx
+/play/circuit-challenge/story           → ChapterSelect
+/play/circuit-challenge/story/:chapterId → LevelSelect
+/play/circuit-challenge/story/:chapterId/:levelId → StoryGameScreen
+```
+
+**iOS navigation (AppRouter.swift):**
+- Uses NavigationStack with destination routing
+- Story data flows through GameScreenView props
+
+### Supporting Models and Services
+
+**iOS New Files:**
+- `StorageService.swift` - UserDefaults persistence
+- `MusicService.swift` - Background audio playback
+- `FeedbackManager.swift` - Haptic/shake feedback
+- `GameViewModel.swift` - Game state management
+- `GameState.swift` / `GameAction.swift` - State types
+- `SummaryData.swift` - Summary screen data model
+- `OrientationManager.swift` - Device orientation
+- `AnimatedCharacter.swift` - Character animations
+- `ConfettiView.swift` - Win celebration effects
+- `Print/` - PDF generation for Puzzle Maker
+
 ---
 
 *End of CLAUDE.md*

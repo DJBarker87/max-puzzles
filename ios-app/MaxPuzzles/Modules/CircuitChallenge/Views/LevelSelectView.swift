@@ -282,9 +282,9 @@ struct LargeHexTile: View {
 
                 // Stars display
                 if isCompleted {
-                    StarDisplay(stars: stars, size: .medium)
+                    LevelStarDisplay(stars: stars, size: .medium)
                 } else if isUnlocked {
-                    StarDisplay(stars: 0, size: .medium)
+                    LevelStarDisplay(stars: 0, size: .medium)
                 } else {
                     Text("Need ⭐⭐")
                         .font(.system(size: 11))
@@ -522,13 +522,13 @@ struct StoryGameScreenView: View {
     }
 }
 
-// MARK: - Star Display
+// MARK: - Level Star Display
 
-struct StarDisplay: View {
+private struct LevelStarDisplay: View {
     let stars: Int
-    let size: StarSize
+    let size: LevelStarSize
 
-    enum StarSize {
+    enum LevelStarSize {
         case small, medium, large
 
         var fontSize: CGFloat {
