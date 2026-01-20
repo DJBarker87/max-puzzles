@@ -77,7 +77,7 @@ struct SummaryScreenView: View {
 
     private var characterRevealView: some View {
         GeometryReader { geometry in
-            let characterSize = min(geometry.size.width, geometry.size.height) * 0.85
+            let characterSize = min(geometry.size.width, geometry.size.height) * 0.7
 
             ZStack {
                 // Confetti for wins
@@ -85,11 +85,30 @@ struct SummaryScreenView: View {
                     ConfettiView()
                 }
 
-                // MASSIVE full screen character
-                if data.won {
-                    AnimatedCharacter.boxer(size: characterSize)
-                } else {
-                    AnimatedCharacter.spaceOctopus(size: characterSize)
+                VStack(spacing: 20) {
+                    // Story mode: Show the chapter's alien
+                    if let alien = data.storyAlien {
+                        Image(alien.imageName)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: characterSize, height: characterSize)
+
+                        // Speech bubble with message
+                        SpeechBubble {
+                            Text(data.won ? alienWinMessage : alienLoseMessage)
+                                .font(.system(size: 18, weight: .medium))
+                                .foregroundColor(AppTheme.backgroundDark)
+                                .multilineTextAlignment(.center)
+                        }
+                        .padding(.horizontal, 40)
+                    } else {
+                        // Quick Play: Show generic characters
+                        if data.won {
+                            AnimatedCharacter.boxer(size: characterSize)
+                        } else {
+                            AnimatedCharacter.spaceOctopus(size: characterSize)
+                        }
+                    }
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -99,6 +118,30 @@ struct SummaryScreenView: View {
         .onTapGesture {
             transitionToResults()
         }
+    }
+
+    // Alien win messages
+    private var alienWinMessage: String {
+        let messages = [
+            "Amazing work! You did it!",
+            "Fantastic! You're a star!",
+            "Woohoo! Great job!",
+            "You're incredible!",
+            "That was awesome!"
+        ]
+        return messages.randomElement() ?? "Great job!"
+    }
+
+    // Alien lose/encourage messages
+    private var alienLoseMessage: String {
+        let messages = [
+            "Don't give up! Try again!",
+            "You've got this! One more try!",
+            "Almost there! Keep going!",
+            "You're doing great! Try again!",
+            "Practice makes perfect!"
+        ]
+        return messages.randomElement() ?? "Try again!"
     }
 
     private func startCharacterReveal() {
@@ -215,7 +258,14 @@ struct SummaryScreenView: View {
     private var winContent: some View {
         VStack(spacing: 24) {
             // Small character at top of results
-            AnimatedCharacter.boxer(size: 100)
+            if let alien = data.storyAlien {
+                Image(alien.imageName)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 100, height: 100)
+            } else {
+                AnimatedCharacter.boxer(size: 100)
+            }
 
             // Results Card
             VStack(spacing: 20) {
@@ -276,7 +326,14 @@ struct SummaryScreenView: View {
     private var loseContent: some View {
         VStack(spacing: 24) {
             // Small character at top of results
-            AnimatedCharacter.spaceOctopus(size: 100)
+            if let alien = data.storyAlien {
+                Image(alien.imageName)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 100, height: 100)
+            } else {
+                AnimatedCharacter.spaceOctopus(size: 100)
+            }
 
             // Results Card
             VStack(spacing: 20) {

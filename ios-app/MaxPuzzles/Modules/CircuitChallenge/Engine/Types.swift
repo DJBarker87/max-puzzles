@@ -162,6 +162,14 @@ struct Puzzle: Codable, Identifiable {
     }
 }
 
+// MARK: - Traversed Connector
+
+/// Represents a connector that has been traversed during gameplay
+struct TraversedConnector: Equatable {
+    let cellA: Coordinate
+    let cellB: Coordinate
+}
+
 // MARK: - Operation
 
 /// Arithmetic operations used in expressions
@@ -177,7 +185,7 @@ enum Operation: String, Codable, CaseIterable {
 // MARK: - Operation Weights
 
 /// Weights for operation selection during expression generation
-struct OperationWeights: Codable {
+struct OperationWeights: Codable, Hashable {
     var addition: Int
     var subtraction: Int
     var multiplication: Int
@@ -199,7 +207,7 @@ struct OperationWeights: Codable {
 // MARK: - Difficulty Settings
 
 /// Configuration for puzzle generation
-struct DifficultySettings: Codable {
+struct DifficultySettings: Codable, Hashable {
     var name: String
 
     // Operations enabled

@@ -3,27 +3,39 @@ import SwiftUI
 /// Animated starry background matching web app exactly
 struct StarryBackground: View {
     let starCount: Int
+    let useHubImage: Bool
 
-    init(starCount: Int = 80) {
+    init(starCount: Int = 80, useHubImage: Bool = false) {
         self.starCount = starCount
+        self.useHubImage = useHubImage
     }
 
     var body: some View {
         GeometryReader { geometry in
             ZStack {
-                // Base gradient
-                AppTheme.gridBackground
+                if useHubImage {
+                    // Hub/Splash background image
+                    Image("HubBackground")
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .frame(width: geometry.size.width, height: geometry.size.height)
+                        .clipped()
+                        .overlay(Color.black.opacity(0.3)) // Slight darkening for text readability
+                } else {
+                    // Base gradient
+                    AppTheme.gridBackground
 
-                // Stars
-                ForEach(0..<starCount, id: \.self) { index in
-                    StarView(
-                        seed: index,
-                        bounds: geometry.size
-                    )
+                    // Stars
+                    ForEach(0..<starCount, id: \.self) { index in
+                        StarView(
+                            seed: index,
+                            bounds: geometry.size
+                        )
+                    }
+
+                    // Ambient green glow
+                    AppTheme.connectorGlow.opacity(0.03)
                 }
-
-                // Ambient green glow
-                AppTheme.connectorGlow.opacity(0.03)
             }
         }
         .ignoresSafeArea()

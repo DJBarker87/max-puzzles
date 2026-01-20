@@ -159,12 +159,18 @@ struct HexCellView: View {
     private var edgeOffset: CGFloat { 12 }
     private var baseOffset: CGFloat { 6 }
 
-    // Font size based on expression length (matching web exactly)
+    // Font size scales with cell size and expression length
+    // Base size is ~45% of cell radius for short text, scales down for longer expressions
     private var fontSize: CGFloat {
-        if state == .finish { return 13 }
-        if expression.count > 7 { return 13 }
-        if expression.count > 5 { return 15 }
-        return 17
+        let baseSize = size * 0.45
+
+        // Scale down for longer expressions to fit inside hexagon
+        // "FINISH" = 6 chars, "5 + 3" = 5 chars, "20 - 14" = 7 chars, "12 × 12" = 7 chars
+        if state == .finish { return baseSize * 0.70 }  // FINISH text
+        if expression.count > 8 { return baseSize * 0.60 }  // Very long: "100 - 50"
+        if expression.count > 6 { return baseSize * 0.70 }  // Long: "20 - 14"
+        if expression.count > 4 { return baseSize * 0.85 }  // Medium: "5 + 3"
+        return baseSize  // Short: single numbers
     }
 
     var body: some View {

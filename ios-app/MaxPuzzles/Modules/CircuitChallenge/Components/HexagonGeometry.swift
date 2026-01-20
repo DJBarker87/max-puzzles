@@ -71,12 +71,12 @@ struct HexagonGeometry {
 
     /// Calculate total grid width
     func gridWidth(cols: Int) -> CGFloat {
-        padding + CGFloat(cols - 1) * horizontalSpacing + padding + 30
+        padding + CGFloat(cols - 1) * horizontalSpacing + padding
     }
 
-    /// Calculate total grid height
+    /// Calculate total grid height (add minimal amount for 3D cell depth)
     func gridHeight(rows: Int) -> CGFloat {
-        padding + CGFloat(rows - 1) * verticalSpacing + padding + 50
+        padding + CGFloat(rows - 1) * verticalSpacing + padding + 10
     }
 
     /// Get center point for a cell at given row/col
@@ -102,32 +102,51 @@ struct HexagonGeometry {
 // MARK: - Scaled Geometry for Different Devices
 
 extension HexagonGeometry {
-    /// Create geometry scaled for available size while maintaining aspect ratio
+    /// Create geometry that maximizes screen usage for the given grid size
+    /// Matches web app exactly: scales the web's base measurements proportionally
     static func scaled(for size: CGSize, rows: Int, cols: Int) -> HexagonGeometry {
-        let standard = HexagonGeometry.standard
+        // Web app base values (from PuzzleGrid.tsx), with reduced padding for mobile
+        let webCellRadius: CGFloat = 42
+        let webHorizontalSpacing: CGFloat = 150
+        let webVerticalSpacing: CGFloat = 140
+        let webPadding: CGFloat = 55  // Balanced padding - enough for START label at top
 
-        // Calculate the scale factor needed to fit the grid
-        let standardWidth = standard.gridWidth(cols: cols)
-        let standardHeight = standard.gridHeight(rows: rows)
+        // Calculate web grid dimensions
+        let webGridWidth = webPadding * 2 + CGFloat(cols - 1) * webHorizontalSpacing
+        let webGridHeight = webPadding * 2 + CGFloat(rows - 1) * webVerticalSpacing + 10 // minimal extra for 3D depth
 
-        let scaleX = size.width / standardWidth
-        let scaleY = size.height / standardHeight
-        let scale = min(scaleX, scaleY, 1.5)  // Cap at 1.5x for large screens
+        // Calculate scale factor to fit available space
+        let scaleX = size.width / webGridWidth
+        let scaleY = size.height / webGridHeight
+        let scale = min(scaleX, scaleY) * 0.98  // 98% to maximize grid size
+
+        // Apply scale to all measurements
+        let scaledRadius = webCellRadius * scale
+
+        // Minimum radius for readability
+        let minRadius: CGFloat = 25
+        let finalRadius = max(scaledRadius, minRadius)
+
+        // Calculate final scale (may differ if we hit minimum)
+        let finalScale = finalRadius / webCellRadius
+        let finalHorizontalSpacing = webHorizontalSpacing * finalScale
+        let finalVerticalSpacing = webVerticalSpacing * finalScale
+        let finalPadding = webPadding * finalScale
 
         return HexagonGeometry(
-            cellRadius: standard.cellRadius * scale,
-            horizontalSpacing: standard.horizontalSpacing * scale,
-            verticalSpacing: standard.verticalSpacing * scale,
-            padding: standard.padding * scale
+            cellRadius: finalRadius,
+            horizontalSpacing: finalHorizontalSpacing,
+            verticalSpacing: finalVerticalSpacing,
+            padding: finalPadding
         )
     }
 
-    /// Create geometry optimized for iPad
+    /// Create geometry optimized for iPad landscape
     static func iPad(rows: Int, cols: Int) -> HexagonGeometry {
         HexagonGeometry(
             cellRadius: 60,
-            horizontalSpacing: 200,
-            verticalSpacing: 190,
+            horizontalSpacing: 192,
+            verticalSpacing: 178,
             padding: 100
         )
     }
@@ -136,8 +155,8 @@ extension HexagonGeometry {
     static func compact(rows: Int, cols: Int) -> HexagonGeometry {
         HexagonGeometry(
             cellRadius: 32,
-            horizontalSpacing: 115,
-            verticalSpacing: 107,
+            horizontalSpacing: 102,
+            verticalSpacing: 95,
             padding: 58
         )
     }

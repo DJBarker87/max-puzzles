@@ -19,8 +19,21 @@ struct GameScreenView: View {
 
     private let difficulty: DifficultySettings
 
-    init(difficulty: DifficultySettings) {
+    // Story mode optional parameters
+    private let storyAlien: ChapterAlien?
+    private let storyChapter: Int?
+    private let storyLevel: Int?
+
+    init(
+        difficulty: DifficultySettings,
+        storyAlien: ChapterAlien? = nil,
+        storyChapter: Int? = nil,
+        storyLevel: Int? = nil
+    ) {
         self.difficulty = difficulty
+        self.storyAlien = storyAlien
+        self.storyChapter = storyChapter
+        self.storyLevel = storyLevel
         _viewModel = StateObject(wrappedValue: GameViewModel(difficulty: difficulty))
     }
 
@@ -393,7 +406,10 @@ struct GameScreenView: View {
             moveHistory: viewModel.state.moveHistory,
             hiddenModeResults: viewModel.state.hiddenModeResults,
             puzzle: viewModel.state.puzzle,
-            difficulty: viewModel.state.difficulty
+            difficulty: viewModel.state.difficulty,
+            storyAlien: storyAlien,
+            storyChapter: storyChapter,
+            storyLevel: storyLevel
         )
     }
 }

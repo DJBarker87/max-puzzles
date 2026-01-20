@@ -1,13 +1,5 @@
 import SwiftUI
 
-// MARK: - Traversed Connector
-
-/// Represents a traversed connector between two cells with direction
-struct TraversedConnector: Equatable {
-    let cellA: Coordinate
-    let cellB: Coordinate
-}
-
 // MARK: - PuzzleGridView
 
 /// Complete puzzle grid with cells and connectors
@@ -87,12 +79,15 @@ struct PuzzleGridView: View {
 
     private func startLabel(geometry: HexagonGeometry) -> some View {
         let startCenter = geometry.cellCenter(row: 0, col: 0)
+        // Scale font size with geometry (about 25% of cell radius)
+        let fontSize = max(geometry.cellRadius * 0.25, 10)
+
         return Text("START")
-            .font(.system(size: 11, weight: .bold))
+            .font(.system(size: fontSize, weight: .bold))
             .tracking(2)
             .foregroundColor(Color(hex: "00ff88"))
             .shadow(color: Color(hex: "00ff88").opacity(0.6), radius: 6)
-            .position(x: startCenter.x, y: 20)
+            .position(x: startCenter.x, y: geometry.padding - geometry.cellRadius - 5)
     }
 
     // MARK: - Connectors Layer
@@ -114,7 +109,8 @@ struct PuzzleGridView: View {
                 value: connector.value,
                 isTraversed: isTraversed,
                 isWrong: isConnectorWrong(connector.cellA, connector.cellB),
-                animationDelay: Double(index * 50)
+                animationDelay: Double(index * 50),
+                cellRadius: geometry.cellRadius
             )
         }
     }

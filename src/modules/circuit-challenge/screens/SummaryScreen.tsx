@@ -1,9 +1,11 @@
+import { useState, useEffect } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Button, Card } from '@/ui'
 import { StarryBackground } from '../components'
 import type { Puzzle } from '../types'
 import type { DifficultySettings } from '../engine/types'
 import type { GameMoveResult, HiddenModeResults } from '../types/gameState'
+import type { ChapterAlien } from '@/shared/types/chapterAlien'
 
 interface SummaryData {
   won: boolean
@@ -14,6 +16,10 @@ interface SummaryData {
   hiddenModeResults?: HiddenModeResults
   difficulty: DifficultySettings
   puzzle: Puzzle
+  // Story mode
+  storyAlien?: ChapterAlien
+  storyChapter?: number
+  storyLevel?: number
 }
 
 /**
@@ -26,6 +32,24 @@ function formatTime(ms: number): string {
   return `${minutes}:${seconds.toString().padStart(2, '0')}`
 }
 
+// Win messages for story mode
+const winMessages = [
+  "Amazing work! You did it!",
+  "Fantastic! You're a star!",
+  "Woohoo! Great job!",
+  "You're incredible!",
+  "That was awesome!",
+]
+
+// Lose/encourage messages for story mode
+const loseMessages = [
+  "Don't give up! Try again!",
+  "You've got this! One more try!",
+  "Almost there! Keep going!",
+  "You're doing great! Try again!",
+  "Practice makes perfect!",
+]
+
 /**
  * Summary screen shown after completing or losing a puzzle
  */
@@ -34,10 +58,39 @@ export default function SummaryScreen() {
   const navigate = useNavigate()
   const data = location.state as SummaryData | null
 
+  // State for character reveal animation
+  const [showingCharacter, setShowingCharacter] = useState(true)
+  const [characterVisible, setCharacterVisible] = useState(false)
+
   // Redirect if no data
   if (!data) {
     navigate('/play/circuit-challenge')
     return null
+  }
+
+  const isStoryMode = !!data.storyAlien
+
+  // Character reveal animation for non-hidden mode
+  useEffect(() => {
+    if (data.isHiddenMode) {
+      setShowingCharacter(false)
+      return
+    }
+
+    // Animate in
+    setTimeout(() => setCharacterVisible(true), 100)
+
+    // Auto-dismiss after delay
+    const timer = setTimeout(() => {
+      dismissCharacter()
+    }, 2000)
+
+    return () => clearTimeout(timer)
+  }, [data.isHiddenMode])
+
+  const dismissCharacter = () => {
+    setCharacterVisible(false)
+    setTimeout(() => setShowingCharacter(false), 300)
   }
 
   // Calculate statistics
@@ -48,17 +101,33 @@ export default function SummaryScreen() {
   const timeFormatted = formatTime(data.elapsedMs)
 
   const handlePlayAgain = () => {
-    navigate('/play/circuit-challenge/game', {
-      state: { difficulty: data.difficulty },
-    })
+    if (isStoryMode && data.storyChapter && data.storyLevel) {
+      // Go back to story game with skip intro
+      navigate(`/play/circuit-challenge/story/${data.storyChapter}/${data.storyLevel}`, {
+        state: { skipIntro: true },
+      })
+    } else {
+      navigate('/play/circuit-challenge/game', {
+        state: { difficulty: data.difficulty },
+      })
+    }
   }
 
   const handleChangeDifficulty = () => {
-    navigate('/play/circuit-challenge/quick')
+    if (isStoryMode && data.storyChapter) {
+      // Go back to level select
+      navigate(`/play/circuit-challenge/story/${data.storyChapter}`)
+    } else {
+      navigate('/play/circuit-challenge/quick')
+    }
   }
 
   const handleExit = () => {
-    navigate('/play/circuit-challenge')
+    if (isStoryMode) {
+      navigate('/play/circuit-challenge/story')
+    } else {
+      navigate('/play/circuit-challenge')
+    }
   }
 
   const handleViewSolution = () => {
@@ -70,6 +139,78 @@ export default function SummaryScreen() {
     })
   }
 
+  // Get random message
+  const alienMessage = data.won
+    ? winMessages[Math.floor(Math.random() * winMessages.length)]
+    : loseMessages[Math.floor(Math.random() * loseMessages.length)]
+
+  // Character reveal screen (for non-hidden mode)
+  if (showingCharacter && !data.isHiddenMode) {
+    return (
+      <div
+        className={`min-h-screen flex flex-col items-center justify-center p-4 relative transition-all duration-300 ${
+          characterVisible ? 'opacity-100 scale-100' : 'opacity-0 scale-95'
+        }`}
+        onClick={dismissCharacter}
+      >
+        <StarryBackground />
+
+        {/* Confetti for wins */}
+        {data.won && (
+          <div className="absolute inset-0 overflow-hidden pointer-events-none z-10">
+            {Array.from({ length: 30 }).map((_, i) => (
+              <div
+                key={i}
+                className="absolute animate-bounce"
+                style={{
+                  left: `${Math.random() * 100}%`,
+                  top: `${Math.random() * 100}%`,
+                  animationDelay: `${Math.random() * 2}s`,
+                  animationDuration: `${1 + Math.random()}s`,
+                }}
+              >
+                {['🎉', '⭐', '✨', '🎊'][Math.floor(Math.random() * 4)]}
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="relative z-20 flex flex-col items-center">
+          {/* Character image */}
+          {isStoryMode && data.storyAlien ? (
+            <>
+              <img
+                src={data.storyAlien.imagePath}
+                alt={data.storyAlien.name}
+                className="w-48 h-48 md:w-64 md:h-64 object-contain"
+              />
+
+              {/* Speech bubble */}
+              <div className="relative bg-white rounded-2xl px-6 py-4 mx-8 max-w-xs mt-6">
+                <p className="text-background-dark text-lg font-medium text-center">
+                  {alienMessage}
+                </p>
+                <div
+                  className="absolute -top-3 left-1/2 -translate-x-1/2 w-0 h-0 rotate-180"
+                  style={{
+                    borderLeft: '12px solid transparent',
+                    borderRight: '12px solid transparent',
+                    borderTop: '12px solid white',
+                  }}
+                />
+              </div>
+            </>
+          ) : (
+            // Quick play: show emoji
+            <div className="text-[150px] md:text-[200px]">
+              {data.won ? '🎉' : '💔'}
+            </div>
+          )}
+        </div>
+      </div>
+    )
+  }
+
   // Hidden mode win
   if (data.isHiddenMode && data.hiddenModeResults) {
     const { correctCount, mistakeCount } = data.hiddenModeResults
@@ -79,6 +220,14 @@ export default function SummaryScreen() {
         <StarryBackground />
 
         <Card className="w-full max-w-md text-center relative z-10 p-6">
+          {/* Show alien for story mode */}
+          {isStoryMode && data.storyAlien && (
+            <img
+              src={data.storyAlien.imagePath}
+              alt={data.storyAlien.name}
+              className="w-24 h-24 mx-auto object-contain mb-4"
+            />
+          )}
           <h1 className="text-2xl font-display font-bold mb-4">
             Puzzle Complete!
           </h1>
@@ -145,8 +294,16 @@ export default function SummaryScreen() {
         <StarryBackground />
 
         <Card className="w-full max-w-md text-center relative z-10 p-6">
-          {/* Celebration */}
-          <div className="text-6xl mb-4">🎉</div>
+          {/* Celebration - show alien for story mode */}
+          {isStoryMode && data.storyAlien ? (
+            <img
+              src={data.storyAlien.imagePath}
+              alt={data.storyAlien.name}
+              className="w-24 h-24 mx-auto object-contain mb-4"
+            />
+          ) : (
+            <div className="text-6xl mb-4">🎉</div>
+          )}
           <h1 className="text-3xl font-display font-bold mb-2">
             Puzzle Complete!
           </h1>
@@ -193,7 +350,16 @@ export default function SummaryScreen() {
       <StarryBackground />
 
       <Card className="w-full max-w-md text-center relative z-10 p-6">
-        <div className="text-6xl mb-4">💔</div>
+        {/* Sad display - show alien for story mode */}
+        {isStoryMode && data.storyAlien ? (
+          <img
+            src={data.storyAlien.imagePath}
+            alt={data.storyAlien.name}
+            className="w-24 h-24 mx-auto object-contain mb-4"
+          />
+        ) : (
+          <div className="text-6xl mb-4">💔</div>
+        )}
         <h1 className="text-2xl font-display font-bold mb-4">Out of Lives</h1>
 
         <p className="text-text-secondary mb-6">

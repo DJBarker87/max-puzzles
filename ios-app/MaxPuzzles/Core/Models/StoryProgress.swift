@@ -93,6 +93,11 @@ class StoryProgress: ObservableObject {
         return total
     }
 
+    /// Count of completed chapters (0-10)
+    var completedChaptersCount: Int {
+        (1...10).filter { isChapterCompleted($0) }.count
+    }
+
     // MARK: - Level Progress
 
     /// Check if a specific level is unlocked

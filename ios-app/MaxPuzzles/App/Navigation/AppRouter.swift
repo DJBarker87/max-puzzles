@@ -19,7 +19,6 @@ enum AppRoute: Hashable {
 }
 
 /// Centralized navigation controller
-@MainActor
 class AppRouter: ObservableObject {
     @Published var path = NavigationPath()
 

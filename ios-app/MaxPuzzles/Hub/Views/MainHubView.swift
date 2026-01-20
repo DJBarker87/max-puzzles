@@ -3,12 +3,20 @@ import SwiftUI
 /// Main hub screen showing puzzle modules
 struct MainHubView: View {
     @EnvironmentObject var appState: AppState
+    @EnvironmentObject var musicService: MusicService
     @StateObject private var router = AppRouter()
+
+    @State private var showCircuitChallenge = false
+
+    private var storage: StorageService { StorageService.shared }
 
     var body: some View {
         NavigationStack(path: $router.path) {
             ZStack {
-                StarryBackground()
+                // Fallback background color
+                Color(hex: "0f0f23").ignoresSafeArea()
+
+                StarryBackground(useHubImage: true)
 
                 VStack(spacing: AppSpacing.xl) {
                     // Header
@@ -31,8 +39,17 @@ struct MainHubView: View {
             .navigationDestination(for: AppRoute.self) { route in
                 destinationView(for: route)
             }
+            .fullScreenCover(isPresented: $showCircuitChallenge) {
+                ModuleMenuView()
+            }
         }
         .environmentObject(router)
+        .onAppear {
+            // Start hub music when returning to menu
+            if !musicService.isPlaying {
+                musicService.play(track: .hub)
+            }
+        }
     }
 
     // MARK: - Header
@@ -45,8 +62,8 @@ struct MainHubView: View {
 
             Spacer()
 
-            // Coins (V3 stub - shows 0)
-            CoinDisplay(0, size: .medium)
+            // Coins (V3 stub - shows guest total or 0)
+            CoinDisplay(storage.totalCoinsEarned, size: .medium)
 
             IconButton("gear") {
                 router.navigate(to: .settings)
@@ -69,17 +86,56 @@ struct MainHubView: View {
                 iconName: "bolt.fill",
                 isLocked: false
             ) {
-                router.navigate(to: .circuitChallengeMenu)
+                showCircuitChallenge = true
             }
         }
+        .padding(.vertical, 40)
+        .padding(.horizontal, 32)
+        .background(
+            ZStack {
+                // Outer glow
+                RoundedRectangle(cornerRadius: 32)
+                    .fill(AppTheme.accentPrimary.opacity(0.08))
+                    .blur(radius: 20)
+
+                // Main backdrop
+                RoundedRectangle(cornerRadius: 28)
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                AppTheme.backgroundMid.opacity(0.7),
+                                AppTheme.backgroundDark.opacity(0.85)
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+
+                // Inner border glow
+                RoundedRectangle(cornerRadius: 28)
+                    .stroke(
+                        LinearGradient(
+                            colors: [
+                                AppTheme.accentPrimary.opacity(0.4),
+                                AppTheme.accentPrimary.opacity(0.1),
+                                Color.white.opacity(0.1)
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        ),
+                        lineWidth: 1.5
+                    )
+            }
+        )
+        .shadow(color: AppTheme.accentPrimary.opacity(0.15), radius: 30, y: 10)
     }
 
     // MARK: - Guest Mode Indicator
 
     private var guestModeIndicator: some View {
         HStack(spacing: AppSpacing.sm) {
-            Image(systemName: "person.fill.questionmark")
-            Text("Playing as Guest")
+            Image(systemName: "person.fill")
+            Text("Playing as \(storage.guestDisplayName)")
             Text("•")
             Button("Create Account") {
                 router.navigate(to: .login)
@@ -97,13 +153,9 @@ struct MainHubView: View {
     private func destinationView(for route: AppRoute) -> some View {
         switch route {
         case .settings:
-            SettingsPlaceholderView()
+            SettingsView()
         case .login:
             LoginPlaceholderView()
-        case .circuitChallengeMenu:
-            CircuitChallengeMenuPlaceholderView()
-        case .circuitChallengeSetup:
-            QuickPlaySetupPlaceholderView()
         default:
             PlaceholderView(title: "Coming Soon")
         }
@@ -119,7 +171,7 @@ struct PlaceholderView: View {
 
     var body: some View {
         ZStack {
-            StarryBackground()
+            StarryBackground(useHubImage: true)
 
             VStack(spacing: AppSpacing.lg) {
                 Text(title)
@@ -135,97 +187,28 @@ struct PlaceholderView: View {
     }
 }
 
-/// Settings screen placeholder
-struct SettingsPlaceholderView: View {
-    @EnvironmentObject var router: AppRouter
-
-    var body: some View {
-        ZStack {
-            StarryBackground()
-
-            VStack(spacing: AppSpacing.lg) {
-                Text("Settings")
-                    .font(AppTypography.titleMedium)
-                    .foregroundColor(AppTheme.textPrimary)
-
-                Text("Coming in Phase 5")
-                    .foregroundColor(AppTheme.textSecondary)
-
-                SecondaryButton("Back", icon: "arrow.left") {
-                    router.pop()
-                }
-            }
-        }
-        .navigationBarHidden(true)
-    }
-}
-
-/// Login screen placeholder
+/// Login screen placeholder (Phase 6)
 struct LoginPlaceholderView: View {
     @EnvironmentObject var router: AppRouter
 
     var body: some View {
         ZStack {
-            StarryBackground()
+            StarryBackground(useHubImage: true)
 
             VStack(spacing: AppSpacing.lg) {
+                Image(systemName: "person.crop.circle.badge.plus")
+                    .font(.system(size: 64))
+                    .foregroundColor(AppTheme.accentPrimary)
+
                 Text("Login / Sign Up")
                     .font(AppTypography.titleMedium)
                     .foregroundColor(AppTheme.textPrimary)
 
-                Text("Coming in Phase 6")
+                Text("Account creation coming in a future update!")
+                    .font(AppTypography.bodyMedium)
                     .foregroundColor(AppTheme.textSecondary)
-
-                SecondaryButton("Back", icon: "arrow.left") {
-                    router.pop()
-                }
-            }
-        }
-        .navigationBarHidden(true)
-    }
-}
-
-/// Circuit Challenge menu placeholder
-struct CircuitChallengeMenuPlaceholderView: View {
-    @EnvironmentObject var router: AppRouter
-
-    var body: some View {
-        ZStack {
-            StarryBackground()
-
-            VStack(spacing: AppSpacing.lg) {
-                Text("Circuit Challenge")
-                    .font(AppTypography.titleMedium)
-                    .foregroundColor(AppTheme.textPrimary)
-
-                PrimaryButton("Quick Play", icon: "play.fill") {
-                    router.navigate(to: .circuitChallengeSetup)
-                }
-
-                SecondaryButton("Back to Hub", icon: "arrow.left") {
-                    router.pop()
-                }
-            }
-        }
-        .navigationBarHidden(true)
-    }
-}
-
-/// Quick Play setup placeholder
-struct QuickPlaySetupPlaceholderView: View {
-    @EnvironmentObject var router: AppRouter
-
-    var body: some View {
-        ZStack {
-            StarryBackground()
-
-            VStack(spacing: AppSpacing.lg) {
-                Text("Quick Play Setup")
-                    .font(AppTypography.titleMedium)
-                    .foregroundColor(AppTheme.textPrimary)
-
-                Text("Difficulty selection coming in Phase 4")
-                    .foregroundColor(AppTheme.textSecondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 32)
 
                 SecondaryButton("Back", icon: "arrow.left") {
                     router.pop()
@@ -239,4 +222,5 @@ struct QuickPlaySetupPlaceholderView: View {
 #Preview {
     MainHubView()
         .environmentObject(AppState())
+        .environmentObject(MusicService.shared)
 }

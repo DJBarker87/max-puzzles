@@ -16,16 +16,28 @@ import {
 import { Button, Modal } from '@/ui'
 import { printCurrentPuzzle } from '../services/pdfGenerator'
 import type { DifficultySettings } from '../engine/types'
+import type { ChapterAlien } from '@/shared/types/chapterAlien'
 
 interface LocationState {
   difficulty?: DifficultySettings
   showSolution?: boolean
 }
 
+interface GameScreenProps {
+  // Story mode optional props
+  storyAlien?: ChapterAlien
+  storyChapter?: number
+  storyLevel?: number
+}
+
 /**
  * Main game screen for playing Circuit Challenge
  */
-export default function GameScreen() {
+export default function GameScreen({
+  storyAlien,
+  storyChapter,
+  storyLevel,
+}: GameScreenProps = {}) {
   const location = useLocation()
   const navigate = useNavigate()
   const locationState = location.state as LocationState | null
@@ -87,12 +99,16 @@ export default function GameScreen() {
             hiddenModeResults: state.hiddenModeResults,
             difficulty: state.difficulty,
             puzzle: state.puzzle,
+            // Story mode data
+            storyAlien,
+            storyChapter,
+            storyLevel,
           },
         })
       }, 1000)
       return () => clearTimeout(timer)
     }
-  }, [state.status, state.showingSolution, navigate, state])
+  }, [state.status, state.showingSolution, navigate, state, storyAlien, storyChapter, storyLevel])
 
   // Handle revealing hidden mode results
   useEffect(() => {
@@ -108,10 +124,14 @@ export default function GameScreen() {
           hiddenModeResults: state.hiddenModeResults,
           difficulty: state.difficulty,
           puzzle: state.puzzle,
+          // Story mode data
+          storyAlien,
+          storyChapter,
+          storyLevel,
         },
       })
     }
-  }, [state.status, state.isHiddenMode, navigate, state])
+  }, [state.status, state.isHiddenMode, navigate, state, storyAlien, storyChapter, storyLevel])
 
   const handleNewPuzzle = async () => {
     requestNewPuzzle()
@@ -135,6 +155,10 @@ export default function GameScreen() {
         hiddenModeResults: state.hiddenModeResults,
         difficulty: state.difficulty,
         puzzle: state.puzzle,
+        // Story mode data
+        storyAlien,
+        storyChapter,
+        storyLevel,
       },
     })
   }

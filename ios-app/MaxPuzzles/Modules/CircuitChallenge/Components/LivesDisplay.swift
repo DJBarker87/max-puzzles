@@ -8,25 +8,30 @@ struct LivesDisplay: View {
     let lives: Int
     let maxLives: Int
     let vertical: Bool
+    let compact: Bool  // For smaller side panels
 
     init(
         lives: Int,
         maxLives: Int = 5,
-        vertical: Bool = false
+        vertical: Bool = false,
+        compact: Bool = false
     ) {
         self.lives = lives
         self.maxLives = maxLives
         self.vertical = vertical
+        self.compact = compact
     }
+
+    private var spacing: CGFloat { compact ? 4 : 8 }
 
     var body: some View {
         Group {
             if vertical {
-                VStack(spacing: 8) {
+                VStack(spacing: spacing) {
                     heartStack
                 }
             } else {
-                HStack(spacing: 8) {
+                HStack(spacing: spacing) {
                     heartStack
                 }
             }
@@ -37,7 +42,8 @@ struct LivesDisplay: View {
         ForEach(0..<maxLives, id: \.self) { index in
             HeartView(
                 isActive: index < lives,
-                isBreaking: false
+                isBreaking: false,
+                compact: compact
             )
         }
     }
@@ -50,6 +56,7 @@ struct LivesDisplay: View {
 struct HeartView: View {
     let isActive: Bool
     let isBreaking: Bool
+    let compact: Bool
 
     @State private var scale: CGFloat = 1.0
     @State private var rotation: Double = 0
@@ -57,9 +64,17 @@ struct HeartView: View {
     private let activeColor = Color(hex: "ff3366")
     private let inactiveColor = Color(hex: "2a2a3a")
 
+    private var heartSize: CGFloat { compact ? 14 : 20 }
+
+    init(isActive: Bool, isBreaking: Bool, compact: Bool = false) {
+        self.isActive = isActive
+        self.isBreaking = isBreaking
+        self.compact = compact
+    }
+
     var body: some View {
         Image(systemName: "heart.fill")
-            .font(.system(size: 20))
+            .font(.system(size: heartSize))
             .foregroundColor(isActive ? activeColor : inactiveColor)
             .scaleEffect(scale)
             .rotationEffect(.degrees(rotation))
@@ -148,6 +163,11 @@ struct HeartView: View {
         VStack {
             Text("Vertical").foregroundColor(.white)
             LivesDisplay(lives: 4, vertical: true)
+        }
+
+        VStack {
+            Text("Compact Vertical").foregroundColor(.white)
+            LivesDisplay(lives: 4, vertical: true, compact: true)
         }
     }
     .padding()

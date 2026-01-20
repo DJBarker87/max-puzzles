@@ -25,6 +25,9 @@ const QuickPlaySetup = lazy(() => import('@/modules/circuit-challenge/screens/Qu
 const GameScreen = lazy(() => import('@/modules/circuit-challenge/screens/GameScreen'))
 const SummaryScreen = lazy(() => import('@/modules/circuit-challenge/screens/SummaryScreen'))
 const PuzzleMakerScreen = lazy(() => import('@/modules/circuit-challenge/screens/PuzzleMakerScreen'))
+const ChapterSelect = lazy(() => import('@/modules/circuit-challenge/screens/ChapterSelect'))
+const LevelSelect = lazy(() => import('@/modules/circuit-challenge/screens/LevelSelect'))
+const StoryGameScreen = lazy(() => import('@/modules/circuit-challenge/screens/StoryGameScreen'))
 
 /**
  * Loading spinner for route transitions
@@ -215,6 +218,32 @@ const router = createBrowserRouter([
     element: (
       <LazyRoute>
         <PuzzleMakerScreen />
+      </LazyRoute>
+    ),
+  },
+
+  // Story Mode routes
+  {
+    path: '/play/circuit-challenge/story',
+    element: (
+      <LazyRoute>
+        <ChapterSelect />
+      </LazyRoute>
+    ),
+  },
+  {
+    path: '/play/circuit-challenge/story/:chapterId',
+    element: (
+      <LazyRoute>
+        <LevelSelect />
+      </LazyRoute>
+    ),
+  },
+  {
+    path: '/play/circuit-challenge/story/:chapterId/:levelId',
+    element: (
+      <LazyRoute>
+        <StoryGameScreen />
       </LazyRoute>
     ),
   },

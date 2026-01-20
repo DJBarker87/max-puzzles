@@ -11,6 +11,7 @@ struct ConnectorView: View {
     let isTraversed: Bool
     let isWrong: Bool
     let animationDelay: Double
+    let cellRadius: CGFloat  // Added to scale shortening
 
     @State private var flowPhase1: CGFloat = 0
     @State private var flowPhase2: CGFloat = 0
@@ -23,7 +24,8 @@ struct ConnectorView: View {
         value: Int,
         isTraversed: Bool = false,
         isWrong: Bool = false,
-        animationDelay: Double = 0
+        animationDelay: Double = 0,
+        cellRadius: CGFloat = 42  // Default for backwards compatibility
     ) {
         self.startPoint = startPoint
         self.endPoint = endPoint
@@ -31,10 +33,15 @@ struct ConnectorView: View {
         self.isTraversed = isTraversed
         self.isWrong = isWrong
         self.animationDelay = animationDelay
+        self.cellRadius = cellRadius
     }
 
-    // Shorten endpoints to not overlap with cells (matching web: 25px)
-    private var shortenBy: CGFloat { 25 }
+    // Shorten endpoints to match web app exactly
+    // Web uses 25px shortening for 42px radius cells
+    private var shortenBy: CGFloat {
+        // Scale proportionally: 25/42 ≈ 0.595
+        return cellRadius * 0.595
+    }
 
     private var direction: CGPoint {
         let dx = endPoint.x - startPoint.x
@@ -95,13 +102,14 @@ struct ConnectorView: View {
             ConnectorLine(start: shortenedStart, end: shortenedEnd)
                 .stroke(Color(hex: "3d3428"), style: StrokeStyle(lineWidth: 8, lineCap: .round))
 
-            // Value badge
+            // Value badge - scales with cell size
             ConnectorBadge(
                 value: value,
                 position: midPoint,
                 backgroundColor: Color(hex: "15151f"),
                 borderColor: Color(hex: "2a2a3a"),
-                textColor: Color(hex: "ff9f43")
+                textColor: Color(hex: "ff9f43"),
+                scale: cellRadius / 42  // Scale relative to default 42px radius
             )
         }
     }
@@ -147,13 +155,14 @@ struct ConnectorView: View {
             ConnectorLine(start: shortenedStart, end: shortenedEnd)
                 .stroke(Color(hex: "aaffcc"), style: StrokeStyle(lineWidth: 3, lineCap: .round))
 
-            // Value badge
+            // Value badge - scales with cell size
             ConnectorBadge(
                 value: value,
                 position: midPoint,
                 backgroundColor: Color(hex: "0a3020"),
                 borderColor: Color(hex: "00ff88"),
-                textColor: Color(hex: "00ff88")
+                textColor: Color(hex: "00ff88"),
+                scale: cellRadius / 42
             )
         }
     }
@@ -166,13 +175,14 @@ struct ConnectorView: View {
             ConnectorLine(start: shortenedStart, end: shortenedEnd)
                 .stroke(Color(hex: "ef4444"), style: StrokeStyle(lineWidth: 8, lineCap: .round))
 
-            // Value badge
+            // Value badge - scales with cell size
             ConnectorBadge(
                 value: value,
                 position: midPoint,
                 backgroundColor: Color(hex: "7f1d1d"),
                 borderColor: Color(hex: "ef4444"),
-                textColor: Color(hex: "ef4444")
+                textColor: Color(hex: "ef4444"),
+                scale: cellRadius / 42
             )
         }
     }
@@ -220,31 +230,54 @@ struct ConnectorLine: Shape {
 // MARK: - Connector Badge
 
 /// Value badge displayed at connector midpoint
+/// Matches web app exactly: 32x28px base, 14pt font, 6px radius
 struct ConnectorBadge: View {
     let value: Int
     let position: CGPoint
     let backgroundColor: Color
     let borderColor: Color
     let textColor: Color
+    let scale: CGFloat
 
-    private let badgeWidth: CGFloat = 32
-    private let badgeHeight: CGFloat = 28
+    // Web app base sizes (from Connector.tsx)
+    // Badge: 32x28px, font: 14pt, radius: 6px, border: 2px
+    private var badgeWidth: CGFloat { 32 * scale }
+    private var badgeHeight: CGFloat { 28 * scale }
+    private var fontSize: CGFloat { 14 * scale }
+    private var cornerRadius: CGFloat { 6 * scale }
+    private var borderWidth: CGFloat { 2 * scale }
+
+    init(
+        value: Int,
+        position: CGPoint,
+        backgroundColor: Color,
+        borderColor: Color,
+        textColor: Color,
+        scale: CGFloat = 1.0
+    ) {
+        self.value = value
+        self.position = position
+        self.backgroundColor = backgroundColor
+        self.borderColor = borderColor
+        self.textColor = textColor
+        self.scale = scale
+    }
 
     var body: some View {
         ZStack {
             // Background
-            RoundedRectangle(cornerRadius: 6)
+            RoundedRectangle(cornerRadius: cornerRadius)
                 .fill(backgroundColor)
                 .frame(width: badgeWidth, height: badgeHeight)
 
             // Border
-            RoundedRectangle(cornerRadius: 6)
-                .stroke(borderColor, lineWidth: 2)
+            RoundedRectangle(cornerRadius: cornerRadius)
+                .stroke(borderColor, lineWidth: borderWidth)
                 .frame(width: badgeWidth, height: badgeHeight)
 
             // Value text
             Text("\(value)")
-                .font(.system(size: 14, weight: .heavy))
+                .font(.system(size: fontSize, weight: .heavy))
                 .foregroundColor(textColor)
         }
         .position(position)

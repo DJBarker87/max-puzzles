@@ -413,11 +413,112 @@ struct StoryGameScreenView: View {
     @ObservedObject var progress: StoryProgress
     @Environment(\.dismiss) private var dismiss
 
-    var body: some View {
-        let storyLevel = StoryLevel(chapter: chapter, level: level)
-        let difficulty = StoryDifficulty.settings(for: storyLevel)
+    @State private var showIntro = true
+    @State private var introScale: CGFloat = 0.5
+    @State private var introOpacity: Double = 0
 
-        GameScreenView(difficulty: difficulty)
+    var body: some View {
+        ZStack {
+            // Game screen underneath
+            let storyLevel = StoryLevel(chapter: chapter, level: level)
+            let difficulty = StoryDifficulty.settings(for: storyLevel)
+
+            GameScreenView(
+                difficulty: difficulty,
+                storyAlien: alien,
+                storyChapter: chapter,
+                storyLevel: level
+            )
+
+            // Level intro overlay
+            if showIntro {
+                levelIntroOverlay
+                    .scaleEffect(introScale)
+                    .opacity(introOpacity)
+                    .onTapGesture {
+                        dismissIntro()
+                    }
+            }
+        }
+        .onAppear {
+            // Animate intro in
+            withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) {
+                introScale = 1.0
+                introOpacity = 1.0
+            }
+
+            // Auto-dismiss after delay
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
+                if showIntro {
+                    dismissIntro()
+                }
+            }
+        }
+    }
+
+    private var levelIntroOverlay: some View {
+        ZStack {
+            // Dark backdrop
+            Color.black.opacity(0.85)
+                .ignoresSafeArea()
+
+            VStack(spacing: 24) {
+                Spacer()
+
+                // Alien image
+                Image(alien.imageName)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 200, height: 200)
+
+                // Speech bubble with intro message
+                SpeechBubble {
+                    Text(introMessage)
+                        .font(.system(size: 18, weight: .medium))
+                        .foregroundColor(AppTheme.backgroundDark)
+                        .multilineTextAlignment(.center)
+                }
+                .padding(.horizontal, 40)
+
+                // Level info
+                Text("Level \(chapter)-\(levelLetter)")
+                    .font(.system(size: 24, weight: .bold))
+                    .foregroundColor(.white)
+
+                Spacer()
+
+                // Tap to continue hint
+                Text("Tap to start")
+                    .font(.system(size: 14))
+                    .foregroundColor(AppTheme.textSecondary)
+                    .padding(.bottom, 40)
+            }
+        }
+    }
+
+    private var levelLetter: String {
+        ["A", "B", "C", "D", "E"][level - 1]
+    }
+
+    private var introMessage: String {
+        let messages = [
+            "Let's solve Level \(chapter)-\(levelLetter)!",
+            "Ready for Level \(chapter)-\(levelLetter)?",
+            "Here we go! Level \(chapter)-\(levelLetter)!",
+            "Time for Level \(chapter)-\(levelLetter)!",
+            "Let's do this! Level \(chapter)-\(levelLetter)!"
+        ]
+        return messages.randomElement() ?? "Let's go!"
+    }
+
+    private func dismissIntro() {
+        withAnimation(.easeOut(duration: 0.3)) {
+            introOpacity = 0
+            introScale = 1.2
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            showIntro = false
+        }
     }
 }
 
