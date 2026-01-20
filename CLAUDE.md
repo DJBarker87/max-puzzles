@@ -863,6 +863,127 @@ class MusicService: ObservableObject {
 - `ConfettiView.swift` - Win celebration effects
 - `Print/` - PDF generation for Puzzle Maker
 
+### Story Mode Bug Fixes (January 2025)
+
+Fixed several issues in Story Mode:
+
+**Exit Button Fix (SummaryScreenView.swift, GameScreenView.swift):**
+- Added `onExit` callback to SummaryScreenView
+- GameScreenView passes onExit handler that dismisses fullScreenCover then navigates back
+- Exit button now works correctly in story mode
+
+```swift
+// SummaryScreenView
+var onExit: (() -> Void)?
+
+private func handleExit() {
+    if let onExit = onExit {
+        onExit()
+    } else {
+        dismiss()
+    }
+}
+
+// GameScreenView - in fullScreenCover
+onExit: {
+    navigateToSummary = false
+    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+        dismiss()
+    }
+}
+```
+
+**Speech Bubble Direction (ChapterSelectView.swift, LevelSelectView.swift):**
+- Added `pointsUp` parameter to SpeechBubble component
+- When alien is above the speech bubble, `pointsUp: true` makes triangle point up
+- BubbleTriangle shape handles both directions
+
+```swift
+struct SpeechBubble<Content: View>: View {
+    let pointsUp: Bool  // NEW: controls triangle direction
+    @ViewBuilder let content: Content
+
+    init(pointsUp: Bool = false, @ViewBuilder content: () -> Content)
+}
+```
+
+**Level Naming Format (LevelSelectView.swift, GameScreenView.swift):**
+- Changed from "Level 1-A" format to "Zix 1" format (alien name + level number)
+- Applies to level intro overlay, game header, and level selection
+
+```swift
+// Before: "Level \(chapter)-\(levelLetter)"
+// After: "\(alien.name) \(level)"
+
+private var storyModeTitle: String {
+    if let alien = storyAlien, let level = storyLevel {
+        return "\(alien.name) \(level)"
+    }
+    // ...
+}
+```
+
+**Responsive Summary Screen (SummaryScreenView.swift):**
+- Win/lose content now adapts to screen height
+- Compact mode (height < 700px) uses smaller sizes and spacing
+- All buttons fit on screen without scrolling
+
+```swift
+private func winContent(screenHeight: CGFloat) -> some View {
+    let isCompact = screenHeight < 700
+    let characterSize: CGFloat = isCompact ? 70 : 100
+    let titleSize: CGFloat = isCompact ? 24 : 32
+    let spacing: CGFloat = isCompact ? 12 : 24
+    let padding: CGFloat = isCompact ? 16 : 28
+    // ...
+}
+
+private func actionButtons(compact: Bool = false) -> some View {
+    let buttonPadding: CGFloat = compact ? 12 : 16
+    let fontSize: CGFloat = compact ? 15 : 17
+    // ...
+}
+```
+
+### Premium UI Enhancements (January 2025)
+
+Added polished animations and effects throughout the iOS app:
+
+**Animated Splash Screen (SplashView.swift):**
+- Typewriter effect for app title
+- Animated loading dots with glow
+- Staggered character reveals
+
+**Glow Effects (LivesDisplay.swift, TimerDisplay.swift):**
+- Hearts pulse with red glow when active
+- Timer has subtle green glow during gameplay
+- Uses SwiftUI shadow and overlay effects
+
+**Sound Effects Service (SoundEffectsService.swift):**
+- Singleton service for playing audio feedback
+- Integrates with haptic feedback
+- Supports move correct/incorrect, win, lose sounds
+
+**Premium Loading View (PremiumLoadingView.swift):**
+- Shimmer animation effect
+- Progress ring with gradient
+- Used during puzzle generation
+
+**Confetti Celebration (ConfettiView.swift):**
+- Particle system for win celebration
+- Multiple colors, random velocities
+- Auto-dismisses after celebration
+
+**Module Card Enhancements (ModuleCardView.swift):**
+- 3D press effect on tap
+- Subtle gradient overlays
+- Improved hover states
+
+**Starry Background Improvements (StarryBackground.swift):**
+- Twinkling star animation
+- Multiple star sizes
+- Random twinkle timing
+
 ---
 
 *End of CLAUDE.md*
