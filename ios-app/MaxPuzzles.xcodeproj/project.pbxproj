@@ -35,6 +35,13 @@
 		BB0001111111111111111111 /* CellAssigner.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0001101111111111111111 /* CellAssigner.swift */; };
 		BB0001131111111111111111 /* PuzzleValidator.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0001121111111111111111 /* PuzzleValidator.swift */; };
 		BB0001151111111111111111 /* PuzzleGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0001141111111111111111 /* PuzzleGenerator.swift */; };
+		DD0001011111111111111111 /* HexagonGeometry.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD0001001111111111111111 /* HexagonGeometry.swift */; };
+		DD0001031111111111111111 /* HexCellView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD0001021111111111111111 /* HexCellView.swift */; };
+		DD0001051111111111111111 /* ConnectorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD0001041111111111111111 /* ConnectorView.swift */; };
+		DD0001071111111111111111 /* PuzzleGridView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD0001061111111111111111 /* PuzzleGridView.swift */; };
+		DD0001091111111111111111 /* LivesDisplay.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD0001081111111111111111 /* LivesDisplay.swift */; };
+		DD0001111111111111111111 /* TimerDisplay.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD0001101111111111111111 /* TimerDisplay.swift */; };
+		DD0001131111111111111111 /* ActionButtons.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD0001121111111111111111 /* ActionButtons.swift */; };
 		CC0001011111111111111111 /* PathFinderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC0001001111111111111111 /* PathFinderTests.swift */; };
 		CC0001031111111111111111 /* ConnectorBuilderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC0001021111111111111111 /* ConnectorBuilderTests.swift */; };
 		CC0001051111111111111111 /* ExpressionGeneratorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC0001041111111111111111 /* ExpressionGeneratorTests.swift */; };
@@ -94,6 +101,13 @@
 		CC0001021111111111111111 /* ConnectorBuilderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectorBuilderTests.swift; sourceTree = "<group>"; };
 		CC0001041111111111111111 /* ExpressionGeneratorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExpressionGeneratorTests.swift; sourceTree = "<group>"; };
 		CC0001061111111111111111 /* PuzzleGeneratorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PuzzleGeneratorTests.swift; sourceTree = "<group>"; };
+		DD0001001111111111111111 /* HexagonGeometry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HexagonGeometry.swift; sourceTree = "<group>"; };
+		DD0001021111111111111111 /* HexCellView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HexCellView.swift; sourceTree = "<group>"; };
+		DD0001041111111111111111 /* ConnectorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectorView.swift; sourceTree = "<group>"; };
+		DD0001061111111111111111 /* PuzzleGridView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PuzzleGridView.swift; sourceTree = "<group>"; };
+		DD0001081111111111111111 /* LivesDisplay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LivesDisplay.swift; sourceTree = "<group>"; };
+		DD0001101111111111111111 /* TimerDisplay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimerDisplay.swift; sourceTree = "<group>"; };
+		DD0001121111111111111111 /* ActionButtons.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionButtons.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -292,6 +306,13 @@
 		AA0000561111111111111111 /* Components */ = {
 			isa = PBXGroup;
 			children = (
+				DD0001001111111111111111 /* HexagonGeometry.swift */,
+				DD0001021111111111111111 /* HexCellView.swift */,
+				DD0001041111111111111111 /* ConnectorView.swift */,
+				DD0001061111111111111111 /* PuzzleGridView.swift */,
+				DD0001081111111111111111 /* LivesDisplay.swift */,
+				DD0001101111111111111111 /* TimerDisplay.swift */,
+				DD0001121111111111111111 /* ActionButtons.swift */,
 			);
 			path = Components;
 			sourceTree = "<group>";
@@ -539,6 +560,13 @@
 				BB0001111111111111111111 /* CellAssigner.swift in Sources */,
 				BB0001131111111111111111 /* PuzzleValidator.swift in Sources */,
 				BB0001151111111111111111 /* PuzzleGenerator.swift in Sources */,
+				DD0001011111111111111111 /* HexagonGeometry.swift in Sources */,
+				DD0001031111111111111111 /* HexCellView.swift in Sources */,
+				DD0001051111111111111111 /* ConnectorView.swift in Sources */,
+				DD0001071111111111111111 /* PuzzleGridView.swift in Sources */,
+				DD0001091111111111111111 /* LivesDisplay.swift in Sources */,
+				DD0001111111111111111111 /* TimerDisplay.swift in Sources */,
+				DD0001131111111111111111 /* ActionButtons.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
