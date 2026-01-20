@@ -64,8 +64,10 @@ struct PuzzleMakerView: View {
                     errorCard(error)
                 }
             }
+            .frame(maxWidth: 400)
             .padding()
         }
+        .frame(maxWidth: .infinity)
     }
 
     // MARK: - Landscape Layout

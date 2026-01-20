@@ -71,7 +71,8 @@ struct FirstRunView: View {
                         .shadow(color: playerName.isEmpty ? .clear : AppTheme.accentPrimary.opacity(0.4), radius: 12)
                     }
                 }
-                .padding(.horizontal, 48)
+                .frame(maxWidth: 400)
+                .padding(.horizontal, 24)
                 .opacity(inputOpacity)
 
                 // Speech bubble (appears above alien)

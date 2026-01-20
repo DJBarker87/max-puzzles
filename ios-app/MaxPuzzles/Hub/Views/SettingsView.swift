@@ -39,8 +39,10 @@ struct SettingsView: View {
                     // Data Management Section
                     dataSection
                 }
+                .frame(maxWidth: 400)
                 .padding()
             }
+            .frame(maxWidth: .infinity)
         }
         .navigationTitle("Settings")
         .navigationBarTitleDisplayMode(.inline)

@@ -91,8 +91,10 @@ struct QuickPlaySetupView: View {
                 hiddenModeCard
                 startButton
             }
+            .frame(maxWidth: 400)
             .padding()
         }
+        .frame(maxWidth: .infinity)
     }
 
     // MARK: - Landscape Layout
