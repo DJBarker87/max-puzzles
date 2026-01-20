@@ -62,7 +62,7 @@ struct SplashView: View {
                     .opacity(titleOpacity)
 
                 // Subtitle
-                Text("Fun maths puzzles for kids")
+                Text("Fun Puzzles for Kids")
                     .font(.system(size: 18, weight: .semibold, design: .rounded))
                     .foregroundColor(.white.opacity(0.95))
                     .shadow(color: .black.opacity(0.7), radius: 3, x: 0, y: 1)
