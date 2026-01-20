@@ -1,6 +1,6 @@
 # Max's Puzzles - iOS App Planning Document
 
-**Version:** 1.0
+**Version:** 1.1
 **Last Updated:** January 2025
 **Purpose:** Comprehensive planning guide for building the native iOS version of Max's Puzzles
 
@@ -20,6 +20,20 @@
 10. [API Integration](#api-integration)
 11. [Testing Strategy](#testing-strategy)
 12. [App Store Requirements](#app-store-requirements)
+13. [Recent Web Changes to Mirror](#recent-web-changes-to-mirror)
+14. [Onboarding & First Run](#onboarding--first-run)
+15. [App Appearance](#app-appearance)
+16. [Parental Controls](#parental-controls)
+17. [Push Notifications](#push-notifications)
+18. [Crash Reporting & Analytics](#crash-reporting--analytics)
+19. [Build & Distribution](#build--distribution)
+20. [Mac Catalyst Support](#mac-catalyst-support)
+21. [Sound Effects](#sound-effects)
+22. [App Icon & Launch Screen](#app-icon--launch-screen)
+23. [Error Handling](#error-handling)
+24. [Module Registration Protocol](#module-registration-protocol)
+25. [Critical Design Decisions](#critical-design-decisions-reference)
+26. [Success Criteria](#success-criteria)
 
 ---
 
@@ -1596,6 +1610,384 @@ struct PuzzleGridView: View {
     // when View Solution is active
 }
 ```
+
+---
+
+## Onboarding & First Run
+
+### Approach: Skip to Play
+
+Minimal onboarding - get Max playing immediately:
+
+```
+App Launch
+    └─► Splash Screen (1-2 seconds)
+        └─► Main Hub (Guest Mode)
+            └─► Tap Circuit Challenge
+                └─► Quick Play Setup
+                    └─► Playing!
+```
+
+**No intro tutorial in V1.** Tutorial hints are deferred to V2 with progression levels.
+
+### First Launch Behavior
+
+1. Show splash screen with app logo
+2. Auto-create anonymous guest session (stored in UserDefaults)
+3. Navigate directly to Main Hub
+4. Guest can play immediately - prompt to create account later
+
+### Account Prompts
+
+Show gentle account creation prompts at natural moments:
+- After completing 5 puzzles (non-blocking toast)
+- When accessing Parent Dashboard (required)
+- In Settings screen (optional)
+
+Never interrupt gameplay with account prompts.
+
+---
+
+## App Appearance
+
+### Always Dark Theme
+
+The cosmic dark theme is core to the visual identity. **Do not** create a light mode variant.
+
+```swift
+// In App setup
+.preferredColorScheme(.dark)
+```
+
+This ensures:
+- Consistent experience matching web app
+- Better visibility of glow effects and animations
+- Reduced battery usage on OLED devices
+
+### Status Bar
+
+Use light content (white text) status bar:
+
+```swift
+.statusBarStyle(.lightContent)
+```
+
+---
+
+## Parental Controls
+
+### iOS Screen Time
+
+The app works normally with iOS Screen Time - parents can limit usage through system settings.
+
+### Built-in Time Limits (V2)
+
+V2 will add app-specific daily time limits controlled via Parent Dashboard:
+- Per-child configurable limits
+- Visual countdown warning at 5 minutes remaining
+- Graceful session end (finish current puzzle, then lock)
+- Override with parent PIN
+
+**V1:** No in-app time limits. Defer to iOS Screen Time.
+
+---
+
+## Push Notifications
+
+### V1: No Notifications
+
+Push notifications are **not included** in V1:
+- Keeps app simple
+- Avoids COPPA notification consent complexity
+- Reduces server infrastructure needs
+
+### Future Consideration (V2+)
+
+If added later, parent-only notifications:
+- Weekly progress summaries
+- Achievement milestones
+- Never notifications directly to children
+
+---
+
+## Crash Reporting & Analytics
+
+### Firebase Crashlytics Only
+
+```swift
+// Dependencies (SPM)
+// firebase-ios-sdk - Crashlytics module only
+```
+
+**Included:**
+- Crash reports with stack traces
+- Non-fatal error logging
+- Basic device info (iOS version, device model)
+
+**Excluded:**
+- No usage analytics
+- No event tracking
+- No user behavior data
+
+This respects privacy while enabling bug fixes.
+
+### Privacy Considerations
+
+- Crashlytics is COPPA-compliant
+- No personally identifiable information collected
+- Declare in App Store privacy nutrition labels
+
+---
+
+## Build & Distribution
+
+### V1: Manual Builds
+
+For V1, build and distribute manually:
+
+1. **Development:** Write code in Claude Code / VS Code
+2. **Build:** Open `.xcodeproj` in Xcode on Mac
+3. **Test:** Run on Simulator and physical devices
+4. **Archive:** Product → Archive in Xcode
+5. **Upload:** Distribute to App Store Connect
+6. **TestFlight:** Internal testing before release
+
+### TestFlight Beta Testing
+
+Before App Store release:
+1. Upload build to App Store Connect
+2. Add internal testers (yourself, family)
+3. Test on multiple devices (iPhone, iPad)
+4. Fix any issues
+5. Submit for review
+
+### Future: Xcode Cloud
+
+Consider adding Xcode Cloud if release frequency increases:
+- Automatic builds on push
+- TestFlight distribution
+- 25 free compute hours/month
+
+---
+
+## Mac Catalyst Support
+
+### Enable Catalyst
+
+The iPad app runs on Mac via Catalyst with minimal effort:
+
+```
+Xcode → Target → General → Deployment Info
+☑️ Mac (Designed for iPad)
+```
+
+### Mac-Specific Considerations
+
+| Feature | Behavior |
+|---------|----------|
+| Window resizing | Supported (iPad multitasking already handles this) |
+| Menu bar | Auto-generated from keyboard shortcuts |
+| Touch Bar | Not needed |
+| Hover effects | Already implemented for iPad trackpad |
+| Keyboard shortcuts | Already implemented for iPad keyboard |
+
+### Print on Mac
+
+`UIPrintInteractionController` works on Mac Catalyst - print functionality carries over automatically.
+
+---
+
+## Sound Effects
+
+### V1: Architecture Only
+
+Sound service architecture is built but **no audio files** in V1:
+
+```swift
+protocol SoundService {
+    func play(_ sound: SoundEffect)
+    var isMuted: Bool { get set }
+}
+
+enum SoundEffect {
+    case correctTap
+    case wrongTap
+    case gameWin
+    case gameLose
+    case buttonTap
+}
+
+// V1 Implementation
+class SilentSoundService: SoundService {
+    func play(_ sound: SoundEffect) { /* no-op */ }
+    var isMuted: Bool = true
+}
+```
+
+### Future Sound Design (V2+)
+
+When sounds are added:
+
+| Sound | Trigger | Duration |
+|-------|---------|----------|
+| `correct.wav` | Correct cell tap | ~200ms |
+| `wrong.wav` | Wrong cell tap | ~300ms |
+| `win.wav` | Puzzle completed | ~1s |
+| `lose.wav` | Out of lives | ~800ms |
+| `tap.wav` | Button tap | ~100ms |
+
+Use `.caf` format for best iOS performance.
+
+---
+
+## App Icon & Launch Screen
+
+### App Icon: Hex Cell with Circuit
+
+Design concept:
+- Glowing green hexagon (#00ff88)
+- Electric circuit lines flowing through
+- Dark cosmic background (#0a0a12)
+- Subtle glow effect around edges
+
+```
+┌─────────────────┐
+│    ╱──────╲     │
+│   ╱   ⚡    ╲    │
+│  │  ══╪══   │   │
+│   ╲   ⚡    ╱    │
+│    ╲──────╱     │
+└─────────────────┘
+```
+
+**Required sizes:**
+- 1024×1024 (App Store)
+- 180×180 (@3x iPhone)
+- 167×167 (@2x iPad Pro)
+- 152×152 (@2x iPad)
+- 120×120 (@2x iPhone, @3x iPhone)
+- Plus all smaller sizes
+
+### Launch Screen
+
+Simple launch screen matching app theme:
+
+```swift
+// LaunchScreen.storyboard or SwiftUI
+ZStack {
+    // Cosmic gradient background
+    LinearGradient(
+        colors: [Color(hex: "0a0a12"), Color(hex: "0f0f23")],
+        startPoint: .top,
+        endPoint: .bottom
+    )
+
+    // App icon (centered, ~200pt)
+    Image("AppIconLarge")
+        .resizable()
+        .frame(width: 200, height: 200)
+}
+```
+
+No loading text or progress indicators - keep it clean.
+
+---
+
+## Error Handling
+
+### User-Facing Error Messages
+
+| Error Type | Message | Action |
+|------------|---------|--------|
+| Puzzle generation failed | "Oops! Couldn't create a puzzle. Let's try again!" | Auto-retry or tap to retry |
+| Network offline (sync) | "You're offline. Your progress is saved and will sync later." | Dismiss (non-blocking) |
+| Network offline (login) | "Can't connect right now. Try again when you're online." | Retry button |
+| Auth failed | "Couldn't sign in. Please check your details and try again." | Stay on login screen |
+| PIN incorrect | "That's not the right PIN. Try again!" | Clear PIN, stay on screen |
+| Print failed | "Couldn't print. Make sure a printer is connected." | Dismiss |
+
+### Error Presentation
+
+```swift
+enum AppError: LocalizedError {
+    case puzzleGenerationFailed
+    case networkOffline
+    case authenticationFailed
+    case incorrectPIN
+    case printFailed
+
+    var errorDescription: String? {
+        switch self {
+        case .puzzleGenerationFailed:
+            return "Oops! Couldn't create a puzzle. Let's try again!"
+        // ... etc
+        }
+    }
+}
+```
+
+Use friendly, non-technical language appropriate for children and parents.
+
+### Retry Strategy
+
+- Puzzle generation: Auto-retry up to 20 times (per web app spec)
+- Network requests: Retry up to 3 times with exponential backoff
+- Show error only after all retries exhausted
+
+---
+
+## Module Registration Protocol
+
+### Module Interface
+
+Future puzzle modules register with the hub:
+
+```swift
+protocol PuzzleModule {
+    var id: String { get }
+    var name: String { get }
+    var description: String { get }
+    var iconName: String { get }
+
+    func createMenuView() -> AnyView
+    func createGameView(config: GameConfig) -> AnyView
+    func getProgressSummary(userId: UUID) -> ModuleProgress
+}
+
+struct ModuleRegistry {
+    static var modules: [PuzzleModule] = [
+        CircuitChallengeModule()
+    ]
+
+    static func register(_ module: PuzzleModule) {
+        modules.append(module)
+    }
+}
+```
+
+### Hub Services
+
+Modules receive hub services for shared functionality:
+
+```swift
+struct HubServices {
+    let auth: AuthService
+    let coins: CoinService      // V3 stub
+    let storage: StorageService
+    let sound: SoundService
+}
+
+// Module initialization
+class CircuitChallengeModule: PuzzleModule {
+    private var hubServices: HubServices?
+
+    func initialize(with services: HubServices) {
+        self.hubServices = services
+    }
+}
+```
+
+This mirrors the web app's hub-and-spoke architecture.
 
 ---
 
