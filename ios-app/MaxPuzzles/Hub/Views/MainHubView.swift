@@ -28,11 +28,6 @@ struct MainHubView: View {
                     moduleSelectionView
 
                     Spacer()
-
-                    // Guest mode indicator
-                    if appState.isGuest {
-                        guestModeIndicator
-                    }
                 }
                 .padding(.top, AppSpacing.lg)
             }
@@ -131,23 +126,6 @@ struct MainHubView: View {
             }
         )
         .shadow(color: AppTheme.accentPrimary.opacity(0.15), radius: 30, y: 10)
-    }
-
-    // MARK: - Guest Mode Indicator
-
-    private var guestModeIndicator: some View {
-        HStack(spacing: AppSpacing.sm) {
-            Image(systemName: "person.fill")
-            Text("Playing as \(storage.guestDisplayName)")
-            Text("•")
-            Button("Create Account") {
-                router.navigate(to: .login)
-            }
-            .foregroundColor(AppTheme.accentPrimary)
-        }
-        .font(AppTypography.bodySmall)
-        .foregroundColor(AppTheme.textSecondary)
-        .padding(.bottom, AppSpacing.lg)
     }
 
     // MARK: - Navigation Destinations

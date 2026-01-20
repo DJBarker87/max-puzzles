@@ -28,46 +28,46 @@ struct ChapterSelectView: View {
                     // Title with total stars
                     VStack(spacing: 4) {
                         Text("Story Mode")
-                            .font(.system(size: 30, weight: .heavy, design: .rounded))
+                            .font(.system(size: 28, weight: .heavy, design: .rounded))
                             .foregroundColor(.white)
                             .shadow(color: AppTheme.connectorGlow.opacity(0.8), radius: 8)
                             .shadow(color: AppTheme.accentPrimary.opacity(0.5), radius: 4)
 
-                        HStack(spacing: 16) {
-                            Text("Help the aliens by solving puzzles!")
-                                .font(.system(size: 14, weight: .medium))
+                        HStack(spacing: 12) {
+                            Text("Help the aliens!")
+                                .font(.system(size: 13, weight: .medium))
                                 .foregroundColor(.white.opacity(0.9))
 
                             // Total stars badge
                             HStack(spacing: 4) {
                                 Image(systemName: "star.fill")
-                                    .font(.system(size: 12))
-                                Text("\(progress.totalStars)")
-                                    .font(.system(size: 14, weight: .bold))
-                                Text("/150")
                                     .font(.system(size: 11))
+                                Text("\(progress.totalStars)")
+                                    .font(.system(size: 13, weight: .bold))
+                                Text("/150")
+                                    .font(.system(size: 10))
                                     .foregroundColor(AppTheme.textSecondary)
                             }
                             .foregroundColor(AppTheme.accentTertiary)
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 4)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 3)
                             .background(AppTheme.backgroundDark.opacity(0.5))
-                            .cornerRadius(12)
+                            .cornerRadius(10)
                         }
                     }
-                    .padding(.top, 16)
+                    .padding(.top, 8)
 
                     // 3D Carousel
                     Spacer()
 
                     carousel3D(geometry: geometry)
-                        .frame(height: geometry.size.height * 0.65)
+                        .frame(height: geometry.size.height * 0.68)
 
                     Spacer()
 
                     // Progress indicator
                     progressIndicator
-                        .padding(.bottom, 20)
+                        .padding(.bottom, 16)
                 }
             }
         }

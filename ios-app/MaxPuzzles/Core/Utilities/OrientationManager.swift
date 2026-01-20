@@ -35,18 +35,17 @@ final class OrientationManager: ObservableObject {
     /// Lock to portrait only (for hub screens)
     func lockPortrait() {
         allowedOrientations = .portrait
+        setNeedsOrientationUpdate()
 
         // Force rotation to portrait if currently in landscape
-        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
-            let currentOrientation = windowScene.interfaceOrientation
-            if currentOrientation.isLandscape {
-                windowScene.requestGeometryUpdate(.iOS(interfaceOrientations: .portrait)) { error in
-                    print("Orientation update error: \(error)")
+        DispatchQueue.main.async {
+            if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
+                let currentOrientation = windowScene.interfaceOrientation
+                if currentOrientation.isLandscape {
+                    windowScene.requestGeometryUpdate(.iOS(interfaceOrientations: .portrait)) { _ in }
                 }
             }
         }
-
-        setNeedsOrientationUpdate()
     }
 
     /// Allow all orientations
