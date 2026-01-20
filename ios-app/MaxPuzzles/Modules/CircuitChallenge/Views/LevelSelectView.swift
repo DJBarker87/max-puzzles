@@ -55,6 +55,7 @@ struct LevelSelectView: View {
                 }
             }
         }
+        .portraitOnPhone()
         .navigationDestination(isPresented: Binding(
             get: { selectedLevel != nil },
             set: { if !$0 { selectedLevel = nil } }

@@ -102,6 +102,25 @@ struct PortraitLockModifier: ViewModifier {
     }
 }
 
+/// View modifier that locks portrait on iPhone only (iPad stays unrestricted)
+struct PortraitOnPhoneModifier: ViewModifier {
+    func body(content: Content) -> some View {
+        content
+            .onAppear {
+                // Only lock portrait on iPhones, let iPads use any orientation
+                if UIDevice.current.userInterfaceIdiom == .phone {
+                    OrientationManager.shared.lockPortrait()
+                }
+            }
+            .onDisappear {
+                // Unlock when leaving
+                if UIDevice.current.userInterfaceIdiom == .phone {
+                    OrientationManager.shared.unlockAll()
+                }
+            }
+    }
+}
+
 // MARK: - View Extensions
 
 extension View {
@@ -113,5 +132,10 @@ extension View {
     /// Lock this view to portrait orientation only
     func portraitOnly() -> some View {
         modifier(PortraitLockModifier())
+    }
+
+    /// Lock portrait on iPhone only (iPad can use any orientation)
+    func portraitOnPhone() -> some View {
+        modifier(PortraitOnPhoneModifier())
     }
 }

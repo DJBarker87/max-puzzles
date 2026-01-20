@@ -71,6 +71,7 @@ struct ChapterSelectView: View {
                 }
             }
         }
+        .portraitOnPhone()
         .navigationTitle("Story Mode")
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
