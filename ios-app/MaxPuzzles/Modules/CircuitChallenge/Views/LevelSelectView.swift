@@ -532,8 +532,9 @@ struct StoryGameScreenView: View {
     }
 
     private var introMessage: String {
-        // Use the alien's unique intro messages
-        alien.randomIntroMessage
+        // Use the alien's unique intro messages with personalization
+        let playerName = StorageService.shared.playerName
+        return alien.personalizedIntroMessage(playerName: playerName)
     }
 
     private func dismissIntro() {

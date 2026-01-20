@@ -18,6 +18,42 @@ struct ChapterAlien: Identifiable {
     var randomWinMessage: String {
         winMessages.randomElement() ?? "Great job!"
     }
+
+    /// Get a personalized intro message with player name
+    func personalizedIntroMessage(playerName: String) -> String {
+        let baseMessage = randomIntroMessage
+        if playerName.isEmpty {
+            return baseMessage
+        }
+        // Add personalization to some messages
+        let personalizedPrefixes = [
+            "Hey \(playerName)! ",
+            "\(playerName), ",
+            "Alright \(playerName)! ",
+            "Come on \(playerName)! ",
+            "\(playerName)! "
+        ]
+        let prefix = personalizedPrefixes.randomElement() ?? ""
+        return prefix + baseMessage
+    }
+
+    /// Get a personalized win message with player name
+    func personalizedWinMessage(playerName: String) -> String {
+        let baseMessage = randomWinMessage
+        if playerName.isEmpty {
+            return baseMessage
+        }
+        // Add personalization
+        let personalizedSuffixes = [
+            " Way to go, \(playerName)!",
+            " \(playerName), you're amazing!",
+            " Fantastic work, \(playerName)!",
+            " You rock, \(playerName)!",
+            ""
+        ]
+        let suffix = personalizedSuffixes.randomElement() ?? ""
+        return baseMessage + suffix
+    }
 }
 
 extension ChapterAlien {

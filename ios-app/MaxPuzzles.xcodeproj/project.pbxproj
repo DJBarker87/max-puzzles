@@ -83,6 +83,7 @@
 		OO0001091111111111111111 /* LevelSelectView.swift in Sources */ = {isa = PBXBuildFile; fileRef = OO0001081111111111111111 /* LevelSelectView.swift */; };
 		OO0001111111111111111111 /* StarRevealView.swift in Sources */ = {isa = PBXBuildFile; fileRef = OO0001101111111111111111 /* StarRevealView.swift */; };
 		PP0001011111111111111111 /* MusicToggleButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = PP0001001111111111111111 /* MusicToggleButton.swift */; };
+		RR0001011111111111111111 /* FirstRunView.swift in Sources */ = {isa = PBXBuildFile; fileRef = RR0001001111111111111111 /* FirstRunView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -113,6 +114,7 @@
 		AA0001121111111111111111 /* ThemePreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemePreview.swift; sourceTree = "<group>"; };
 		AA0001141111111111111111 /* SplashView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplashView.swift; sourceTree = "<group>"; };
 		AA0001161111111111111111 /* MainHubView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainHubView.swift; sourceTree = "<group>"; };
+		RR0001001111111111111111 /* FirstRunView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FirstRunView.swift; sourceTree = "<group>"; };
 		AA0001181111111111111111 /* PrimaryButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrimaryButton.swift; sourceTree = "<group>"; };
 		AA0001201111111111111111 /* SecondaryButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecondaryButton.swift; sourceTree = "<group>"; };
 		AA0001221111111111111111 /* IconButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IconButton.swift; sourceTree = "<group>"; };
@@ -317,6 +319,7 @@
 				AA0001141111111111111111 /* SplashView.swift */,
 				AA0001161111111111111111 /* MainHubView.swift */,
 				II0001021111111111111111 /* SettingsView.swift */,
+				RR0001001111111111111111 /* FirstRunView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -676,6 +679,7 @@
 				AA0001131111111111111111 /* ThemePreview.swift in Sources */,
 				AA0001151111111111111111 /* SplashView.swift in Sources */,
 				AA0001171111111111111111 /* MainHubView.swift in Sources */,
+				RR0001011111111111111111 /* FirstRunView.swift in Sources */,
 				AA0001191111111111111111 /* PrimaryButton.swift in Sources */,
 				AA0001211111111111111111 /* SecondaryButton.swift in Sources */,
 				AA0001231111111111111111 /* IconButton.swift in Sources */,

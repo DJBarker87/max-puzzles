@@ -7,6 +7,7 @@ class AppState: ObservableObject {
     // MARK: - Published State
 
     @Published var isLoading = true
+    @Published var needsFirstRun = false
     @Published var currentUser: User?
     @Published var isGuest = true
     @Published var isInGame = false
@@ -33,6 +34,15 @@ class AppState: ObservableObject {
     /// Called when splash screen completes
     func completeLoading() {
         isLoading = false
+        // Check if first run setup is needed
+        if StorageService.shared.needsFirstRunSetup {
+            needsFirstRun = true
+        }
+    }
+
+    /// Called when first run setup is completed
+    func completeFirstRun() {
+        needsFirstRun = false
     }
 
     // MARK: - User State

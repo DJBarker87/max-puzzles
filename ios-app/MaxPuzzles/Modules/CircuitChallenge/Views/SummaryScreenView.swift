@@ -124,33 +124,53 @@ struct SummaryScreenView: View {
         }
     }
 
+    // Get the player name for personalization
+    private var playerName: String {
+        StorageService.shared.playerName
+    }
+
     // Alien win messages - use alien-specific messages when in story mode
     private var alienWinMessage: String {
-        // Use alien-specific win messages for story mode
+        // Use alien-specific win messages for story mode with personalization
         if let alien = data.storyAlien {
-            return alien.randomWinMessage
+            return alien.personalizedWinMessage(playerName: playerName)
         }
         // Fallback for quick play
-        let messages = [
+        let baseMessages = [
             "Amazing work! You did it!",
             "Fantastic! You're a star!",
             "Woohoo! Great job!",
             "You're incredible!",
             "That was awesome!"
         ]
-        return messages.randomElement() ?? "Great job!"
+        let baseMessage = baseMessages.randomElement() ?? "Great job!"
+        if playerName.isEmpty {
+            return baseMessage
+        }
+        return "\(baseMessage) Way to go, \(playerName)!"
     }
 
     // Alien lose/encourage messages
     private var alienLoseMessage: String {
-        let messages = [
+        let baseMessages = [
             "Don't give up! Try again!",
             "You've got this! One more try!",
             "Almost there! Keep going!",
             "You're doing great! Try again!",
             "Practice makes perfect!"
         ]
-        return messages.randomElement() ?? "Try again!"
+        let baseMessage = baseMessages.randomElement() ?? "Try again!"
+        if playerName.isEmpty {
+            return baseMessage
+        }
+        // Add personalized encouragement
+        let personalizedPrefixes = [
+            "\(playerName), ",
+            "Come on \(playerName)! ",
+            "Hey \(playerName)! "
+        ]
+        let prefix = personalizedPrefixes.randomElement() ?? ""
+        return prefix + baseMessage
     }
 
     private func startCharacterReveal() {

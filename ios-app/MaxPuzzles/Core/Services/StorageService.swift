@@ -14,6 +14,8 @@ class StorageService: ObservableObject {
 
     @Published private(set) var guestSessionId: UUID?
     @Published private(set) var guestDisplayName: String
+    @Published private(set) var playerName: String
+    @Published private(set) var hasCompletedFirstRun: Bool
     @Published private(set) var totalCoinsEarned: Int
     @Published private(set) var isSoundEnabled: Bool
     @Published private(set) var isMusicEnabled: Bool
@@ -27,6 +29,8 @@ class StorageService: ObservableObject {
     private enum Keys {
         static let guestSessionId = "maxpuzzles.guest.sessionId"
         static let guestDisplayName = "maxpuzzles.guest.displayName"
+        static let playerName = "maxpuzzles.player.name"
+        static let hasCompletedFirstRun = "maxpuzzles.firstRun.completed"
         static let soundEnabled = "maxpuzzles.settings.soundEnabled"
         static let musicEnabled = "maxpuzzles.settings.musicEnabled"
         static let musicVolume = "maxpuzzles.settings.musicVolume"
@@ -49,6 +53,8 @@ class StorageService: ObservableObject {
 
         // Load initial values
         self.guestDisplayName = defaults.string(forKey: Keys.guestDisplayName) ?? "Guest"
+        self.playerName = defaults.string(forKey: Keys.playerName) ?? ""
+        self.hasCompletedFirstRun = defaults.bool(forKey: Keys.hasCompletedFirstRun)
         self.totalCoinsEarned = defaults.integer(forKey: Keys.totalCoinsEarned)
         self.isSoundEnabled = defaults.bool(forKey: Keys.soundEnabled)
         self.isMusicEnabled = defaults.object(forKey: Keys.musicEnabled) as? Bool ?? true // Music on by default
@@ -100,6 +106,26 @@ class StorageService: ObservableObject {
         let finalName = trimmedName.isEmpty ? "Guest" : trimmedName
         defaults.set(finalName, forKey: Keys.guestDisplayName)
         guestDisplayName = finalName
+    }
+
+    // MARK: - Player Name
+
+    /// Sets the player's name (from first run setup)
+    func setPlayerName(_ name: String) {
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        defaults.set(trimmedName, forKey: Keys.playerName)
+        playerName = trimmedName
+    }
+
+    /// Marks first run as completed
+    func completeFirstRun() {
+        defaults.set(true, forKey: Keys.hasCompletedFirstRun)
+        hasCompletedFirstRun = true
+    }
+
+    /// Check if first run needs to be shown
+    var needsFirstRunSetup: Bool {
+        !hasCompletedFirstRun
     }
 
     // MARK: - Sound Settings
@@ -205,6 +231,8 @@ class StorageService: ObservableObject {
         let keysToRemove = [
             Keys.guestSessionId,
             Keys.guestDisplayName,
+            Keys.playerName,
+            Keys.hasCompletedFirstRun,
             Keys.soundEnabled,
             Keys.musicEnabled,
             Keys.musicVolume,
@@ -223,6 +251,8 @@ class StorageService: ObservableObject {
         // Reset published properties
         guestSessionId = nil
         guestDisplayName = "Guest"
+        playerName = ""
+        hasCompletedFirstRun = false
         totalCoinsEarned = 0
         isSoundEnabled = false
         isMusicEnabled = true
