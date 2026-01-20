@@ -24,6 +24,10 @@
 		AA0001291111111111111111 /* StarryBackground.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0001281111111111111111 /* StarryBackground.swift */; };
 		AA0001311111111111111111 /* CoinDisplay.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0001301111111111111111 /* CoinDisplay.swift */; };
 		AA0001411111111111111111 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AA0001401111111111111111 /* Assets.xcassets */; };
+		MM0001011111111111111111 /* game_music.m4a in Resources */ = {isa = PBXBuildFile; fileRef = MM0001001111111111111111 /* game_music.m4a */; };
+		MM0001031111111111111111 /* hub_music.m4a in Resources */ = {isa = PBXBuildFile; fileRef = MM0001021111111111111111 /* hub_music.m4a */; };
+		MM0001051111111111111111 /* victory_music.m4a in Resources */ = {isa = PBXBuildFile; fileRef = MM0001041111111111111111 /* victory_music.m4a */; };
+		MM0001071111111111111111 /* lose_music.wav in Resources */ = {isa = PBXBuildFile; fileRef = MM0001061111111111111111 /* lose_music.wav */; };
 		AA0002011111111111111111 /* MaxPuzzlesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0002001111111111111111 /* MaxPuzzlesTests.swift */; };
 		AA0003011111111111111111 /* MaxPuzzlesUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0003001111111111111111 /* MaxPuzzlesUITests.swift */; };
 		AA0003031111111111111111 /* MaxPuzzlesUITestsLaunchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0003021111111111111111 /* MaxPuzzlesUITestsLaunchTests.swift */; };
@@ -46,6 +50,29 @@
 		CC0001031111111111111111 /* ConnectorBuilderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC0001021111111111111111 /* ConnectorBuilderTests.swift */; };
 		CC0001051111111111111111 /* ExpressionGeneratorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC0001041111111111111111 /* ExpressionGeneratorTests.swift */; };
 		CC0001071111111111111111 /* PuzzleGeneratorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC0001061111111111111111 /* PuzzleGeneratorTests.swift */; };
+		EE0001011111111111111111 /* GameState.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE0001001111111111111111 /* GameState.swift */; };
+		EE0001031111111111111111 /* GameAction.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE0001021111111111111111 /* GameAction.swift */; };
+		EE0001051111111111111111 /* SummaryData.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE0001041111111111111111 /* SummaryData.swift */; };
+		FF0001011111111111111111 /* GameViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF0001001111111111111111 /* GameViewModel.swift */; };
+		GG0001011111111111111111 /* FeedbackManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = GG0001001111111111111111 /* FeedbackManager.swift */; };
+		DD0001151111111111111111 /* GameCoinDisplay.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD0001141111111111111111 /* GameCoinDisplay.swift */; };
+		DD0001171111111111111111 /* GameHeaderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD0001161111111111111111 /* GameHeaderView.swift */; };
+		BB0001171111111111111111 /* MoveValidator.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0001161111111111111111 /* MoveValidator.swift */; };
+		HH0001011111111111111111 /* QuickPlaySetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = HH0001001111111111111111 /* QuickPlaySetupView.swift */; };
+		HH0001031111111111111111 /* SummaryScreenView.swift in Sources */ = {isa = PBXBuildFile; fileRef = HH0001021111111111111111 /* SummaryScreenView.swift */; };
+		HH0001051111111111111111 /* GameScreenView.swift in Sources */ = {isa = PBXBuildFile; fileRef = HH0001041111111111111111 /* GameScreenView.swift */; };
+		HH0001071111111111111111 /* ModuleMenuView.swift in Sources */ = {isa = PBXBuildFile; fileRef = HH0001061111111111111111 /* ModuleMenuView.swift */; };
+		II0001011111111111111111 /* StorageService.swift in Sources */ = {isa = PBXBuildFile; fileRef = II0001001111111111111111 /* StorageService.swift */; };
+		II0001031111111111111111 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = II0001021111111111111111 /* SettingsView.swift */; };
+		LL0001011111111111111111 /* MusicService.swift in Sources */ = {isa = PBXBuildFile; fileRef = LL0001001111111111111111 /* MusicService.swift */; };
+		JJ0001011111111111111111 /* OrientationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = JJ0001001111111111111111 /* OrientationManager.swift */; };
+		KK0001011111111111111111 /* PrintTypes.swift in Sources */ = {isa = PBXBuildFile; fileRef = KK0001001111111111111111 /* PrintTypes.swift */; };
+		KK0001031111111111111111 /* PrintConverter.swift in Sources */ = {isa = PBXBuildFile; fileRef = KK0001021111111111111111 /* PrintConverter.swift */; };
+		KK0001051111111111111111 /* PrintRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = KK0001041111111111111111 /* PrintRenderer.swift */; };
+		KK0001071111111111111111 /* PuzzleMakerViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = KK0001061111111111111111 /* PuzzleMakerViewModel.swift */; };
+		KK0001091111111111111111 /* PuzzleMakerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = KK0001081111111111111111 /* PuzzleMakerView.swift */; };
+		NN0001011111111111111111 /* AnimatedCharacter.swift in Sources */ = {isa = PBXBuildFile; fileRef = NN0001001111111111111111 /* AnimatedCharacter.swift */; };
+		NN0001031111111111111111 /* ConfettiView.swift in Sources */ = {isa = PBXBuildFile; fileRef = NN0001021111111111111111 /* ConfettiView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -84,6 +111,10 @@
 		AA0001281111111111111111 /* StarryBackground.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StarryBackground.swift; sourceTree = "<group>"; };
 		AA0001301111111111111111 /* CoinDisplay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoinDisplay.swift; sourceTree = "<group>"; };
 		AA0001401111111111111111 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		MM0001001111111111111111 /* game_music.m4a */ = {isa = PBXFileReference; lastKnownFileType = audio.x-m4a; path = game_music.m4a; sourceTree = "<group>"; };
+		MM0001021111111111111111 /* hub_music.m4a */ = {isa = PBXFileReference; lastKnownFileType = audio.x-m4a; path = hub_music.m4a; sourceTree = "<group>"; };
+		MM0001041111111111111111 /* victory_music.m4a */ = {isa = PBXFileReference; lastKnownFileType = audio.x-m4a; path = victory_music.m4a; sourceTree = "<group>"; };
+		MM0001061111111111111111 /* lose_music.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = lose_music.wav; sourceTree = "<group>"; };
 		AA0002001111111111111111 /* MaxPuzzlesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MaxPuzzlesTests.swift; sourceTree = "<group>"; };
 		AA0002111111111111111111 /* MaxPuzzlesTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MaxPuzzlesTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		AA0003001111111111111111 /* MaxPuzzlesUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MaxPuzzlesUITests.swift; sourceTree = "<group>"; };
@@ -108,6 +139,29 @@
 		DD0001081111111111111111 /* LivesDisplay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LivesDisplay.swift; sourceTree = "<group>"; };
 		DD0001101111111111111111 /* TimerDisplay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimerDisplay.swift; sourceTree = "<group>"; };
 		DD0001121111111111111111 /* ActionButtons.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionButtons.swift; sourceTree = "<group>"; };
+		DD0001141111111111111111 /* GameCoinDisplay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameCoinDisplay.swift; sourceTree = "<group>"; };
+		DD0001161111111111111111 /* GameHeaderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameHeaderView.swift; sourceTree = "<group>"; };
+		BB0001161111111111111111 /* MoveValidator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoveValidator.swift; sourceTree = "<group>"; };
+		EE0001001111111111111111 /* GameState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameState.swift; sourceTree = "<group>"; };
+		EE0001021111111111111111 /* GameAction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameAction.swift; sourceTree = "<group>"; };
+		EE0001041111111111111111 /* SummaryData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SummaryData.swift; sourceTree = "<group>"; };
+		FF0001001111111111111111 /* GameViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameViewModel.swift; sourceTree = "<group>"; };
+		GG0001001111111111111111 /* FeedbackManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedbackManager.swift; sourceTree = "<group>"; };
+		HH0001001111111111111111 /* QuickPlaySetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickPlaySetupView.swift; sourceTree = "<group>"; };
+		HH0001021111111111111111 /* SummaryScreenView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SummaryScreenView.swift; sourceTree = "<group>"; };
+		HH0001041111111111111111 /* GameScreenView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameScreenView.swift; sourceTree = "<group>"; };
+		HH0001061111111111111111 /* ModuleMenuView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModuleMenuView.swift; sourceTree = "<group>"; };
+		II0001001111111111111111 /* StorageService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StorageService.swift; sourceTree = "<group>"; };
+		II0001021111111111111111 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		LL0001001111111111111111 /* MusicService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicService.swift; sourceTree = "<group>"; };
+		JJ0001001111111111111111 /* OrientationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrientationManager.swift; sourceTree = "<group>"; };
+		KK0001001111111111111111 /* PrintTypes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrintTypes.swift; sourceTree = "<group>"; };
+		KK0001021111111111111111 /* PrintConverter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrintConverter.swift; sourceTree = "<group>"; };
+		KK0001041111111111111111 /* PrintRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrintRenderer.swift; sourceTree = "<group>"; };
+		KK0001061111111111111111 /* PuzzleMakerViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PuzzleMakerViewModel.swift; sourceTree = "<group>"; };
+		KK0001081111111111111111 /* PuzzleMakerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PuzzleMakerView.swift; sourceTree = "<group>"; };
+		NN0001001111111111111111 /* AnimatedCharacter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnimatedCharacter.swift; sourceTree = "<group>"; };
+		NN0001021111111111111111 /* ConfettiView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfettiView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -208,6 +262,8 @@
 		AA0000331111111111111111 /* Services */ = {
 			isa = PBXGroup;
 			children = (
+				LL0001001111111111111111 /* MusicService.swift */,
+				II0001001111111111111111 /* StorageService.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -217,6 +273,7 @@
 			children = (
 				AA0001101111111111111111 /* Theme.swift */,
 				AA0001121111111111111111 /* ThemePreview.swift */,
+				JJ0001001111111111111111 /* OrientationManager.swift */,
 			);
 			path = Utilities;
 			sourceTree = "<group>";
@@ -236,6 +293,7 @@
 			children = (
 				AA0001141111111111111111 /* SplashView.swift */,
 				AA0001161111111111111111 /* MainHubView.swift */,
+				II0001021111111111111111 /* SettingsView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -267,6 +325,8 @@
 			children = (
 				AA0000531111111111111111 /* Views */,
 				AA0000541111111111111111 /* ViewModels */,
+				EE0000001111111111111111 /* Models */,
+				GG0000001111111111111111 /* Services */,
 				AA0000551111111111111111 /* Engine */,
 				AA0000561111111111111111 /* Components */,
 				AA0000571111111111111111 /* Print */,
@@ -277,6 +337,11 @@
 		AA0000531111111111111111 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				HH0001001111111111111111 /* QuickPlaySetupView.swift */,
+				HH0001021111111111111111 /* SummaryScreenView.swift */,
+				HH0001041111111111111111 /* GameScreenView.swift */,
+				HH0001061111111111111111 /* ModuleMenuView.swift */,
+				KK0001081111111111111111 /* PuzzleMakerView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -284,6 +349,8 @@
 		AA0000541111111111111111 /* ViewModels */ = {
 			isa = PBXGroup;
 			children = (
+				FF0001001111111111111111 /* GameViewModel.swift */,
+				KK0001061111111111111111 /* PuzzleMakerViewModel.swift */,
 			);
 			path = ViewModels;
 			sourceTree = "<group>";
@@ -299,6 +366,7 @@
 				BB0001101111111111111111 /* CellAssigner.swift */,
 				BB0001121111111111111111 /* PuzzleValidator.swift */,
 				BB0001141111111111111111 /* PuzzleGenerator.swift */,
+				BB0001161111111111111111 /* MoveValidator.swift */,
 			);
 			path = Engine;
 			sourceTree = "<group>";
@@ -313,6 +381,8 @@
 				DD0001081111111111111111 /* LivesDisplay.swift */,
 				DD0001101111111111111111 /* TimerDisplay.swift */,
 				DD0001121111111111111111 /* ActionButtons.swift */,
+				DD0001141111111111111111 /* GameCoinDisplay.swift */,
+				DD0001161111111111111111 /* GameHeaderView.swift */,
 			);
 			path = Components;
 			sourceTree = "<group>";
@@ -320,8 +390,29 @@
 		AA0000571111111111111111 /* Print */ = {
 			isa = PBXGroup;
 			children = (
+				KK0001001111111111111111 /* PrintTypes.swift */,
+				KK0001021111111111111111 /* PrintConverter.swift */,
+				KK0001041111111111111111 /* PrintRenderer.swift */,
 			);
 			path = Print;
+			sourceTree = "<group>";
+		};
+		EE0000001111111111111111 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				EE0001001111111111111111 /* GameState.swift */,
+				EE0001021111111111111111 /* GameAction.swift */,
+				EE0001041111111111111111 /* SummaryData.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		GG0000001111111111111111 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				GG0001001111111111111111 /* FeedbackManager.swift */,
+			);
+			path = Services;
 			sourceTree = "<group>";
 		};
 		AA0000611111111111111111 /* Shared */ = {
@@ -343,6 +434,8 @@
 				AA0001261111111111111111 /* ModuleCardView.swift */,
 				AA0001281111111111111111 /* StarryBackground.swift */,
 				AA0001301111111111111111 /* CoinDisplay.swift */,
+				NN0001001111111111111111 /* AnimatedCharacter.swift */,
+				NN0001021111111111111111 /* ConfettiView.swift */,
 				AA0000641111111111111111 /* Animations */,
 			);
 			path = UI;
@@ -374,6 +467,10 @@
 		AA0000721111111111111111 /* Sounds */ = {
 			isa = PBXGroup;
 			children = (
+				MM0001001111111111111111 /* game_music.m4a */,
+				MM0001021111111111111111 /* hub_music.m4a */,
+				MM0001041111111111111111 /* victory_music.m4a */,
+				MM0001061111111111111111 /* lose_music.wav */,
 			);
 			path = Sounds;
 			sourceTree = "<group>";
@@ -512,6 +609,10 @@
 			buildActionMask = 2147483647;
 			files = (
 				AA0001411111111111111111 /* Assets.xcassets in Resources */,
+				MM0001011111111111111111 /* game_music.m4a in Resources */,
+				MM0001031111111111111111 /* hub_music.m4a in Resources */,
+				MM0001051111111111111111 /* victory_music.m4a in Resources */,
+				MM0001071111111111111111 /* lose_music.wav in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -552,6 +653,10 @@
 				AA0001271111111111111111 /* ModuleCardView.swift in Sources */,
 				AA0001291111111111111111 /* StarryBackground.swift in Sources */,
 				AA0001311111111111111111 /* CoinDisplay.swift in Sources */,
+				II0001011111111111111111 /* StorageService.swift in Sources */,
+				LL0001011111111111111111 /* MusicService.swift in Sources */,
+				II0001031111111111111111 /* SettingsView.swift in Sources */,
+				JJ0001011111111111111111 /* OrientationManager.swift in Sources */,
 				BB0001011111111111111111 /* Types.swift in Sources */,
 				BB0001031111111111111111 /* DifficultyPresets.swift in Sources */,
 				BB0001051111111111111111 /* PathFinder.swift in Sources */,
@@ -567,6 +672,25 @@
 				DD0001091111111111111111 /* LivesDisplay.swift in Sources */,
 				DD0001111111111111111111 /* TimerDisplay.swift in Sources */,
 				DD0001131111111111111111 /* ActionButtons.swift in Sources */,
+				DD0001151111111111111111 /* GameCoinDisplay.swift in Sources */,
+				DD0001171111111111111111 /* GameHeaderView.swift in Sources */,
+				BB0001171111111111111111 /* MoveValidator.swift in Sources */,
+				EE0001011111111111111111 /* GameState.swift in Sources */,
+				EE0001031111111111111111 /* GameAction.swift in Sources */,
+				EE0001051111111111111111 /* SummaryData.swift in Sources */,
+				FF0001011111111111111111 /* GameViewModel.swift in Sources */,
+				GG0001011111111111111111 /* FeedbackManager.swift in Sources */,
+				HH0001011111111111111111 /* QuickPlaySetupView.swift in Sources */,
+				HH0001031111111111111111 /* SummaryScreenView.swift in Sources */,
+				HH0001051111111111111111 /* GameScreenView.swift in Sources */,
+				HH0001071111111111111111 /* ModuleMenuView.swift in Sources */,
+				KK0001011111111111111111 /* PrintTypes.swift in Sources */,
+				KK0001031111111111111111 /* PrintConverter.swift in Sources */,
+				KK0001051111111111111111 /* PrintRenderer.swift in Sources */,
+				KK0001071111111111111111 /* PuzzleMakerViewModel.swift in Sources */,
+				KK0001091111111111111111 /* PuzzleMakerView.swift in Sources */,
+				NN0001011111111111111111 /* AnimatedCharacter.swift in Sources */,
+				NN0001031111111111111111 /* ConfettiView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
