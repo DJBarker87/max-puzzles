@@ -273,12 +273,12 @@ struct SummaryScreenView: View {
                     .font(.system(size: 32, weight: .bold))
                     .foregroundColor(.white)
 
-                // Stars (V2 placeholder - always show 3 stars for now)
+                // Stars earned
                 HStack(spacing: 8) {
                     ForEach(0..<3, id: \.self) { index in
-                        Image(systemName: "star.fill")
+                        Image(systemName: index < data.starsEarned ? "star.fill" : "star")
                             .font(.system(size: 32))
-                            .foregroundColor(AppTheme.accentTertiary)
+                            .foregroundColor(index < data.starsEarned ? AppTheme.accentTertiary : Color.gray.opacity(0.4))
                     }
                 }
                 .padding(.vertical, 4)

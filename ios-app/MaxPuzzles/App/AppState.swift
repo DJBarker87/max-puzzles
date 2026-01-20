@@ -12,6 +12,9 @@ class AppState: ObservableObject {
     @Published var isInGame = false
     @Published var shouldPauseTimer = false
 
+    /// Story mode progress tracker
+    @Published var storyProgress = StoryProgress()
+
     // MARK: - Private
 
     private var backgroundDate: Date?

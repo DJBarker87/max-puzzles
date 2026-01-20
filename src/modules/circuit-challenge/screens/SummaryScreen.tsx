@@ -100,6 +100,23 @@ export default function SummaryScreen() {
   const accuracy = totalMoves > 0 ? Math.round((correctMoves / totalMoves) * 100) : 0
   const timeFormatted = formatTime(data.elapsedMs)
 
+  // Calculate stars earned
+  // - 1 star: Completed the puzzle
+  // - 2 stars: Completed with no lives lost (no mistakes)
+  // - 3 stars: Completed with no lives lost AND average tile time < 5 seconds
+  const averageTileTimeMs = correctMoves > 0 ? data.elapsedMs / correctMoves : 0
+  const starsEarned = (() => {
+    if (!data.won) return 0
+    let stars = 1 // 1 star for completing
+    if (mistakes === 0) {
+      stars = 2 // 2 stars for no mistakes
+      if (averageTileTimeMs < 5000) {
+        stars = 3 // 3 stars for no mistakes AND fast
+      }
+    }
+    return stars
+  })()
+
   const handlePlayAgain = () => {
     if (isStoryMode && data.storyChapter && data.storyLevel) {
       // Go back to story game with skip intro
@@ -308,8 +325,17 @@ export default function SummaryScreen() {
             Puzzle Complete!
           </h1>
 
-          {/* Stars (V2 - placeholder for now) */}
-          <div className="text-4xl mb-6">⭐ ⭐ ⭐</div>
+          {/* Stars earned */}
+          <div className="text-4xl mb-6 flex justify-center gap-2">
+            {[1, 2, 3].map((star) => (
+              <span
+                key={star}
+                className={star <= starsEarned ? 'opacity-100' : 'opacity-30'}
+              >
+                ⭐
+              </span>
+            ))}
+          </div>
 
           {/* Stats */}
           <div className="space-y-2 mb-6 text-lg">

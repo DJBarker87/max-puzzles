@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { StarryBackground } from '../components'
 import { chapterAliens, type ChapterAlien } from '@/shared/types/chapterAlien'
@@ -23,6 +23,12 @@ export default function StoryGameScreen() {
 
   // Check if coming back from summary (skip intro)
   const skipIntro = location.state?.skipIntro === true
+
+  // Get a random intro message once on mount (use alien's unique messages)
+  const introMessage = useMemo(() => {
+    if (!alien) return "Good luck!"
+    return alien.introMessages[Math.floor(Math.random() * alien.introMessages.length)]
+  }, [alien])
 
   useEffect(() => {
     if (skipIntro) {
@@ -49,15 +55,6 @@ export default function StoryGameScreen() {
   const storyLevel: StoryLevel = { chapter, level }
   const difficulty = getStoryDifficulty(storyLevel)
   const levelLetter = ['A', 'B', 'C', 'D', 'E'][level - 1]
-
-  const introMessages = [
-    `Let's solve Level ${chapter}-${levelLetter}!`,
-    `Ready for Level ${chapter}-${levelLetter}?`,
-    `Here we go! Level ${chapter}-${levelLetter}!`,
-    `Time for Level ${chapter}-${levelLetter}!`,
-    `Let's do this! Level ${chapter}-${levelLetter}!`,
-  ]
-  const introMessage = introMessages[Math.floor(Math.random() * introMessages.length)]
 
   const dismissIntro = () => {
     setIntroVisible(false)

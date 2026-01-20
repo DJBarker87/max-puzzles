@@ -395,6 +395,24 @@ struct GameScreenView: View {
                 appState.updateGuestCoins(viewModel.state.puzzleCoins)
             }
             appState.recordPuzzleCompleted()
+
+            // Record story mode progress
+            if let chapter = storyChapter, let level = storyLevel {
+                let won = viewModel.state.status == .won
+                let livesLost = viewModel.state.moveHistory.filter { !$0.correct }.count
+                let timeSeconds = Double(viewModel.state.elapsedMs) / 1000.0
+                let tileCount = viewModel.state.moveHistory.filter { $0.correct }.count
+
+                appState.storyProgress.recordAttempt(
+                    chapter: chapter,
+                    level: level,
+                    won: won,
+                    livesLost: livesLost,
+                    timeSeconds: timeSeconds,
+                    tileCount: tileCount
+                )
+            }
+
             coinsPersisted = true
         }
 

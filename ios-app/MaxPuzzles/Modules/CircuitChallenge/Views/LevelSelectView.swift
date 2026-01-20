@@ -501,14 +501,8 @@ struct StoryGameScreenView: View {
     }
 
     private var introMessage: String {
-        let messages = [
-            "Let's solve Level \(chapter)-\(levelLetter)!",
-            "Ready for Level \(chapter)-\(levelLetter)?",
-            "Here we go! Level \(chapter)-\(levelLetter)!",
-            "Time for Level \(chapter)-\(levelLetter)!",
-            "Let's do this! Level \(chapter)-\(levelLetter)!"
-        ]
-        return messages.randomElement() ?? "Let's go!"
+        // Use the alien's unique intro messages
+        alien.randomIntroMessage
     }
 
     private func dismissIntro() {

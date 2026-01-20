@@ -269,7 +269,7 @@ struct LargeChapterCard: View {
                         .foregroundColor(isUnlocked ? AppTheme.textSecondary : .gray)
 
                     Text(alien.name)
-                        .font(.system(size: 28, weight: .bold))
+                        .font(.system(size: 32, weight: .heavy, design: .rounded))
                         .foregroundColor(isUnlocked ? .white : .gray)
 
                     if isUnlocked {

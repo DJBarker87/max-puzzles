@@ -107,4 +107,34 @@ struct SummaryData {
         let seconds = totalSeconds % 60
         return String(format: "%d:%02d", minutes, seconds)
     }
+
+    /// Average time per tile in milliseconds
+    /// Calculated as total time / number of correct moves (tiles traversed)
+    var averageTileTimeMs: Double {
+        guard correctMoves > 0 else { return 0 }
+        return Double(elapsedMs) / Double(correctMoves)
+    }
+
+    /// Stars earned for this puzzle (1-3)
+    /// - 1 star: Completed the puzzle
+    /// - 2 stars: Completed with no lives lost (no mistakes)
+    /// - 3 stars: Completed with no lives lost AND average tile time < 5 seconds
+    var starsEarned: Int {
+        guard won else { return 0 }
+
+        // 1 star for completing
+        var stars = 1
+
+        // 2 stars for no mistakes (no lives lost)
+        if mistakes == 0 {
+            stars = 2
+
+            // 3 stars for no mistakes AND average tile time < 5 seconds (5000ms)
+            if averageTileTimeMs < 5000 {
+                stars = 3
+            }
+        }
+
+        return stars
+    }
 }

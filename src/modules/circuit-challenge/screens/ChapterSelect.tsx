@@ -263,7 +263,7 @@ function LargeChapterCard({
           Chapter {alien.chapter}
         </p>
         <p
-          className={`text-2xl font-bold mt-1 ${
+          className={`text-3xl font-display font-black mt-1 ${
             isUnlocked ? "text-white" : "text-gray-600"
           }`}
         >
