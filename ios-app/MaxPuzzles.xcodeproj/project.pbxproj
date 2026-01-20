@@ -1,0 +1,829 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		AA0001011111111111111111 /* MaxPuzzlesApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0001001111111111111111 /* MaxPuzzlesApp.swift */; };
+		AA0001031111111111111111 /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0001021111111111111111 /* AppState.swift */; };
+		AA0001051111111111111111 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0001041111111111111111 /* ContentView.swift */; };
+		AA0001071111111111111111 /* AppRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0001061111111111111111 /* AppRouter.swift */; };
+		AA0001091111111111111111 /* User.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0001081111111111111111 /* User.swift */; };
+		AA0001111111111111111111 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0001101111111111111111 /* Theme.swift */; };
+		AA0001131111111111111111 /* ThemePreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0001121111111111111111 /* ThemePreview.swift */; };
+		AA0001151111111111111111 /* SplashView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0001141111111111111111 /* SplashView.swift */; };
+		AA0001171111111111111111 /* MainHubView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0001161111111111111111 /* MainHubView.swift */; };
+		AA0001191111111111111111 /* PrimaryButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0001181111111111111111 /* PrimaryButton.swift */; };
+		AA0001211111111111111111 /* SecondaryButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0001201111111111111111 /* SecondaryButton.swift */; };
+		AA0001231111111111111111 /* IconButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0001221111111111111111 /* IconButton.swift */; };
+		AA0001251111111111111111 /* CardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0001241111111111111111 /* CardView.swift */; };
+		AA0001271111111111111111 /* ModuleCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0001261111111111111111 /* ModuleCardView.swift */; };
+		AA0001291111111111111111 /* StarryBackground.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0001281111111111111111 /* StarryBackground.swift */; };
+		AA0001311111111111111111 /* CoinDisplay.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0001301111111111111111 /* CoinDisplay.swift */; };
+		AA0001411111111111111111 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AA0001401111111111111111 /* Assets.xcassets */; };
+		AA0002011111111111111111 /* MaxPuzzlesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0002001111111111111111 /* MaxPuzzlesTests.swift */; };
+		AA0003011111111111111111 /* MaxPuzzlesUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0003001111111111111111 /* MaxPuzzlesUITests.swift */; };
+		AA0003031111111111111111 /* MaxPuzzlesUITestsLaunchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0003021111111111111111 /* MaxPuzzlesUITestsLaunchTests.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		AA0002101111111111111111 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = AA0000001111111111111111 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = AA0000101111111111111111;
+			remoteInfo = MaxPuzzles;
+		};
+		AA0003101111111111111111 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = AA0000001111111111111111 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = AA0000101111111111111111;
+			remoteInfo = MaxPuzzles;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		AA0000111111111111111111 /* MaxPuzzles.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MaxPuzzles.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		AA0001001111111111111111 /* MaxPuzzlesApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MaxPuzzlesApp.swift; sourceTree = "<group>"; };
+		AA0001021111111111111111 /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
+		AA0001041111111111111111 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		AA0001061111111111111111 /* AppRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppRouter.swift; sourceTree = "<group>"; };
+		AA0001081111111111111111 /* User.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = User.swift; sourceTree = "<group>"; };
+		AA0001101111111111111111 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
+		AA0001121111111111111111 /* ThemePreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemePreview.swift; sourceTree = "<group>"; };
+		AA0001141111111111111111 /* SplashView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplashView.swift; sourceTree = "<group>"; };
+		AA0001161111111111111111 /* MainHubView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainHubView.swift; sourceTree = "<group>"; };
+		AA0001181111111111111111 /* PrimaryButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrimaryButton.swift; sourceTree = "<group>"; };
+		AA0001201111111111111111 /* SecondaryButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecondaryButton.swift; sourceTree = "<group>"; };
+		AA0001221111111111111111 /* IconButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IconButton.swift; sourceTree = "<group>"; };
+		AA0001241111111111111111 /* CardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardView.swift; sourceTree = "<group>"; };
+		AA0001261111111111111111 /* ModuleCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModuleCardView.swift; sourceTree = "<group>"; };
+		AA0001281111111111111111 /* StarryBackground.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StarryBackground.swift; sourceTree = "<group>"; };
+		AA0001301111111111111111 /* CoinDisplay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoinDisplay.swift; sourceTree = "<group>"; };
+		AA0001401111111111111111 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		AA0002001111111111111111 /* MaxPuzzlesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MaxPuzzlesTests.swift; sourceTree = "<group>"; };
+		AA0002111111111111111111 /* MaxPuzzlesTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MaxPuzzlesTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		AA0003001111111111111111 /* MaxPuzzlesUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MaxPuzzlesUITests.swift; sourceTree = "<group>"; };
+		AA0003021111111111111111 /* MaxPuzzlesUITestsLaunchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MaxPuzzlesUITestsLaunchTests.swift; sourceTree = "<group>"; };
+		AA0003111111111111111111 /* MaxPuzzlesUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MaxPuzzlesUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		AA0000121111111111111111 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AA0002121111111111111111 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AA0003121111111111111111 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		AA0000011111111111111111 = {
+			isa = PBXGroup;
+			children = (
+				AA0000201111111111111111 /* MaxPuzzles */,
+				AA0002201111111111111111 /* MaxPuzzlesTests */,
+				AA0003201111111111111111 /* MaxPuzzlesUITests */,
+				AA0000131111111111111111 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		AA0000131111111111111111 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				AA0000111111111111111111 /* MaxPuzzles.app */,
+				AA0002111111111111111111 /* MaxPuzzlesTests.xctest */,
+				AA0003111111111111111111 /* MaxPuzzlesUITests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		AA0000201111111111111111 /* MaxPuzzles */ = {
+			isa = PBXGroup;
+			children = (
+				AA0000211111111111111111 /* App */,
+				AA0000311111111111111111 /* Core */,
+				AA0000411111111111111111 /* Hub */,
+				AA0000511111111111111111 /* Modules */,
+				AA0000611111111111111111 /* Shared */,
+				AA0000711111111111111111 /* Resources */,
+			);
+			path = MaxPuzzles;
+			sourceTree = "<group>";
+		};
+		AA0000211111111111111111 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				AA0001001111111111111111 /* MaxPuzzlesApp.swift */,
+				AA0001021111111111111111 /* AppState.swift */,
+				AA0001041111111111111111 /* ContentView.swift */,
+				AA0000221111111111111111 /* Navigation */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		AA0000221111111111111111 /* Navigation */ = {
+			isa = PBXGroup;
+			children = (
+				AA0001061111111111111111 /* AppRouter.swift */,
+			);
+			path = Navigation;
+			sourceTree = "<group>";
+		};
+		AA0000311111111111111111 /* Core */ = {
+			isa = PBXGroup;
+			children = (
+				AA0000321111111111111111 /* Models */,
+				AA0000331111111111111111 /* Services */,
+				AA0000341111111111111111 /* Utilities */,
+			);
+			path = Core;
+			sourceTree = "<group>";
+		};
+		AA0000321111111111111111 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				AA0001081111111111111111 /* User.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		AA0000331111111111111111 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
+		AA0000341111111111111111 /* Utilities */ = {
+			isa = PBXGroup;
+			children = (
+				AA0001101111111111111111 /* Theme.swift */,
+				AA0001121111111111111111 /* ThemePreview.swift */,
+			);
+			path = Utilities;
+			sourceTree = "<group>";
+		};
+		AA0000411111111111111111 /* Hub */ = {
+			isa = PBXGroup;
+			children = (
+				AA0000421111111111111111 /* Views */,
+				AA0000431111111111111111 /* ViewModels */,
+				AA0000441111111111111111 /* Components */,
+			);
+			path = Hub;
+			sourceTree = "<group>";
+		};
+		AA0000421111111111111111 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				AA0001141111111111111111 /* SplashView.swift */,
+				AA0001161111111111111111 /* MainHubView.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		AA0000431111111111111111 /* ViewModels */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = ViewModels;
+			sourceTree = "<group>";
+		};
+		AA0000441111111111111111 /* Components */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = Components;
+			sourceTree = "<group>";
+		};
+		AA0000511111111111111111 /* Modules */ = {
+			isa = PBXGroup;
+			children = (
+				AA0000521111111111111111 /* CircuitChallenge */,
+			);
+			path = Modules;
+			sourceTree = "<group>";
+		};
+		AA0000521111111111111111 /* CircuitChallenge */ = {
+			isa = PBXGroup;
+			children = (
+				AA0000531111111111111111 /* Views */,
+				AA0000541111111111111111 /* ViewModels */,
+				AA0000551111111111111111 /* Engine */,
+				AA0000561111111111111111 /* Components */,
+				AA0000571111111111111111 /* Print */,
+			);
+			path = CircuitChallenge;
+			sourceTree = "<group>";
+		};
+		AA0000531111111111111111 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		AA0000541111111111111111 /* ViewModels */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = ViewModels;
+			sourceTree = "<group>";
+		};
+		AA0000551111111111111111 /* Engine */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = Engine;
+			sourceTree = "<group>";
+		};
+		AA0000561111111111111111 /* Components */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = Components;
+			sourceTree = "<group>";
+		};
+		AA0000571111111111111111 /* Print */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = Print;
+			sourceTree = "<group>";
+		};
+		AA0000611111111111111111 /* Shared */ = {
+			isa = PBXGroup;
+			children = (
+				AA0000621111111111111111 /* UI */,
+				AA0000631111111111111111 /* Types */,
+			);
+			path = Shared;
+			sourceTree = "<group>";
+		};
+		AA0000621111111111111111 /* UI */ = {
+			isa = PBXGroup;
+			children = (
+				AA0001181111111111111111 /* PrimaryButton.swift */,
+				AA0001201111111111111111 /* SecondaryButton.swift */,
+				AA0001221111111111111111 /* IconButton.swift */,
+				AA0001241111111111111111 /* CardView.swift */,
+				AA0001261111111111111111 /* ModuleCardView.swift */,
+				AA0001281111111111111111 /* StarryBackground.swift */,
+				AA0001301111111111111111 /* CoinDisplay.swift */,
+				AA0000641111111111111111 /* Animations */,
+			);
+			path = UI;
+			sourceTree = "<group>";
+		};
+		AA0000631111111111111111 /* Types */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = Types;
+			sourceTree = "<group>";
+		};
+		AA0000641111111111111111 /* Animations */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = Animations;
+			sourceTree = "<group>";
+		};
+		AA0000711111111111111111 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				AA0001401111111111111111 /* Assets.xcassets */,
+				AA0000721111111111111111 /* Sounds */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		AA0000721111111111111111 /* Sounds */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = Sounds;
+			sourceTree = "<group>";
+		};
+		AA0002201111111111111111 /* MaxPuzzlesTests */ = {
+			isa = PBXGroup;
+			children = (
+				AA0002001111111111111111 /* MaxPuzzlesTests.swift */,
+			);
+			path = MaxPuzzlesTests;
+			sourceTree = "<group>";
+		};
+		AA0003201111111111111111 /* MaxPuzzlesUITests */ = {
+			isa = PBXGroup;
+			children = (
+				AA0003001111111111111111 /* MaxPuzzlesUITests.swift */,
+				AA0003021111111111111111 /* MaxPuzzlesUITestsLaunchTests.swift */,
+			);
+			path = MaxPuzzlesUITests;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		AA0000101111111111111111 /* MaxPuzzles */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = AA0000141111111111111111 /* Build configuration list for PBXNativeTarget "MaxPuzzles" */;
+			buildPhases = (
+				AA0000151111111111111111 /* Sources */,
+				AA0000121111111111111111 /* Frameworks */,
+				AA0000161111111111111111 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = MaxPuzzles;
+			productName = MaxPuzzles;
+			productReference = AA0000111111111111111111 /* MaxPuzzles.app */;
+			productType = "com.apple.product-type.application";
+		};
+		AA0002131111111111111111 /* MaxPuzzlesTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = AA0002141111111111111111 /* Build configuration list for PBXNativeTarget "MaxPuzzlesTests" */;
+			buildPhases = (
+				AA0002151111111111111111 /* Sources */,
+				AA0002121111111111111111 /* Frameworks */,
+				AA0002161111111111111111 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				AA0002171111111111111111 /* PBXTargetDependency */,
+			);
+			name = MaxPuzzlesTests;
+			productName = MaxPuzzlesTests;
+			productReference = AA0002111111111111111111 /* MaxPuzzlesTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		AA0003131111111111111111 /* MaxPuzzlesUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = AA0003141111111111111111 /* Build configuration list for PBXNativeTarget "MaxPuzzlesUITests" */;
+			buildPhases = (
+				AA0003151111111111111111 /* Sources */,
+				AA0003121111111111111111 /* Frameworks */,
+				AA0003161111111111111111 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				AA0003171111111111111111 /* PBXTargetDependency */,
+			);
+			name = MaxPuzzlesUITests;
+			productName = MaxPuzzlesUITests;
+			productReference = AA0003111111111111111111 /* MaxPuzzlesUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		AA0000001111111111111111 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1500;
+				LastUpgradeCheck = 1500;
+				TargetAttributes = {
+					AA0000101111111111111111 = {
+						CreatedOnToolsVersion = 15.0;
+					};
+					AA0002131111111111111111 = {
+						CreatedOnToolsVersion = 15.0;
+						TestTargetID = AA0000101111111111111111;
+					};
+					AA0003131111111111111111 = {
+						CreatedOnToolsVersion = 15.0;
+						TestTargetID = AA0000101111111111111111;
+					};
+				};
+			};
+			buildConfigurationList = AA0000021111111111111111 /* Build configuration list for PBXProject "MaxPuzzles" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = AA0000011111111111111111;
+			productRefGroup = AA0000131111111111111111 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				AA0000101111111111111111 /* MaxPuzzles */,
+				AA0002131111111111111111 /* MaxPuzzlesTests */,
+				AA0003131111111111111111 /* MaxPuzzlesUITests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		AA0000161111111111111111 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AA0001411111111111111111 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AA0002161111111111111111 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AA0003161111111111111111 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		AA0000151111111111111111 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AA0001011111111111111111 /* MaxPuzzlesApp.swift in Sources */,
+				AA0001031111111111111111 /* AppState.swift in Sources */,
+				AA0001051111111111111111 /* ContentView.swift in Sources */,
+				AA0001071111111111111111 /* AppRouter.swift in Sources */,
+				AA0001091111111111111111 /* User.swift in Sources */,
+				AA0001111111111111111111 /* Theme.swift in Sources */,
+				AA0001131111111111111111 /* ThemePreview.swift in Sources */,
+				AA0001151111111111111111 /* SplashView.swift in Sources */,
+				AA0001171111111111111111 /* MainHubView.swift in Sources */,
+				AA0001191111111111111111 /* PrimaryButton.swift in Sources */,
+				AA0001211111111111111111 /* SecondaryButton.swift in Sources */,
+				AA0001231111111111111111 /* IconButton.swift in Sources */,
+				AA0001251111111111111111 /* CardView.swift in Sources */,
+				AA0001271111111111111111 /* ModuleCardView.swift in Sources */,
+				AA0001291111111111111111 /* StarryBackground.swift in Sources */,
+				AA0001311111111111111111 /* CoinDisplay.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AA0002151111111111111111 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AA0002011111111111111111 /* MaxPuzzlesTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AA0003151111111111111111 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AA0003011111111111111111 /* MaxPuzzlesUITests.swift in Sources */,
+				AA0003031111111111111111 /* MaxPuzzlesUITestsLaunchTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		AA0002171111111111111111 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = AA0000101111111111111111 /* MaxPuzzles */;
+			targetProxy = AA0002101111111111111111 /* PBXContainerItemProxy */;
+		};
+		AA0003171111111111111111 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = AA0000101111111111111111 /* MaxPuzzles */;
+			targetProxy = AA0003101111111111111111 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		AA0000031111111111111111 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		AA0000041111111111111111 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		AA0000171111111111111111 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_ASSET_PATHS = "";
+				DEVELOPMENT_TEAM = "";
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "Max's Puzzles";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.education";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.maxpuzzles.app;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTS_MACCATALYST = YES;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		AA0000181111111111111111 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_ASSET_PATHS = "";
+				DEVELOPMENT_TEAM = "";
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "Max's Puzzles";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.education";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.maxpuzzles.app;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTS_MACCATALYST = YES;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		AA0002181111111111111111 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.maxpuzzles.app.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/MaxPuzzles.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/MaxPuzzles";
+			};
+			name = Debug;
+		};
+		AA0002191111111111111111 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.maxpuzzles.app.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/MaxPuzzles.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/MaxPuzzles";
+			};
+			name = Release;
+		};
+		AA0003181111111111111111 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.maxpuzzles.app.uitests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = MaxPuzzles;
+			};
+			name = Debug;
+		};
+		AA0003191111111111111111 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.maxpuzzles.app.uitests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = MaxPuzzles;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		AA0000021111111111111111 /* Build configuration list for PBXProject "MaxPuzzles" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AA0000031111111111111111 /* Debug */,
+				AA0000041111111111111111 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		AA0000141111111111111111 /* Build configuration list for PBXNativeTarget "MaxPuzzles" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AA0000171111111111111111 /* Debug */,
+				AA0000181111111111111111 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		AA0002141111111111111111 /* Build configuration list for PBXNativeTarget "MaxPuzzlesTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AA0002181111111111111111 /* Debug */,
+				AA0002191111111111111111 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		AA0003141111111111111111 /* Build configuration list for PBXNativeTarget "MaxPuzzlesUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AA0003181111111111111111 /* Debug */,
+				AA0003191111111111111111 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = AA0000001111111111111111 /* Project object */;
+}
