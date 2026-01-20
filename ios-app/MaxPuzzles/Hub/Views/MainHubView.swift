@@ -41,6 +41,8 @@ struct MainHubView: View {
             }
             .fullScreenCover(isPresented: $showCircuitChallenge) {
                 ModuleMenuView()
+                    .environmentObject(appState)
+                    .environmentObject(musicService)
             }
         }
         .environmentObject(router)

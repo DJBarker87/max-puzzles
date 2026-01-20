@@ -121,6 +121,8 @@ struct GameScreenView: View {
                         }
                     }
                 )
+                .environmentObject(appState)
+                .environmentObject(musicService)
             }
         }
     }
