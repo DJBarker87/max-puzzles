@@ -28,8 +28,15 @@ struct SplashView: View {
 
     var body: some View {
         ZStack {
-            // Background with shooting stars
-            StarryBackground(useHubImage: true, enableShootingStars: true, enableParallax: true)
+            // Colorful splash background image
+            Image("splash_background")
+                .resizable()
+                .scaledToFill()
+                .ignoresSafeArea()
+
+            // Dark overlay for text readability
+            Color.black.opacity(0.3)
+                .ignoresSafeArea()
 
             // Energy ring expanding outward
             Circle()
@@ -44,85 +51,27 @@ struct SplashView: View {
 
             // Main content
             VStack(spacing: AppSpacing.lg) {
-                // Logo assembly
-                ZStack {
-                    // Outer glow ring
-                    Circle()
-                        .fill(
-                            RadialGradient(
-                                colors: [
-                                    AppTheme.connectorGlow.opacity(boltGlow * 0.3),
-                                    AppTheme.connectorGlow.opacity(0)
-                                ],
-                                center: .center,
-                                startRadius: 40,
-                                endRadius: 100
-                            )
-                        )
-                        .frame(width: 200, height: 200)
-                        .rotationEffect(.degrees(energyRingRotation))
-
-                    // Hexagon background
-                    Image(systemName: "hexagon.fill")
-                        .font(.system(size: 120))
-                        .foregroundStyle(
-                            LinearGradient(
-                                colors: [
-                                    AppTheme.accentPrimary.opacity(0.5),
-                                    AppTheme.accentPrimary.opacity(0.2)
-                                ],
-                                startPoint: .top,
-                                endPoint: .bottom
-                            )
-                        )
-                        .shadow(color: AppTheme.accentPrimary.opacity(0.5), radius: 20)
-
-                    // Electric bolt with glow layers
-                    ZStack {
-                        // Outer glow
-                        Image(systemName: "bolt.fill")
-                            .font(.system(size: 55))
-                            .foregroundColor(AppTheme.connectorGlow)
-                            .blur(radius: 15)
-                            .opacity(boltGlow)
-
-                        // Middle glow
-                        Image(systemName: "bolt.fill")
-                            .font(.system(size: 52))
-                            .foregroundColor(AppTheme.connectorGlow)
-                            .blur(radius: 6)
-                            .opacity(boltGlow * 0.8)
-
-                        // Core
-                        Image(systemName: "bolt.fill")
-                            .font(.system(size: 50))
-                            .foregroundColor(.white)
-                            .shadow(color: AppTheme.connectorGlow, radius: 8)
-                    }
-                    .scaleEffect(boltScale)
-                }
-                .scaleEffect(logoScale)
-                .opacity(logoOpacity)
+                Spacer()
 
                 // Title with premium typography
                 Text("Max's Puzzles")
-                    .font(.system(size: 36, weight: .heavy, design: .rounded))
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [.white, .white.opacity(0.9)],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
-                    )
-                    .shadow(color: AppTheme.connectorGlow.opacity(0.5), radius: 10)
+                    .font(.system(size: 48, weight: .heavy, design: .rounded))
+                    .foregroundColor(.white)
+                    .shadow(color: .black.opacity(0.8), radius: 4, x: 0, y: 2)
+                    .shadow(color: AppTheme.connectorGlow.opacity(0.6), radius: 12)
                     .opacity(titleOpacity)
 
                 // Subtitle
                 Text("Fun maths puzzles for kids")
-                    .font(.system(size: 16, weight: .medium, design: .rounded))
-                    .foregroundColor(AppTheme.textSecondary)
+                    .font(.system(size: 18, weight: .semibold, design: .rounded))
+                    .foregroundColor(.white.opacity(0.95))
+                    .shadow(color: .black.opacity(0.7), radius: 3, x: 0, y: 1)
                     .opacity(subtitleOpacity)
+
+                Spacer()
+                Spacer()
             }
+            .padding(.top, 60)
         }
         .onAppear {
             startPremiumAnimation()
@@ -140,15 +89,9 @@ struct SplashView: View {
             particleProgress = 1
         }
 
-        // Phase 2: Logo reveal (0.3s - 0.8s)
+        // Phase 2: Energy ring expands (0.3s - 0.8s)
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
             phase = .revealing
-
-            // Logo scales up with spring
-            withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) {
-                logoScale = 1.0
-                logoOpacity = 1.0
-            }
 
             // Energy ring expands
             withAnimation(.easeOut(duration: 0.6)) {
@@ -160,38 +103,23 @@ struct SplashView: View {
             }
         }
 
-        // Phase 3: Bolt appears (0.5s - 0.8s)
+        // Phase 3: Haptic feedback (0.5s)
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            withAnimation(.spring(response: 0.4, dampingFraction: 0.5)) {
-                boltScale = 1.0
-            }
-
-            // Haptic feedback
             FeedbackManager.shared.haptic(.medium)
             SoundEffectsService.shared.play(.unlock)
         }
 
-        // Phase 4: Title and subtitle (0.7s - 1.2s)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.7) {
-            withAnimation(.easeOut(duration: 0.4)) {
+        // Phase 4: Title appears (0.4s - 0.8s)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+            withAnimation(.easeOut(duration: 0.5)) {
                 titleOpacity = 1
             }
         }
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.9) {
-            withAnimation(.easeOut(duration: 0.3)) {
+        // Phase 5: Subtitle appears (0.7s - 1.0s)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.7) {
+            withAnimation(.easeOut(duration: 0.4)) {
                 subtitleOpacity = 1
-            }
-        }
-
-        // Phase 5: Continuous glow pulse
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
-            withAnimation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true)) {
-                boltGlow = 1.0
-            }
-
-            withAnimation(.linear(duration: 20).repeatForever(autoreverses: false)) {
-                energyRingRotation = 360
             }
 
             phase = .complete
