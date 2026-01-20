@@ -984,6 +984,61 @@ Added polished animations and effects throughout the iOS app:
 - Multiple star sizes
 - Random twinkle timing
 
+### First-Run Name Entry (January 2025)
+
+Added personalized welcome experience on first app launch:
+
+**FirstRunView.swift:**
+- Random alien rises from bottom with spring animation
+- Speech bubble asks "What's your name?"
+- Text input for player name with Skip option
+- Exit animation drops alien back down
+
+**StorageService.swift additions:**
+```swift
+var playerName: String  // Stored in UserDefaults
+var hasCompletedFirstRun: Bool
+func setPlayerName(_ name: String)
+func completeFirstRun()
+var needsFirstRunSetup: Bool { !hasCompletedFirstRun }
+```
+
+**Personalized Messages (ChapterAlien.swift):**
+```swift
+func personalizedIntroMessage(playerName: String) -> String
+func personalizedWinMessage(playerName: String) -> String
+// Adds prefixes like "Hey Max!" or suffixes like "Way to go, Max!"
+```
+
+### Custom Menu Icons (January 2025)
+
+Added vibrant custom icons for all Circuit Challenge menu buttons:
+
+**Asset Images:**
+- `splash_background` - Colorful alien scene with puzzle pieces
+- `circuit_challenge_icon` - Glowing green hexagon with lightning
+- `quick_play_icon` - Glowing green play button triangle
+- `story_mode_icon` - Magic book with stars and planets
+- `puzzle_maker_icon` - Worksheet paper with hexagons and pencil
+
+**Electric Font Style:**
+Applied throughout Circuit Challenge menus:
+```swift
+.font(.system(size: 22, weight: .heavy, design: .rounded))
+.foregroundColor(.white)
+.shadow(color: AppTheme.connectorGlow.opacity(0.8), radius: 8)
+.shadow(color: AppTheme.accentPrimary.opacity(0.5), radius: 4)
+```
+
+**Splash Background Usage:**
+All menus now use `splash_background` image with dark overlay:
+- SplashView
+- FirstRunView
+- ModuleMenuView
+- QuickPlaySetupView
+- ChapterSelectView
+- LevelSelectView
+
 ---
 
 *End of CLAUDE.md*
