@@ -6,7 +6,7 @@ import SwiftUI
 /// Brings together the puzzle grid, status displays, and action buttons
 struct GameScreenView: View {
     @StateObject private var viewModel: GameViewModel
-    @StateObject private var feedback = FeedbackManager()
+    private var feedback: FeedbackManager { FeedbackManager.shared }
     @EnvironmentObject var appState: AppState
     @EnvironmentObject var musicService: MusicService
     @Environment(\.dismiss) private var dismiss
@@ -40,6 +40,17 @@ struct GameScreenView: View {
     /// Check if in compact vertical (landscape on iPhone)
     private var isLandscape: Bool {
         verticalSizeClass == .compact
+    }
+
+    /// Title for the header - shows alien name for story mode
+    private var storyModeTitle: String {
+        if let alien = storyAlien, let level = storyLevel {
+            return "\(alien.name) \(level)"
+        } else if viewModel.state.isHiddenMode {
+            return "Hidden Mode"
+        } else {
+            return "Quick Play"
+        }
     }
 
     var body: some View {
@@ -101,6 +112,13 @@ struct GameScreenView: View {
                     onSeeSolution: data.won ? nil : {
                         navigateToSummary = false
                         viewModel.showSolution()
+                    },
+                    onExit: {
+                        navigateToSummary = false
+                        // Small delay to let fullScreenCover dismiss before navigation
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                            dismiss()
+                        }
                     }
                 )
             }
@@ -113,7 +131,7 @@ struct GameScreenView: View {
         VStack(spacing: 0) {
             // Header
             GameHeaderView(
-                title: viewModel.state.isHiddenMode ? "Hidden Mode" : "Quick Play",
+                title: storyModeTitle,
                 lives: viewModel.state.lives,
                 maxLives: viewModel.state.maxLives,
                 elapsedMs: viewModel.state.elapsedMs,

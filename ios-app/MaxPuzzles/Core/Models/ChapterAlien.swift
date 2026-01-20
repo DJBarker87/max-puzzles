@@ -7,10 +7,16 @@ struct ChapterAlien: Identifiable {
     let imageName: String
     let words: [String]  // 3 fun words kids would like
     let introMessages: [String]  // 5 unique good luck messages
+    let winMessages: [String]  // 5 unique congratulatory messages
 
     /// Get a random intro message for level start
     var randomIntroMessage: String {
         introMessages.randomElement() ?? "Good luck!"
+    }
+
+    /// Get a random win message for level complete
+    var randomWinMessage: String {
+        winMessages.randomElement() ?? "Great job!"
     }
 }
 
@@ -30,6 +36,13 @@ extension ChapterAlien {
                 "I believe in you, friend!",
                 "Ready to bounce to victory?",
                 "Let's squish this puzzle together!"
+            ],
+            winMessages: [
+                "Boing boing! You bounced right through it!",
+                "Squishy hugs for my clever friend!",
+                "You did it! I'm bouncing with joy!",
+                "Squish-tastic work, buddy!",
+                "My bouncy heart is so happy for you!"
             ]
         ),
 
@@ -46,6 +59,13 @@ extension ChapterAlien {
                 "Wave hello to victory!",
                 "Giggle time! You can do it!",
                 "Let's wiggle through this one!"
+            ],
+            winMessages: [
+                "Hehehe! You're so clever!",
+                "Wobbly-wonderful work!",
+                "I'm giggling with happiness!",
+                "You made me wiggle with joy!",
+                "Wavy high-five for the win!"
             ]
         ),
 
@@ -62,6 +82,13 @@ extension ChapterAlien {
                 "Drift through this puzzle smoothly!",
                 "Shine on, puzzle master!",
                 "Glide along the right path!"
+            ],
+            winMessages: [
+                "You floated through beautifully...",
+                "Your mind glows so bright!",
+                "Drifting to victory... lovely.",
+                "You shine like the stars above.",
+                "Smooth as slime, well done."
             ]
         ),
 
@@ -78,6 +105,13 @@ extension ChapterAlien {
                 "Tickle those brain cells!",
                 "Get fuzzy with it!",
                 "Wild and fluffy, here we go!"
+            ],
+            winMessages: [
+                "FLUFF YEAH! You did it!",
+                "That was crazy awesome!",
+                "You tickled that puzzle into submission!",
+                "Fuzzy high-five! Amazing!",
+                "Wild! Incredible! FLUFFY!"
             ]
         ),
 
@@ -94,6 +128,13 @@ extension ChapterAlien {
                 "Shine bright like a crystal!",
                 "Your brain is sparkling today!",
                 "Time for some shiny problem solving!"
+            ],
+            winMessages: [
+                "You sparkled magnificently!",
+                "Pure magic! Simply dazzling!",
+                "You shine brighter than any crystal!",
+                "What a sparkling performance!",
+                "Magical! Truly magical!"
             ]
         ),
 
@@ -110,6 +151,13 @@ extension ChapterAlien {
                 "Glow for it, superstar!",
                 "Tee-hee! You're gonna shine!",
                 "Radiate that brain power!"
+            ],
+            winMessages: [
+                "You lit up the whole puzzle!",
+                "Warm fuzzy feelings for you!",
+                "Tee-hee! You're a superstar!",
+                "You radiated pure brilliance!",
+                "Glowing with pride for you!"
             ]
         ),
 
@@ -126,6 +174,13 @@ extension ChapterAlien {
                 "Snap to it, puzzle solver!",
                 "Feeling cheeky? Let's win this!",
                 "Pinch this puzzle into shape!"
+            ],
+            winMessages: [
+                "Click click! Snappy work!",
+                "You crunched it perfectly!",
+                "Now THAT'S what I call cheeky genius!",
+                "Pinch me, that was amazing!",
+                "Snap snap snap! Victory claps!"
             ]
         ),
 
@@ -142,6 +197,13 @@ extension ChapterAlien {
                 "Engage brainy mode!",
                 "Processing... You will win!",
                 "Zap! Power up that brain!"
+            ],
+            winMessages: [
+                "BEEP BOOP! Success confirmed!",
+                "Zip zap! Lightning fast solve!",
+                "Brain power at maximum! Well done!",
+                "Processing complete: You are awesome!",
+                "Zzzap! Electrifying performance!"
             ]
         ),
 
@@ -158,6 +220,13 @@ extension ChapterAlien {
                 "Let knowledge flow like water.",
                 "Wise one, the path reveals itself.",
                 "Ancient secrets guide your way."
+            ],
+            winMessages: [
+                "The wisdom within you shines bright.",
+                "Mysterious and magnificent...",
+                "The ancients would be proud.",
+                "Your mind flows like a gentle river.",
+                "Enlightenment achieved, wise one."
             ]
         ),
 
@@ -174,6 +243,13 @@ extension ChapterAlien {
                 "This is your ultimate moment!",
                 "Legendary solver, show your power!",
                 "The golden victory awaits you!"
+            ],
+            winMessages: [
+                "LEGENDARY! A true champion!",
+                "Golden perfection! You're incredible!",
+                "The ultimate victory is yours!",
+                "A legend has been born today!",
+                "Pure gold! Absolutely magnificent!"
             ]
         )
     ]

@@ -3,7 +3,9 @@ import SwiftUI
 /// Chapter selection screen with 3D carousel of large alien cards
 struct ChapterSelectView: View {
     @Environment(\.dismiss) private var dismiss
-    @StateObject private var progress = StoryProgress()
+    @EnvironmentObject var appState: AppState
+
+    private var progress: StoryProgress { appState.storyProgress }
 
     @State private var selectedChapter: ChapterAlien?
     @State private var currentIndex: Int = 0
@@ -15,15 +17,33 @@ struct ChapterSelectView: View {
                 StarryBackground(useHubImage: true)
 
                 VStack(spacing: 0) {
-                    // Title
+                    // Title with total stars
                     VStack(spacing: 4) {
                         Text("Story Mode")
                             .font(.system(size: 28, weight: .bold))
                             .foregroundColor(.white)
 
-                        Text("Help the aliens by solving puzzles!")
-                            .font(.system(size: 14))
-                            .foregroundColor(AppTheme.textSecondary)
+                        HStack(spacing: 16) {
+                            Text("Help the aliens by solving puzzles!")
+                                .font(.system(size: 14))
+                                .foregroundColor(AppTheme.textSecondary)
+
+                            // Total stars badge
+                            HStack(spacing: 4) {
+                                Image(systemName: "star.fill")
+                                    .font(.system(size: 12))
+                                Text("\(progress.totalStars)")
+                                    .font(.system(size: 14, weight: .bold))
+                                Text("/150")
+                                    .font(.system(size: 11))
+                                    .foregroundColor(AppTheme.textSecondary)
+                            }
+                            .foregroundColor(AppTheme.accentTertiary)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 4)
+                            .background(AppTheme.backgroundDark.opacity(0.5))
+                            .cornerRadius(12)
+                        }
                     }
                     .padding(.top, 16)
 
@@ -59,8 +79,7 @@ struct ChapterSelectView: View {
             if let alien = selectedChapter {
                 LevelSelectView(
                     chapter: alien.chapter,
-                    alien: alien,
-                    progress: progress
+                    alien: alien
                 )
             }
         }
@@ -92,6 +111,8 @@ struct ChapterSelectView: View {
                     isUnlocked: progress.isChapterUnlocked(alien.chapter),
                     isCompleted: progress.isChapterCompleted(alien.chapter),
                     isCurrent: index == currentIndex,
+                    levelsCompleted: countCompletedLevels(alien.chapter),
+                    chapterStars: progress.starsInChapter(alien.chapter),
                     cardWidth: cardWidth,
                     cardHeight: cardHeight,
                     onTap: {
@@ -180,6 +201,10 @@ struct ChapterSelectView: View {
             return Color.gray.opacity(0.3)
         }
     }
+
+    private func countCompletedLevels(_ chapter: Int) -> Int {
+        (1...5).filter { progress.isLevelCompleted(chapter: chapter, level: $0) }.count
+    }
 }
 
 // MARK: - Large Chapter Card
@@ -189,6 +214,8 @@ struct LargeChapterCard: View {
     let isUnlocked: Bool
     let isCompleted: Bool
     let isCurrent: Bool
+    let levelsCompleted: Int
+    let chapterStars: Int
     let cardWidth: CGFloat
     let cardHeight: CGFloat
     let onTap: () -> Void
@@ -279,6 +306,40 @@ struct LargeChapterCard: View {
                             .font(.system(size: 13))
                             .foregroundColor(AppTheme.accentPrimary.opacity(0.9))
                             .multilineTextAlignment(.center)
+
+                        // Progress bar showing levels completed
+                        VStack(spacing: 6) {
+                            // 5 level progress bars
+                            HStack(spacing: 4) {
+                                ForEach(1...5, id: \.self) { level in
+                                    RoundedRectangle(cornerRadius: 2)
+                                        .fill(level <= levelsCompleted
+                                            ? AppTheme.accentPrimary
+                                            : Color.gray.opacity(0.3))
+                                        .frame(height: 6)
+                                }
+                            }
+                            .padding(.horizontal, 16)
+
+                            // Stats row
+                            HStack {
+                                Text("\(levelsCompleted)/5 levels")
+                                    .font(.system(size: 11))
+                                    .foregroundColor(AppTheme.textSecondary)
+
+                                Spacer()
+
+                                HStack(spacing: 2) {
+                                    Image(systemName: "star.fill")
+                                        .font(.system(size: 10))
+                                    Text("\(chapterStars)/15")
+                                        .font(.system(size: 11))
+                                }
+                                .foregroundColor(AppTheme.accentTertiary)
+                            }
+                            .padding(.horizontal, 16)
+                        }
+                        .padding(.top, 8)
                     }
                 }
                 .padding(.bottom, 24)
@@ -385,30 +446,57 @@ struct ChapterIntroView: View {
 // MARK: - Speech Bubble
 
 struct SpeechBubble<Content: View>: View {
+    let pointsUp: Bool
     @ViewBuilder let content: Content
+
+    init(pointsUp: Bool = false, @ViewBuilder content: () -> Content) {
+        self.pointsUp = pointsUp
+        self.content = content()
+    }
 
     var body: some View {
         VStack(spacing: 0) {
+            if pointsUp {
+                // Triangle pointing up (above bubble, pointing to alien above)
+                BubbleTriangle(pointsUp: true)
+                    .fill(Color.white)
+                    .frame(width: 20, height: 12)
+                    .offset(y: 1)
+            }
+
             content
                 .padding(.horizontal, 20)
                 .padding(.vertical, 12)
                 .background(Color.white)
                 .cornerRadius(16)
 
-            ChapterTriangle()
-                .fill(Color.white)
-                .frame(width: 20, height: 12)
-                .offset(y: -1)
+            if !pointsUp {
+                // Triangle pointing down (below bubble)
+                BubbleTriangle(pointsUp: false)
+                    .fill(Color.white)
+                    .frame(width: 20, height: 12)
+                    .offset(y: -1)
+            }
         }
     }
 }
 
-private struct ChapterTriangle: Shape {
+private struct BubbleTriangle: Shape {
+    let pointsUp: Bool
+
     func path(in rect: CGRect) -> Path {
         var path = Path()
-        path.move(to: CGPoint(x: rect.midX, y: rect.maxY))
-        path.addLine(to: CGPoint(x: rect.minX, y: rect.minY))
-        path.addLine(to: CGPoint(x: rect.maxX, y: rect.minY))
+        if pointsUp {
+            // Triangle pointing up to alien above
+            path.move(to: CGPoint(x: rect.midX, y: rect.minY))
+            path.addLine(to: CGPoint(x: rect.minX, y: rect.maxY))
+            path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
+        } else {
+            // Triangle pointing down
+            path.move(to: CGPoint(x: rect.midX, y: rect.maxY))
+            path.addLine(to: CGPoint(x: rect.minX, y: rect.minY))
+            path.addLine(to: CGPoint(x: rect.maxX, y: rect.minY))
+        }
         path.closeSubpath()
         return path
     }
@@ -431,5 +519,6 @@ extension ChapterAlien: Hashable {
 #Preview("Chapter Select") {
     NavigationStack {
         ChapterSelectView()
+            .environmentObject(AppState())
     }
 }

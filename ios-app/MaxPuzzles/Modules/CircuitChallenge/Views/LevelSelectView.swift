@@ -7,8 +7,10 @@ import SwiftUI
 struct LevelSelectView: View {
     let chapter: Int
     let alien: ChapterAlien
-    @ObservedObject var progress: StoryProgress
+    @EnvironmentObject var appState: AppState
     @Environment(\.dismiss) private var dismiss
+
+    private var progress: StoryProgress { appState.storyProgress }
 
     @State private var selectedLevel: Int?
 
@@ -53,8 +55,7 @@ struct LevelSelectView: View {
                 StoryGameScreenView(
                     chapter: chapter,
                     level: level,
-                    alien: alien,
-                    progress: progress
+                    alien: alien
                 )
             }
         }
@@ -112,6 +113,7 @@ struct LevelSelectView: View {
                         isCompleted: isLevelCompleted(level),
                         isCurrent: isCurrentLevel(level),
                         stars: starsForLevel(level),
+                        bestTime: bestTimeForLevel(level),
                         isHiddenMode: isHiddenMode(level: level),
                         hexSize: hexSize,
                         onTap: {
@@ -192,6 +194,10 @@ struct LevelSelectView: View {
     private func isHiddenMode(level: Int) -> Bool {
         level == 5 || chapter == 10
     }
+
+    private func bestTimeForLevel(_ level: Int) -> Double? {
+        progress.bestTimeForLevel(chapter: chapter, level: level)
+    }
 }
 
 // MARK: - Large Hex Tile
@@ -203,6 +209,7 @@ struct LargeHexTile: View {
     let isCompleted: Bool
     let isCurrent: Bool
     let stars: Int
+    let bestTime: Double?
     let isHiddenMode: Bool
     let hexSize: CGFloat
     let onTap: () -> Void
@@ -217,6 +224,14 @@ struct LargeHexTile: View {
     // Show glow animation for current level OR completed level
     private var shouldPulse: Bool {
         isCurrent || isCompleted
+    }
+
+    /// Format seconds into MM:SS display
+    private func formatTime(_ seconds: Double) -> String {
+        let totalSeconds = Int(seconds)
+        let mins = totalSeconds / 60
+        let secs = totalSeconds % 60
+        return String(format: "%d:%02d", mins, secs)
     }
 
     var body: some View {
@@ -289,15 +304,22 @@ struct LargeHexTile: View {
                     }
                 }
 
-                // Stars display
-                if isCompleted {
-                    LevelStarDisplay(stars: stars, size: .medium)
-                } else if isUnlocked {
-                    LevelStarDisplay(stars: 0, size: .medium)
-                } else {
-                    Text("2 stars needed")
-                        .font(.system(size: 11))
-                        .foregroundColor(.gray.opacity(0.6))
+                // Stars and best time display
+                VStack(spacing: 2) {
+                    if isCompleted {
+                        LevelStarDisplay(stars: stars, size: .medium)
+                        if let time = bestTime {
+                            Text(formatTime(time))
+                                .font(.system(size: 11))
+                                .foregroundColor(AppTheme.textSecondary)
+                        }
+                    } else if isUnlocked {
+                        LevelStarDisplay(stars: 0, size: .medium)
+                    } else {
+                        Text("2 stars needed")
+                            .font(.system(size: 11))
+                            .foregroundColor(.gray.opacity(0.6))
+                    }
                 }
             }
         }
@@ -419,7 +441,6 @@ struct StoryGameScreenView: View {
     let chapter: Int
     let level: Int
     let alien: ChapterAlien
-    @ObservedObject var progress: StoryProgress
     @Environment(\.dismiss) private var dismiss
 
     @State private var showIntro = true
@@ -481,8 +502,8 @@ struct StoryGameScreenView: View {
                     .frame(width: 200, height: 200)
                     .alienIdleAnimation(style: .bounce, intensity: 1.0)
 
-                // Speech bubble with intro message
-                SpeechBubble {
+                // Speech bubble with intro message (pointing up to alien)
+                SpeechBubble(pointsUp: true) {
                     Text(introMessage)
                         .font(.system(size: 18, weight: .medium))
                         .foregroundColor(AppTheme.backgroundDark)
@@ -490,8 +511,8 @@ struct StoryGameScreenView: View {
                 }
                 .padding(.horizontal, 40)
 
-                // Level info
-                Text("Level \(chapter)-\(levelLetter)")
+                // Level info - use alien name + level number
+                Text("\(alien.name) \(level)")
                     .font(.system(size: 24, weight: .bold))
                     .foregroundColor(.white)
 
@@ -569,9 +590,9 @@ private struct LevelStarDisplay: View {
     NavigationStack {
         LevelSelectView(
             chapter: 1,
-            alien: ChapterAlien.all[0],
-            progress: StoryProgress()
+            alien: ChapterAlien.all[0]
         )
+        .environmentObject(AppState())
     }
 }
 
@@ -585,6 +606,7 @@ private struct LevelStarDisplay: View {
             isCompleted: false,
             isCurrent: true,
             stars: 0,
+            bestTime: nil,
             isHiddenMode: false,
             hexSize: 90,
             onTap: {}
@@ -602,6 +624,7 @@ private struct LevelStarDisplay: View {
             isCompleted: true,
             isCurrent: false,
             stars: 3,
+            bestTime: 45.0,
             isHiddenMode: false,
             hexSize: 90,
             onTap: {}

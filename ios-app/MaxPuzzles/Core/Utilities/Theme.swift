@@ -175,15 +175,29 @@ enum CellState {
 // MARK: - Typography
 
 struct AppTypography {
-    static let titleLarge = Font.system(size: 32, weight: .bold)
-    static let titleMedium = Font.system(size: 24, weight: .bold)
-    static let titleSmall = Font.system(size: 20, weight: .semibold)
-    static let bodyLarge = Font.system(size: 18, weight: .regular)
-    static let bodyMedium = Font.system(size: 16, weight: .regular)
-    static let bodySmall = Font.system(size: 14, weight: .regular)
-    static let caption = Font.system(size: 12, weight: .regular)
-    static let cellExpression = Font.system(size: 14, weight: .bold)
-    static let connectorBadge = Font.system(size: 14, weight: .bold)
+    // Premium rounded titles for playful kid-friendly feel
+    static let titleLarge = Font.system(size: 32, weight: .bold, design: .rounded)
+    static let titleMedium = Font.system(size: 24, weight: .bold, design: .rounded)
+    static let titleSmall = Font.system(size: 20, weight: .semibold, design: .rounded)
+
+    // Heavy display font for big impact text
+    static let displayLarge = Font.system(size: 48, weight: .heavy, design: .rounded)
+    static let displayMedium = Font.system(size: 36, weight: .heavy, design: .rounded)
+
+    // Body text with rounded design for consistency
+    static let bodyLarge = Font.system(size: 18, weight: .regular, design: .rounded)
+    static let bodyMedium = Font.system(size: 16, weight: .regular, design: .rounded)
+    static let bodySmall = Font.system(size: 14, weight: .regular, design: .rounded)
+    static let caption = Font.system(size: 12, weight: .regular, design: .rounded)
+
+    // Game-specific fonts
+    static let cellExpression = Font.system(size: 14, weight: .bold, design: .rounded)
+    static let connectorBadge = Font.system(size: 14, weight: .bold, design: .monospaced)
+
+    // Button text
+    static let buttonLarge = Font.system(size: 18, weight: .semibold, design: .rounded)
+    static let buttonMedium = Font.system(size: 16, weight: .semibold, design: .rounded)
+    static let buttonSmall = Font.system(size: 14, weight: .semibold, design: .rounded)
 }
 
 // MARK: - Spacing
@@ -200,12 +214,77 @@ struct AppSpacing {
 // MARK: - Animation Durations
 
 struct AppAnimation {
+    // Basic durations
     static let fast: Double = 0.15
     static let normal: Double = 0.3
     static let slow: Double = 0.5
+
+    // Game animations
     static let energyFlowFast: Double = 0.8
     static let energyFlowSlow: Double = 1.2
     static let cellPulse: Double = 1.5
     static let visitedPulse: Double = 2.0
     static let heartPulse: Double = 1.2
+
+    // Premium micro-interactions
+    static let buttonPress: Double = 0.08
+    static let buttonRelease: Double = 0.25
+    static let cardLift: Double = 0.2
+    static let starPop: Double = 0.3
+    static let coinBounce: Double = 0.4
+    static let confettiBurst: Double = 0.6
+    static let characterReveal: Double = 0.6
+    static let screenTransition: Double = 0.35
+    static let shootingStar: Double = 1.2
+
+    // Spring configurations
+    static let buttonSpring = Animation.spring(response: 0.3, dampingFraction: 0.6)
+    static let cardSpring = Animation.spring(response: 0.4, dampingFraction: 0.7)
+    static let bounceSpring = Animation.spring(response: 0.5, dampingFraction: 0.5)
+    static let gentleSpring = Animation.spring(response: 0.6, dampingFraction: 0.8)
+}
+
+// MARK: - Glass Effect
+
+struct GlassEffect: ViewModifier {
+    var cornerRadius: CGFloat = 20
+    var opacity: Double = 0.7
+
+    func body(content: Content) -> some View {
+        content
+            .background(.ultraThinMaterial.opacity(opacity))
+            .background(
+                LinearGradient(
+                    colors: [
+                        Color.white.opacity(0.1),
+                        Color.white.opacity(0.05),
+                        Color.clear
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            )
+            .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
+            .overlay(
+                RoundedRectangle(cornerRadius: cornerRadius)
+                    .stroke(
+                        LinearGradient(
+                            colors: [
+                                Color.white.opacity(0.3),
+                                Color.white.opacity(0.1),
+                                Color.white.opacity(0.05)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 1
+                    )
+            )
+    }
+}
+
+extension View {
+    func glassEffect(cornerRadius: CGFloat = 20, opacity: Double = 0.7) -> some View {
+        modifier(GlassEffect(cornerRadius: cornerRadius, opacity: opacity))
+    }
 }

@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { useSound } from '@/app/providers/SoundProvider'
 import { Button, Card } from '@/ui'
 import { StarryBackground, AnimatedStarReveal, Confetti } from '../components'
-import { chapterAliens, type ChapterAlien } from '@/shared/types/chapterAlien'
+import { chapterAliens, getRandomWinMessage, type ChapterAlien } from '@/shared/types/chapterAlien'
 import {
   getStoryProgress,
   isChapterCompleted,
@@ -218,9 +218,9 @@ export default function SummaryScreen() {
     })
   }
 
-  // Get random message
+  // Get random message - use alien-specific messages for story mode wins
   const alienMessage = data.won
-    ? winMessages[Math.floor(Math.random() * winMessages.length)]
+    ? (data.storyAlien ? getRandomWinMessage(data.storyAlien) : winMessages[Math.floor(Math.random() * winMessages.length)])
     : loseMessages[Math.floor(Math.random() * loseMessages.length)]
 
   // Character reveal screen (for non-hidden mode)

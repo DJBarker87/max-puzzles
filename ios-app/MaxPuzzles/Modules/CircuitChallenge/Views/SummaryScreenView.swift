@@ -17,6 +17,9 @@ struct SummaryScreenView: View {
     /// Callback when user wants to see solution (only for lost games)
     var onSeeSolution: (() -> Void)?
 
+    /// Callback when user wants to exit (story mode needs this to exit to level select)
+    var onExit: (() -> Void)?
+
     // Music service
     @EnvironmentObject var musicService: MusicService
 
@@ -37,18 +40,18 @@ struct SummaryScreenView: View {
                 // Full screen character reveal
                 characterRevealView
             } else {
-                // Results screen
-                ScrollView {
+                // Results screen - use GeometryReader to fit content on screen
+                GeometryReader { geometry in
                     VStack(spacing: 0) {
-                        Spacer(minLength: 40)
+                        Spacer(minLength: 20)
 
                         if data.won {
-                            winContent
+                            winContent(screenHeight: geometry.size.height)
                         } else {
-                            loseContent
+                            loseContent(screenHeight: geometry.size.height)
                         }
 
-                        Spacer(minLength: 40)
+                        Spacer(minLength: 20)
                     }
                 }
                 .opacity(resultsOpacity)
@@ -94,8 +97,8 @@ struct SummaryScreenView: View {
                             .frame(width: characterSize, height: characterSize)
                             .alienIdleAnimation(style: data.won ? .bounce : .float, intensity: 1.0)
 
-                        // Speech bubble with message
-                        SpeechBubble {
+                        // Speech bubble with message (pointing up to alien)
+                        SpeechBubble(pointsUp: true) {
                             Text(data.won ? alienWinMessage : alienLoseMessage)
                                 .font(.system(size: 18, weight: .medium))
                                 .foregroundColor(AppTheme.backgroundDark)
@@ -121,8 +124,13 @@ struct SummaryScreenView: View {
         }
     }
 
-    // Alien win messages
+    // Alien win messages - use alien-specific messages when in story mode
     private var alienWinMessage: String {
+        // Use alien-specific win messages for story mode
+        if let alien = data.storyAlien {
+            return alien.randomWinMessage
+        }
+        // Fallback for quick play
         let messages = [
             "Amazing work! You did it!",
             "Fantastic! You're a star!",
@@ -247,7 +255,7 @@ struct SummaryScreenView: View {
                 .cornerRadius(20)
                 .padding(.horizontal)
 
-                actionButtons
+                actionButtons()
 
                 Spacer(minLength: 40)
             }
@@ -256,30 +264,35 @@ struct SummaryScreenView: View {
 
     // MARK: - Win Content
 
-    private var winContent: some View {
-        VStack(spacing: 24) {
+    private func winContent(screenHeight: CGFloat) -> some View {
+        let isCompact = screenHeight < 700
+        let characterSize: CGFloat = isCompact ? 70 : 100
+        let titleSize: CGFloat = isCompact ? 24 : 32
+        let spacing: CGFloat = isCompact ? 12 : 24
+        let padding: CGFloat = isCompact ? 16 : 28
+
+        return VStack(spacing: spacing) {
             // Small character at top of results with subtle animation
             if let alien = data.storyAlien {
                 Image(alien.imageName)
                     .resizable()
                     .scaledToFit()
-                    .frame(width: 100, height: 100)
+                    .frame(width: characterSize, height: characterSize)
                     .alienIdleAnimation(style: .breathe, intensity: 0.8)
             } else {
-                AnimatedCharacter.boxer(size: 100)
+                AnimatedCharacter.boxer(size: characterSize)
             }
 
             // Results Card
-            VStack(spacing: 20) {
+            VStack(spacing: isCompact ? 10 : 20) {
                 Text("Puzzle Complete!")
-                    .font(.system(size: 32, weight: .bold))
+                    .font(.system(size: titleSize, weight: .bold))
                     .foregroundColor(.white)
 
                 // Animated stars reveal
                 AnimatedStarReveal.summary(starsEarned: data.starsEarned, delay: 0.3)
-                    .padding(.vertical, 4)
 
-                VStack(spacing: 10) {
+                VStack(spacing: isCompact ? 6 : 10) {
                     HStack {
                         Text("Time:")
                             .foregroundColor(AppTheme.textSecondary)
@@ -287,7 +300,7 @@ struct SummaryScreenView: View {
                             .fontWeight(.bold)
                             .foregroundColor(.white)
                     }
-                    .font(.system(size: 18))
+                    .font(.system(size: isCompact ? 15 : 18))
 
                     HStack {
                         Text("Coins:")
@@ -296,7 +309,7 @@ struct SummaryScreenView: View {
                             .foregroundColor(AppTheme.accentTertiary)
                             .fontWeight(.bold)
                     }
-                    .font(.system(size: 18))
+                    .font(.system(size: isCompact ? 15 : 18))
 
                     HStack {
                         Text("Mistakes:")
@@ -305,44 +318,50 @@ struct SummaryScreenView: View {
                             .fontWeight(.bold)
                             .foregroundColor(.white)
                     }
-                    .font(.system(size: 18))
+                    .font(.system(size: isCompact ? 15 : 18))
                 }
             }
-            .padding(28)
+            .padding(padding)
             .background(AppTheme.backgroundMid.opacity(0.9))
             .cornerRadius(20)
             .padding(.horizontal)
 
-            actionButtons
+            actionButtons(compact: isCompact)
         }
     }
 
     // MARK: - Lose Content
 
-    private var loseContent: some View {
-        VStack(spacing: 24) {
+    private func loseContent(screenHeight: CGFloat) -> some View {
+        let isCompact = screenHeight < 700
+        let characterSize: CGFloat = isCompact ? 70 : 100
+        let titleSize: CGFloat = isCompact ? 22 : 28
+        let spacing: CGFloat = isCompact ? 12 : 24
+        let padding: CGFloat = isCompact ? 16 : 28
+
+        return VStack(spacing: spacing) {
             // Small character at top of results with subtle animation
             if let alien = data.storyAlien {
                 Image(alien.imageName)
                     .resizable()
                     .scaledToFit()
-                    .frame(width: 100, height: 100)
+                    .frame(width: characterSize, height: characterSize)
                     .alienIdleAnimation(style: .breathe, intensity: 0.8)
             } else {
-                AnimatedCharacter.spaceOctopus(size: 100)
+                AnimatedCharacter.spaceOctopus(size: characterSize)
             }
 
             // Results Card
-            VStack(spacing: 20) {
+            VStack(spacing: isCompact ? 10 : 20) {
                 Text("Out of Lives")
-                    .font(.system(size: 28, weight: .bold))
+                    .font(.system(size: titleSize, weight: .bold))
                     .foregroundColor(.white)
 
                 Text("You made \(data.correctMoves) correct moves before running out of lives.")
-                    .font(.system(size: 15))
+                    .font(.system(size: isCompact ? 13 : 15))
                     .foregroundColor(AppTheme.textSecondary)
                     .multilineTextAlignment(.center)
-                    .padding(.horizontal, 16)
+                    .padding(.horizontal, 8)
 
                 HStack {
                     Text("Coins:")
@@ -351,30 +370,34 @@ struct SummaryScreenView: View {
                         .foregroundColor(AppTheme.accentTertiary)
                         .fontWeight(.bold)
                 }
-                .font(.system(size: 20))
+                .font(.system(size: isCompact ? 16 : 20))
             }
-            .padding(28)
+            .padding(padding)
             .background(AppTheme.backgroundMid.opacity(0.9))
             .cornerRadius(20)
             .padding(.horizontal)
 
-            loseActionButtons
+            loseActionButtons(compact: isCompact)
         }
     }
 
     // MARK: - Action Buttons
 
-    private var actionButtons: some View {
-        VStack(spacing: 12) {
+    private func actionButtons(compact: Bool = false) -> some View {
+        let buttonPadding: CGFloat = compact ? 12 : 16
+        let fontSize: CGFloat = compact ? 15 : 17
+        let spacing: CGFloat = compact ? 8 : 12
+
+        return VStack(spacing: spacing) {
             // Play Again / Next Level
             Button(action: {
                 onPlayAgain?()
             }) {
                 Text(data.isStoryMode ? "Next Level" : "Play Again")
-                    .font(.system(size: 17, weight: .semibold))
+                    .font(.system(size: fontSize, weight: .semibold))
                     .foregroundColor(.white)
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 16)
+                    .padding(.vertical, buttonPadding)
                     .background(AppTheme.accentPrimary)
                     .cornerRadius(12)
             }
@@ -385,10 +408,10 @@ struct SummaryScreenView: View {
                     onChangeDifficulty?()
                 }) {
                     Text("Change Difficulty")
-                        .font(.system(size: 17, weight: .semibold))
+                        .font(.system(size: fontSize, weight: .semibold))
                         .foregroundColor(.white)
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 16)
+                        .padding(.vertical, buttonPadding)
                         .background(AppTheme.backgroundDark)
                         .cornerRadius(12)
                         .overlay(
@@ -399,30 +422,40 @@ struct SummaryScreenView: View {
             }
 
             // Exit
-            Button(action: {
-                dismiss()
-            }) {
+            Button(action: handleExit) {
                 Text("Exit")
-                    .font(.system(size: 17, weight: .semibold))
+                    .font(.system(size: fontSize, weight: .semibold))
                     .foregroundColor(AppTheme.textSecondary)
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 16)
+                    .padding(.vertical, compact ? 10 : 16)
             }
         }
         .padding(.horizontal)
     }
 
-    private var loseActionButtons: some View {
-        VStack(spacing: 12) {
+    private func handleExit() {
+        if let onExit = onExit {
+            onExit()
+        } else {
+            dismiss()
+        }
+    }
+
+    private func loseActionButtons(compact: Bool = false) -> some View {
+        let buttonPadding: CGFloat = compact ? 12 : 16
+        let fontSize: CGFloat = compact ? 15 : 17
+        let spacing: CGFloat = compact ? 8 : 12
+
+        return VStack(spacing: spacing) {
             // Try Again
             Button(action: {
                 onPlayAgain?()
             }) {
                 Text("Try Again")
-                    .font(.system(size: 17, weight: .semibold))
+                    .font(.system(size: fontSize, weight: .semibold))
                     .foregroundColor(.white)
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 16)
+                    .padding(.vertical, buttonPadding)
                     .background(AppTheme.accentPrimary)
                     .cornerRadius(12)
             }
@@ -431,24 +464,22 @@ struct SummaryScreenView: View {
             if let seeSolution = onSeeSolution {
                 Button(action: seeSolution) {
                     Text("See Solution")
-                        .font(.system(size: 17, weight: .semibold))
+                        .font(.system(size: fontSize, weight: .semibold))
                         .foregroundColor(.white)
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 16)
+                        .padding(.vertical, buttonPadding)
                         .background(AppTheme.accentSecondary)
                         .cornerRadius(12)
                 }
             }
 
             // Exit
-            Button(action: {
-                dismiss()
-            }) {
+            Button(action: handleExit) {
                 Text("Exit")
-                    .font(.system(size: 17, weight: .semibold))
+                    .font(.system(size: fontSize, weight: .semibold))
                     .foregroundColor(AppTheme.textSecondary)
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 16)
+                    .padding(.vertical, compact ? 10 : 16)
             }
         }
         .padding(.horizontal)

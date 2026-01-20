@@ -11,6 +11,9 @@ import {
   getStoryProgress,
   isChapterUnlocked,
   isChapterCompleted,
+  isLevelCompleted,
+  getStarsInChapter,
+  getTotalStars,
   type StoryProgressData,
 } from "@/shared/types/storyProgress";
 
@@ -19,6 +22,17 @@ function countCompletedChapters(progress: StoryProgressData): number {
   let count = 0;
   for (let chapter = 1; chapter <= 10; chapter++) {
     if (isChapterCompleted(chapter, progress)) {
+      count++;
+    }
+  }
+  return count;
+}
+
+/** Count completed levels in a chapter */
+function countCompletedLevels(chapter: number, progress: StoryProgressData): number {
+  let count = 0;
+  for (let level = 1; level <= 5; level++) {
+    if (isLevelCompleted(chapter, level, progress)) {
       count++;
     }
   }
@@ -86,14 +100,21 @@ export default function ChapterSelect() {
 
       <Header showMenu className="relative z-10 shrink-0" />
 
-      {/* Title */}
+      {/* Title with total stars */}
       <div className="text-center py-4 relative z-10 shrink-0">
         <h1 className="text-2xl md:text-3xl font-display font-bold text-white">
           Story Mode
         </h1>
-        <p className="text-text-secondary text-sm mt-1">
-          Help the aliens by solving puzzles!
-        </p>
+        <div className="flex items-center justify-center gap-4 mt-1">
+          <p className="text-text-secondary text-sm">
+            Help the aliens by solving puzzles!
+          </p>
+          <div className="flex items-center gap-1 text-accent-tertiary bg-background-dark/50 px-2 py-0.5 rounded-full">
+            <span>★</span>
+            <span className="font-bold">{getTotalStars(progress)}</span>
+            <span className="text-text-secondary text-xs">/150</span>
+          </div>
+        </div>
       </div>
 
       {/* 3D Carousel */}
@@ -127,6 +148,8 @@ export default function ChapterSelect() {
                 isUnlocked={isChapterUnlocked(alien.chapter, progress)}
                 isCompleted={isChapterCompleted(alien.chapter, progress)}
                 isCurrent={index === currentIndex}
+                levelsCompleted={countCompletedLevels(alien.chapter, progress)}
+                chapterStars={getStarsInChapter(alien.chapter, progress)}
                 onClick={() => handleChapterClick(alien, index)}
                 style={{
                   position: "absolute",
@@ -174,6 +197,8 @@ interface LargeChapterCardProps {
   isUnlocked: boolean;
   isCompleted: boolean;
   isCurrent: boolean;
+  levelsCompleted: number;
+  chapterStars: number;
   onClick: () => void;
   style?: React.CSSProperties;
 }
@@ -183,6 +208,8 @@ function LargeChapterCard({
   isUnlocked,
   isCompleted,
   isCurrent,
+  levelsCompleted,
+  chapterStars,
   onClick,
   style,
 }: LargeChapterCardProps) {
@@ -261,7 +288,7 @@ function LargeChapterCard({
       <div className="flex-1" />
 
       {/* Chapter info */}
-      <div className="text-center">
+      <div className="text-center w-full">
         <p
           className={`text-sm font-medium ${
             isUnlocked ? "text-text-secondary" : "text-gray-600"
@@ -277,9 +304,35 @@ function LargeChapterCard({
           {alien.name}
         </p>
         {isUnlocked && (
-          <p className="text-sm text-accent-primary/90 mt-2">
-            {alien.words.join(" • ")}
-          </p>
+          <>
+            <p className="text-sm text-accent-primary/90 mt-2">
+              {alien.words.join(" • ")}
+            </p>
+
+            {/* Progress bar showing levels completed */}
+            <div className="mt-3 px-4">
+              <div className="flex gap-1 justify-center">
+                {[1, 2, 3, 4, 5].map((level) => (
+                  <div
+                    key={level}
+                    className={`h-1.5 flex-1 rounded-full ${
+                      level <= levelsCompleted
+                        ? "bg-accent-primary"
+                        : "bg-gray-700/50"
+                    }`}
+                  />
+                ))}
+              </div>
+              <div className="flex justify-between items-center mt-1.5 text-xs">
+                <span className="text-text-secondary">
+                  {levelsCompleted}/5 levels
+                </span>
+                <span className="text-accent-tertiary flex items-center gap-0.5">
+                  <span>★</span> {chapterStars}/15
+                </span>
+              </div>
+            </div>
+          </>
         )}
       </div>
     </button>

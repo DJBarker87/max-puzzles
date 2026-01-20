@@ -65,6 +65,7 @@
 		II0001011111111111111111 /* StorageService.swift in Sources */ = {isa = PBXBuildFile; fileRef = II0001001111111111111111 /* StorageService.swift */; };
 		II0001031111111111111111 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = II0001021111111111111111 /* SettingsView.swift */; };
 		LL0001011111111111111111 /* MusicService.swift in Sources */ = {isa = PBXBuildFile; fileRef = LL0001001111111111111111 /* MusicService.swift */; };
+		SS0001011111111111111111 /* SoundEffectsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = SS0001001111111111111111 /* SoundEffectsService.swift */; };
 		JJ0001011111111111111111 /* OrientationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = JJ0001001111111111111111 /* OrientationManager.swift */; };
 		KK0001011111111111111111 /* PrintTypes.swift in Sources */ = {isa = PBXBuildFile; fileRef = KK0001001111111111111111 /* PrintTypes.swift */; };
 		KK0001031111111111111111 /* PrintConverter.swift in Sources */ = {isa = PBXBuildFile; fileRef = KK0001021111111111111111 /* PrintConverter.swift */; };
@@ -163,6 +164,7 @@
 		II0001001111111111111111 /* StorageService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StorageService.swift; sourceTree = "<group>"; };
 		II0001021111111111111111 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		LL0001001111111111111111 /* MusicService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicService.swift; sourceTree = "<group>"; };
+		SS0001001111111111111111 /* SoundEffectsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SoundEffectsService.swift; sourceTree = "<group>"; };
 		JJ0001001111111111111111 /* OrientationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrientationManager.swift; sourceTree = "<group>"; };
 		KK0001001111111111111111 /* PrintTypes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrintTypes.swift; sourceTree = "<group>"; };
 		KK0001021111111111111111 /* PrintConverter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrintConverter.swift; sourceTree = "<group>"; };
@@ -283,6 +285,7 @@
 			isa = PBXGroup;
 			children = (
 				LL0001001111111111111111 /* MusicService.swift */,
+				SS0001001111111111111111 /* SoundEffectsService.swift */,
 				II0001001111111111111111 /* StorageService.swift */,
 			);
 			path = Services;
@@ -682,6 +685,7 @@
 				AA0001311111111111111111 /* CoinDisplay.swift in Sources */,
 				II0001011111111111111111 /* StorageService.swift in Sources */,
 				LL0001011111111111111111 /* MusicService.swift in Sources */,
+				SS0001011111111111111111 /* SoundEffectsService.swift in Sources */,
 				II0001031111111111111111 /* SettingsView.swift in Sources */,
 				JJ0001011111111111111111 /* OrientationManager.swift in Sources */,
 				BB0001011111111111111111 /* Types.swift in Sources */,

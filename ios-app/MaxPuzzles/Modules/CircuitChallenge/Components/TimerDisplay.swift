@@ -2,11 +2,15 @@ import SwiftUI
 
 // MARK: - TimerDisplay
 
-/// Timer display showing elapsed time in M:SS format
+/// Premium timer display with glass effect and running animation
 struct TimerDisplay: View {
     let elapsedSeconds: Int
     let isRunning: Bool
     let compact: Bool
+
+    @State private var iconRotation: Double = 0
+    @State private var pulseScale: CGFloat = 1.0
+    @State private var glowOpacity: Double = 0.3
 
     init(elapsedSeconds: Int, isRunning: Bool = true, compact: Bool = false) {
         self.elapsedSeconds = elapsedSeconds
@@ -20,22 +24,113 @@ struct TimerDisplay: View {
         return String(format: "%d:%02d", minutes, seconds)
     }
 
+    private var iconSize: CGFloat { compact ? 16 : 20 }
+    private var fontSize: CGFloat { compact ? 16 : 20 }
+
     var body: some View {
         HStack(spacing: compact ? 4 : 8) {
-            Image(systemName: "stopwatch.fill")
-                .font(.system(size: compact ? 16 : 20))
-                .foregroundColor(Color(hex: "a1a1aa"))
+            // Animated stopwatch icon
+            ZStack {
+                // Glow when running
+                if isRunning {
+                    Image(systemName: "stopwatch.fill")
+                        .font(.system(size: iconSize * 1.3))
+                        .foregroundColor(AppTheme.accentPrimary)
+                        .blur(radius: 6)
+                        .opacity(glowOpacity)
+                }
 
+                Image(systemName: "stopwatch.fill")
+                    .font(.system(size: iconSize, weight: .semibold))
+                    .foregroundColor(isRunning ? AppTheme.accentPrimary : AppTheme.textSecondary)
+                    .rotationEffect(.degrees(isRunning ? iconRotation : 0))
+            }
+            .scaleEffect(pulseScale)
+
+            // Time display with monospace font
             Text(formattedTime)
-                .font(.system(size: compact ? 16 : 20, weight: .bold, design: .monospaced))
+                .font(.system(size: fontSize, weight: .bold, design: .monospaced))
                 .foregroundColor(.white)
+                .contentTransition(.numericText())
+                .animation(.spring(response: 0.3, dampingFraction: 0.7), value: elapsedSeconds)
         }
-        .padding(.horizontal, compact ? 8 : 12)
-        .padding(.vertical, compact ? 4 : 8)
+        .padding(.horizontal, compact ? 10 : 14)
+        .padding(.vertical, compact ? 6 : 10)
+        // Glass effect background
         .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(Color(hex: "1a1a3e").opacity(0.8))
+            ZStack {
+                RoundedRectangle(cornerRadius: compact ? 10 : 12)
+                    .fill(.ultraThinMaterial.opacity(0.6))
+
+                RoundedRectangle(cornerRadius: compact ? 10 : 12)
+                    .fill(AppTheme.backgroundMid.opacity(0.4))
+
+                // Subtle gradient shine
+                RoundedRectangle(cornerRadius: compact ? 10 : 12)
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                Color.white.opacity(0.08),
+                                Color.white.opacity(0.02),
+                                Color.clear
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+            }
         )
+        // Border
+        .overlay(
+            RoundedRectangle(cornerRadius: compact ? 10 : 12)
+                .stroke(
+                    LinearGradient(
+                        colors: [
+                            isRunning ? AppTheme.accentPrimary.opacity(0.4) : Color.white.opacity(0.2),
+                            Color.white.opacity(0.1),
+                            Color.white.opacity(0.05)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 1
+                )
+        )
+        // Subtle shadow
+        .shadow(color: isRunning ? AppTheme.accentPrimary.opacity(0.2) : Color.black.opacity(0.2), radius: 6, y: 2)
+        .onAppear {
+            if isRunning {
+                startAnimations()
+            }
+        }
+        .onChange(of: isRunning) { running in
+            if running {
+                startAnimations()
+            } else {
+                stopAnimations()
+            }
+        }
+    }
+
+    private func startAnimations() {
+        // Subtle icon movement
+        withAnimation(.easeInOut(duration: 1.0).repeatForever(autoreverses: true)) {
+            iconRotation = 5
+        }
+
+        // Pulse effect
+        withAnimation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true)) {
+            pulseScale = 1.05
+            glowOpacity = 0.5
+        }
+    }
+
+    private func stopAnimations() {
+        withAnimation(.easeOut(duration: 0.3)) {
+            iconRotation = 0
+            pulseScale = 1.0
+            glowOpacity = 0.3
+        }
     }
 }
 
@@ -90,16 +185,33 @@ class GameTimer: ObservableObject {
 
 #Preview("Timer Display") {
     VStack(spacing: 20) {
-        TimerDisplay(elapsedSeconds: 0)
-        TimerDisplay(elapsedSeconds: 45)
-        TimerDisplay(elapsedSeconds: 125)
-        TimerDisplay(elapsedSeconds: 3661)
+        VStack {
+            Text("Running").foregroundColor(.white)
+            TimerDisplay(elapsedSeconds: 45, isRunning: true)
+        }
+
+        VStack {
+            Text("Paused").foregroundColor(.white)
+            TimerDisplay(elapsedSeconds: 125, isRunning: false)
+        }
+
+        VStack {
+            Text("Long Time").foregroundColor(.white)
+            TimerDisplay(elapsedSeconds: 3661)
+        }
 
         Divider()
 
-        TimerDisplay(elapsedSeconds: 45, compact: true)
-        TimerDisplay(elapsedSeconds: 125, compact: true)
+        VStack {
+            Text("Compact Running").foregroundColor(.white)
+            TimerDisplay(elapsedSeconds: 45, isRunning: true, compact: true)
+        }
+
+        VStack {
+            Text("Compact Paused").foregroundColor(.white)
+            TimerDisplay(elapsedSeconds: 125, isRunning: false, compact: true)
+        }
     }
     .padding()
-    .background(Color(hex: "0f0f23"))
+    .background(AppTheme.backgroundDark)
 }

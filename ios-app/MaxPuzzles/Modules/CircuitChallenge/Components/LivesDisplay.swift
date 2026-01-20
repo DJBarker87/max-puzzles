@@ -2,13 +2,14 @@ import SwiftUI
 
 // MARK: - LivesDisplay
 
-/// Display of remaining lives as hearts with pulse animation
-/// Matches web app exactly: active hearts pulse, inactive are dimmed
+/// Premium display of remaining lives as hearts with pulse and crack animations
 struct LivesDisplay: View {
     let lives: Int
     let maxLives: Int
     let vertical: Bool
-    let compact: Bool  // For smaller side panels
+    let compact: Bool
+
+    @State private var previousLives: Int?
 
     init(
         lives: Int,
@@ -36,13 +37,24 @@ struct LivesDisplay: View {
                 }
             }
         }
+        .onChange(of: lives) { newValue in
+            if let prev = previousLives, newValue < prev {
+                // Life lost - play sound and haptic
+                SoundEffectsService.shared.play(.wrongMove)
+                FeedbackManager.shared.haptic(.wrongMove)
+            }
+            previousLives = newValue
+        }
+        .onAppear {
+            previousLives = lives
+        }
     }
 
     private var heartStack: some View {
         ForEach(0..<maxLives, id: \.self) { index in
             HeartView(
                 isActive: index < lives,
-                isBreaking: false,
+                isBreaking: previousLives != nil && index == lives && index < (previousLives ?? 0),
                 compact: compact
             )
         }
@@ -51,8 +63,7 @@ struct LivesDisplay: View {
 
 // MARK: - HeartView
 
-/// Single heart with pulse animation for active state
-/// Matches web: #ff3366 active, #2a2a3a inactive
+/// Single heart with premium pulse, glow, and crack animations
 struct HeartView: View {
     let isActive: Bool
     let isBreaking: Bool
@@ -60,6 +71,9 @@ struct HeartView: View {
 
     @State private var scale: CGFloat = 1.0
     @State private var rotation: Double = 0
+    @State private var glowOpacity: Double = 0.3
+    @State private var crackOffset: CGFloat = 0
+    @State private var showCrack: Bool = false
 
     private let activeColor = Color(hex: "ff3366")
     private let inactiveColor = Color(hex: "2a2a3a")
@@ -73,64 +87,103 @@ struct HeartView: View {
     }
 
     var body: some View {
-        Image(systemName: "heart.fill")
-            .font(.system(size: heartSize))
-            .foregroundColor(isActive ? activeColor : inactiveColor)
-            .scaleEffect(scale)
-            .rotationEffect(.degrees(rotation))
-            .onAppear {
-                if isActive && !isBreaking {
-                    startPulseAnimation()
-                }
+        ZStack {
+            // Glow behind active heart
+            if isActive && !isBreaking {
+                Image(systemName: "heart.fill")
+                    .font(.system(size: heartSize * 1.3))
+                    .foregroundColor(activeColor)
+                    .blur(radius: 6)
+                    .opacity(glowOpacity)
             }
-            .onChange(of: isBreaking) { breaking in
-                if breaking {
-                    playBreakAnimation()
-                }
+
+            // Main heart
+            Image(systemName: "heart.fill")
+                .font(.system(size: heartSize))
+                .foregroundColor(isActive ? activeColor : inactiveColor)
+                .shadow(
+                    color: isActive ? activeColor.opacity(0.5) : .clear,
+                    radius: 4
+                )
+
+            // Crack effect when breaking
+            if showCrack {
+                Image(systemName: "bolt.fill")
+                    .font(.system(size: heartSize * 0.6))
+                    .foregroundColor(.white)
+                    .rotationEffect(.degrees(15))
+                    .offset(y: crackOffset)
+                    .opacity(1 - Double(crackOffset / 10))
             }
-            .onChange(of: isActive) { active in
-                if active && !isBreaking {
-                    startPulseAnimation()
-                } else if !active {
+        }
+        .scaleEffect(scale)
+        .rotationEffect(.degrees(rotation))
+        .onAppear {
+            if isActive && !isBreaking {
+                startPulseAnimation()
+            }
+        }
+        .onChange(of: isBreaking) { breaking in
+            if breaking {
+                playBreakAnimation()
+            }
+        }
+        .onChange(of: isActive) { active in
+            if active && !isBreaking {
+                startPulseAnimation()
+            } else if !active {
+                withAnimation {
                     scale = 1.0
+                    glowOpacity = 0
                 }
             }
+        }
     }
 
     private func startPulseAnimation() {
-        // Matching web: heartPulse 1.2s ease-in-out infinite
+        // Heart pulse with glow
         withAnimation(.easeInOut(duration: 1.2).repeatForever(autoreverses: true)) {
             scale = 1.15
+            glowOpacity = 0.6
         }
     }
 
     private func playBreakAnimation() {
-        // Matching web: heartBreak 0.5s ease-out
-        // Scale up quickly
-        withAnimation(.easeOut(duration: 0.1)) {
-            scale = 1.3
+        // Show crack
+        showCrack = true
+        crackOffset = 0
+
+        // Initial pop
+        withAnimation(.easeOut(duration: 0.08)) {
+            scale = 1.4
         }
 
-        // Then shrink and rotate
+        // Crack travels down
+        withAnimation(.easeOut(duration: 0.15).delay(0.08)) {
+            crackOffset = 10
+        }
+
+        // Shake
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-            withAnimation(.easeOut(duration: 0.15)) {
-                scale = 0.8
-                rotation = 10
-            }
-        }
-
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
-            withAnimation(.easeOut(duration: 0.15)) {
-                scale = 0.5
-                rotation = -10
-            }
-        }
-
-        // Return to normal
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
             withAnimation(.easeOut(duration: 0.1)) {
+                scale = 1.1
+                rotation = 12
+            }
+        }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+            withAnimation(.easeOut(duration: 0.1)) {
+                scale = 0.9
+                rotation = -12
+            }
+        }
+
+        // Settle and fade
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            withAnimation(.easeOut(duration: 0.15)) {
                 scale = 1.0
                 rotation = 0
+                showCrack = false
             }
         }
     }

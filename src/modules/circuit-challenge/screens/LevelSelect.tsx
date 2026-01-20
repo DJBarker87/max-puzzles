@@ -11,6 +11,7 @@ import {
   isLevelCompleted,
   getStarsForLevel,
   getStarsInChapter,
+  getBestTimeForLevel,
   type StoryProgressData,
 } from "@/shared/types/storyProgress";
 
@@ -112,6 +113,7 @@ export default function LevelSelect() {
                 isCompleted={isLevelCompleted(chapter, level, progress)}
                 isCurrent={isCurrentLevel(level)}
                 stars={getStarsForLevel(chapter, level, progress)}
+                bestTime={getBestTimeForLevel(chapter, level, progress)}
                 isHiddenMode={isHiddenMode(level)}
                 onClick={() => handleLevelClick(level)}
               />
@@ -151,8 +153,16 @@ interface LargeHexTileProps {
   isCompleted: boolean;
   isCurrent: boolean;
   stars: number;
+  bestTime: number | null;
   isHiddenMode: boolean;
   onClick: () => void;
+}
+
+/** Format seconds into MM:SS display */
+function formatTime(seconds: number): string {
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return `${mins}:${secs.toString().padStart(2, "0")}`;
 }
 
 function LargeHexTile({
@@ -161,6 +171,7 @@ function LargeHexTile({
   isCompleted,
   isCurrent,
   stars,
+  bestTime,
   isHiddenMode,
   onClick,
 }: LargeHexTileProps) {
@@ -291,14 +302,23 @@ function LargeHexTile({
         </div>
       </div>
 
-      {/* Stars display */}
-      {isCompleted ? (
-        <StarDisplay stars={stars} size="small" />
-      ) : isUnlocked ? (
-        <StarDisplay stars={0} size="small" />
-      ) : (
-        <span className="text-[10px] text-gray-500">2 stars needed</span>
-      )}
+      {/* Stars and best time display */}
+      <div className="flex flex-col items-center gap-0.5">
+        {isCompleted ? (
+          <>
+            <StarDisplay stars={stars} size="small" />
+            {bestTime !== null && (
+              <span className="text-[10px] text-text-secondary">
+                {formatTime(bestTime)}
+              </span>
+            )}
+          </>
+        ) : isUnlocked ? (
+          <StarDisplay stars={0} size="small" />
+        ) : (
+          <span className="text-[10px] text-gray-500">2 stars needed</span>
+        )}
+      </div>
     </button>
   );
 }
