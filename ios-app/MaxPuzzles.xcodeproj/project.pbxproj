@@ -73,6 +73,13 @@
 		KK0001091111111111111111 /* PuzzleMakerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = KK0001081111111111111111 /* PuzzleMakerView.swift */; };
 		NN0001011111111111111111 /* AnimatedCharacter.swift in Sources */ = {isa = PBXBuildFile; fileRef = NN0001001111111111111111 /* AnimatedCharacter.swift */; };
 		NN0001031111111111111111 /* ConfettiView.swift in Sources */ = {isa = PBXBuildFile; fileRef = NN0001021111111111111111 /* ConfettiView.swift */; };
+		OO0001011111111111111111 /* ChapterAlien.swift in Sources */ = {isa = PBXBuildFile; fileRef = OO0001001111111111111111 /* ChapterAlien.swift */; };
+		OO0001031111111111111111 /* StoryProgress.swift in Sources */ = {isa = PBXBuildFile; fileRef = OO0001021111111111111111 /* StoryProgress.swift */; };
+		OO0001051111111111111111 /* StoryDifficulty.swift in Sources */ = {isa = PBXBuildFile; fileRef = OO0001041111111111111111 /* StoryDifficulty.swift */; };
+		OO0001071111111111111111 /* ChapterSelectView.swift in Sources */ = {isa = PBXBuildFile; fileRef = OO0001061111111111111111 /* ChapterSelectView.swift */; };
+		OO0001091111111111111111 /* LevelSelectView.swift in Sources */ = {isa = PBXBuildFile; fileRef = OO0001081111111111111111 /* LevelSelectView.swift */; };
+		OO0001111111111111111111 /* StarRevealView.swift in Sources */ = {isa = PBXBuildFile; fileRef = OO0001101111111111111111 /* StarRevealView.swift */; };
+		PP0001011111111111111111 /* MusicToggleButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = PP0001001111111111111111 /* MusicToggleButton.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -162,6 +169,13 @@
 		KK0001081111111111111111 /* PuzzleMakerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PuzzleMakerView.swift; sourceTree = "<group>"; };
 		NN0001001111111111111111 /* AnimatedCharacter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnimatedCharacter.swift; sourceTree = "<group>"; };
 		NN0001021111111111111111 /* ConfettiView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfettiView.swift; sourceTree = "<group>"; };
+		OO0001001111111111111111 /* ChapterAlien.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChapterAlien.swift; sourceTree = "<group>"; };
+		OO0001021111111111111111 /* StoryProgress.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoryProgress.swift; sourceTree = "<group>"; };
+		OO0001041111111111111111 /* StoryDifficulty.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoryDifficulty.swift; sourceTree = "<group>"; };
+		OO0001061111111111111111 /* ChapterSelectView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChapterSelectView.swift; sourceTree = "<group>"; };
+		OO0001081111111111111111 /* LevelSelectView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LevelSelectView.swift; sourceTree = "<group>"; };
+		OO0001101111111111111111 /* StarRevealView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StarRevealView.swift; sourceTree = "<group>"; };
+		PP0001001111111111111111 /* MusicToggleButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicToggleButton.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -255,6 +269,8 @@
 			isa = PBXGroup;
 			children = (
 				AA0001081111111111111111 /* User.swift */,
+				OO0001001111111111111111 /* ChapterAlien.swift */,
+				OO0001021111111111111111 /* StoryProgress.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -342,6 +358,8 @@
 				HH0001041111111111111111 /* GameScreenView.swift */,
 				HH0001061111111111111111 /* ModuleMenuView.swift */,
 				KK0001081111111111111111 /* PuzzleMakerView.swift */,
+				OO0001061111111111111111 /* ChapterSelectView.swift */,
+				OO0001081111111111111111 /* LevelSelectView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -367,6 +385,7 @@
 				BB0001121111111111111111 /* PuzzleValidator.swift */,
 				BB0001141111111111111111 /* PuzzleGenerator.swift */,
 				BB0001161111111111111111 /* MoveValidator.swift */,
+				OO0001041111111111111111 /* StoryDifficulty.swift */,
 			);
 			path = Engine;
 			sourceTree = "<group>";
@@ -436,6 +455,8 @@
 				AA0001301111111111111111 /* CoinDisplay.swift */,
 				NN0001001111111111111111 /* AnimatedCharacter.swift */,
 				NN0001021111111111111111 /* ConfettiView.swift */,
+				OO0001101111111111111111 /* StarRevealView.swift */,
+				PP0001001111111111111111 /* MusicToggleButton.swift */,
 				AA0000641111111111111111 /* Animations */,
 			);
 			path = UI;
@@ -691,6 +712,13 @@
 				KK0001091111111111111111 /* PuzzleMakerView.swift in Sources */,
 				NN0001011111111111111111 /* AnimatedCharacter.swift in Sources */,
 				NN0001031111111111111111 /* ConfettiView.swift in Sources */,
+				OO0001011111111111111111 /* ChapterAlien.swift in Sources */,
+				OO0001031111111111111111 /* StoryProgress.swift in Sources */,
+				OO0001051111111111111111 /* StoryDifficulty.swift in Sources */,
+				OO0001071111111111111111 /* ChapterSelectView.swift in Sources */,
+				OO0001091111111111111111 /* LevelSelectView.swift in Sources */,
+				OO0001111111111111111111 /* StarRevealView.swift in Sources */,
+				PP0001011111111111111111 /* MusicToggleButton.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
