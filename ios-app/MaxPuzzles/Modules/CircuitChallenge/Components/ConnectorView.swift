@@ -75,12 +75,12 @@ struct ConnectorView: View {
     }
 
     private var badgePosition: CGPoint {
-        // For vertical connectors on iPhone 6-row grids, position badge at bottom
+        // For vertical connectors on iPhone 6-row grids, position badge toward bottom
         if verticalBadgeAtBottom && isVertical {
-            // Position at 75% down the connector (closer to bottom cell)
+            // Position at 65% down the connector (moved up slightly from 75%)
             return CGPoint(
                 x: (shortenedStart.x + shortenedEnd.x) / 2,
-                y: shortenedStart.y + (shortenedEnd.y - shortenedStart.y) * 0.75
+                y: shortenedStart.y + (shortenedEnd.y - shortenedStart.y) * 0.65
             )
         }
         // Default: center position
