@@ -21,6 +21,11 @@ struct GameScreenView: View {
     @State private var currentChapter: Int?
     @State private var currentLevel: Int?
 
+    // Level intro overlay (for "Next Level" transitions)
+    @State private var showLevelIntro = false
+    @State private var introScale: CGFloat = 0.5
+    @State private var introOpacity: Double = 0
+
     private let initialDifficulty: DifficultySettings
 
     // Story mode optional parameters
@@ -93,6 +98,16 @@ struct GameScreenView: View {
             if showExitConfirm {
                 exitConfirmationOverlay
             }
+
+            // Level intro overlay (for "Next Level" transitions in story mode)
+            if showLevelIntro, let alien = storyAlien, let level = currentLevel {
+                levelIntroOverlay(alien: alien, level: level)
+                    .scaleEffect(introScale)
+                    .opacity(introOpacity)
+                    .onTapGesture {
+                        dismissLevelIntro()
+                    }
+            }
         }
         .shake(isShaking: feedback.isShaking)
         .navigationBarHidden(true)
@@ -128,16 +143,27 @@ struct GameScreenView: View {
                         handleNewPuzzle()
                     },
                     onNextLevel: data.isStoryMode && data.won && hasNextLevel ? {
-                        // Advance to next level and start new puzzle
+                        // Advance to next level
                         navigateToSummary = false
                         if let chapter = currentChapter, let level = currentLevel {
                             let newLevel = level + 1
                             currentLevel = newLevel
+                            coinsPersisted = false // Reset for new puzzle
+
                             // Compute new difficulty explicitly (don't rely on computed property)
                             let storyLevel = StoryLevel(chapter: chapter, level: newLevel)
                             let newDifficulty = StoryDifficulty.settings(for: storyLevel)
                             viewModel.setDifficulty(newDifficulty)
-                            viewModel.generateNewPuzzle()
+
+                            // Show alien intro overlay with encouragement
+                            showNextLevelIntro()
+
+                            // Generate puzzle after brief delay (while intro shows)
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                                viewModel.generateNewPuzzle()
+                                // Restart game music
+                                musicService.play(track: .game)
+                            }
                         }
                     } : nil,
                     onChangeDifficulty: {
@@ -398,6 +424,81 @@ struct GameScreenView: View {
                 .cornerRadius(20)
                 .padding(24)
             }
+    }
+
+    private func levelIntroOverlay(alien: ChapterAlien, level: Int) -> some View {
+        ZStack {
+            // Dark backdrop
+            Color.black.opacity(0.85)
+                .ignoresSafeArea()
+
+            VStack(spacing: 24) {
+                Spacer()
+
+                // Alien image with bounce animation
+                Image(alien.imageName)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 200, height: 200)
+                    .alienIdleAnimation(style: .bounce, intensity: 1.0)
+
+                // Speech bubble with intro message (pointing up to alien)
+                SpeechBubble(pointsUp: true) {
+                    Text(introMessage(for: alien))
+                        .font(.system(size: 18, weight: .medium))
+                        .foregroundColor(AppTheme.backgroundDark)
+                        .multilineTextAlignment(.center)
+                }
+                .padding(.horizontal, 40)
+
+                // Level info - use alien name + level number
+                Text("\(alien.name) \(level)")
+                    .font(.system(size: 24, weight: .bold))
+                    .foregroundColor(.white)
+
+                Spacer()
+
+                // Tap to continue hint
+                Text("Tap to start")
+                    .font(.system(size: 14))
+                    .foregroundColor(AppTheme.textSecondary)
+                    .padding(.bottom, 40)
+            }
+        }
+    }
+
+    private func introMessage(for alien: ChapterAlien) -> String {
+        let playerName = StorageService.shared.playerName
+        return alien.personalizedIntroMessage(playerName: playerName)
+    }
+
+    private func showNextLevelIntro() {
+        showLevelIntro = true
+        introScale = 0.5
+        introOpacity = 0
+
+        // Animate intro in
+        withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) {
+            introScale = 1.0
+            introOpacity = 1.0
+        }
+
+        // Auto-dismiss after delay
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
+            if showLevelIntro {
+                dismissLevelIntro()
+            }
+        }
+    }
+
+    private func dismissLevelIntro() {
+        withAnimation(.easeOut(duration: 0.3)) {
+            introOpacity = 0
+            introScale = 1.2
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            showLevelIntro = false
+        }
     }
 
     // MARK: - Helpers

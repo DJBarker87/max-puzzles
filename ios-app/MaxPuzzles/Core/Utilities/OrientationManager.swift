@@ -99,6 +99,7 @@ struct PortraitLockModifier: ViewModifier {
 }
 
 /// View modifier that locks portrait on iPhone only (iPad stays unrestricted)
+/// Does NOT unlock on disappear - let the next screen set its own orientation
 struct PortraitOnPhoneModifier: ViewModifier {
     func body(content: Content) -> some View {
         content
@@ -106,12 +107,6 @@ struct PortraitOnPhoneModifier: ViewModifier {
                 // Only lock portrait on iPhones, let iPads use any orientation
                 if UIDevice.current.userInterfaceIdiom == .phone {
                     OrientationManager.shared.lockPortrait()
-                }
-            }
-            .onDisappear {
-                // Unlock when leaving
-                if UIDevice.current.userInterfaceIdiom == .phone {
-                    OrientationManager.shared.unlockAll()
                 }
             }
     }
