@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 // MARK: - PuzzleGridView
 
@@ -92,6 +93,12 @@ struct PuzzleGridView: View {
 
     // MARK: - Connectors Layer
 
+    /// On iPhone with 6 rows, put vertical connector badges at bottom to avoid overlap
+    private var shouldUseBottomBadges: Bool {
+        let isIPhone = UIDevice.current.userInterfaceIdiom == .phone
+        return isIPhone && puzzle.rows >= 6
+    }
+
     private func connectorsLayer(geometry: HexagonGeometry) -> some View {
         ForEach(Array(puzzle.connectors.enumerated()), id: \.offset) { index, connector in
             let isTraversed = isConnectorTraversed(connector.cellA, connector.cellB)
@@ -110,7 +117,8 @@ struct PuzzleGridView: View {
                 isTraversed: isTraversed,
                 isWrong: isConnectorWrong(connector.cellA, connector.cellB),
                 animationDelay: Double(index * 50),
-                cellRadius: geometry.cellRadius
+                cellRadius: geometry.cellRadius,
+                verticalBadgeAtBottom: shouldUseBottomBadges
             )
         }
     }

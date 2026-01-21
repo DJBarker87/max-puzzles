@@ -12,6 +12,7 @@ struct ConnectorView: View {
     let isWrong: Bool
     let animationDelay: Double
     let cellRadius: CGFloat  // Added to scale shortening
+    let verticalBadgeAtBottom: Bool  // For iPhone 6-row grids: put badge at bottom of vertical connectors
 
     @State private var flowPhase1: CGFloat = 0
     @State private var flowPhase2: CGFloat = 0
@@ -25,7 +26,8 @@ struct ConnectorView: View {
         isTraversed: Bool = false,
         isWrong: Bool = false,
         animationDelay: Double = 0,
-        cellRadius: CGFloat = 42  // Default for backwards compatibility
+        cellRadius: CGFloat = 42,  // Default for backwards compatibility
+        verticalBadgeAtBottom: Bool = false
     ) {
         self.startPoint = startPoint
         self.endPoint = endPoint
@@ -34,6 +36,7 @@ struct ConnectorView: View {
         self.isWrong = isWrong
         self.animationDelay = animationDelay
         self.cellRadius = cellRadius
+        self.verticalBadgeAtBottom = verticalBadgeAtBottom
     }
 
     // Shorten endpoints so connectors extend close to cell edges
@@ -64,8 +67,24 @@ struct ConnectorView: View {
         )
     }
 
-    private var midPoint: CGPoint {
-        CGPoint(
+    /// Check if this connector is primarily vertical (more vertical than horizontal)
+    private var isVertical: Bool {
+        let dx = abs(endPoint.x - startPoint.x)
+        let dy = abs(endPoint.y - startPoint.y)
+        return dy > dx * 2  // Vertical if Y delta is more than 2x X delta
+    }
+
+    private var badgePosition: CGPoint {
+        // For vertical connectors on iPhone 6-row grids, position badge at bottom
+        if verticalBadgeAtBottom && isVertical {
+            // Position at 75% down the connector (closer to bottom cell)
+            return CGPoint(
+                x: (shortenedStart.x + shortenedEnd.x) / 2,
+                y: shortenedStart.y + (shortenedEnd.y - shortenedStart.y) * 0.75
+            )
+        }
+        // Default: center position
+        return CGPoint(
             x: (shortenedStart.x + shortenedEnd.x) / 2,
             y: (shortenedStart.y + shortenedEnd.y) / 2
         )
@@ -104,7 +123,7 @@ struct ConnectorView: View {
             // Value badge - scales with cell size
             ConnectorBadge(
                 value: value,
-                position: midPoint,
+                position: badgePosition,
                 backgroundColor: Color(hex: "15151f"),
                 borderColor: Color(hex: "2a2a3a"),
                 textColor: Color(hex: "ff9f43"),
@@ -157,7 +176,7 @@ struct ConnectorView: View {
             // Value badge - scales with cell size
             ConnectorBadge(
                 value: value,
-                position: midPoint,
+                position: badgePosition,
                 backgroundColor: Color(hex: "0a3020"),
                 borderColor: Color(hex: "00ff88"),
                 textColor: Color(hex: "00ff88"),
@@ -177,7 +196,7 @@ struct ConnectorView: View {
             // Value badge - scales with cell size
             ConnectorBadge(
                 value: value,
-                position: midPoint,
+                position: badgePosition,
                 backgroundColor: Color(hex: "7f1d1d"),
                 borderColor: Color(hex: "ef4444"),
                 textColor: Color(hex: "ef4444"),
