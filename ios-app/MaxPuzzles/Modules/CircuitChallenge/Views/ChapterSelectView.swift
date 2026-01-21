@@ -11,64 +11,65 @@ struct ChapterSelectView: View {
     @State private var currentIndex: Int = 0
     @State private var dragOffset: CGFloat = 0
 
+    private var screenWidth: CGFloat { UIScreen.main.bounds.width }
+    private var screenHeight: CGFloat { UIScreen.main.bounds.height }
+
     var body: some View {
-        GeometryReader { geometry in
-            ZStack {
-                // Colorful splash background
-                Image("splash_background")
-                    .resizable()
-                    .scaledToFill()
-                    .ignoresSafeArea()
+        ZStack {
+            // Colorful splash background
+            Image("splash_background")
+                .resizable()
+                .scaledToFill()
+                .ignoresSafeArea()
 
-                // Dark overlay for readability
-                Color.black.opacity(0.35)
-                    .ignoresSafeArea()
+            // Dark overlay for readability
+            Color.black.opacity(0.35)
+                .ignoresSafeArea()
 
-                VStack(spacing: 0) {
-                    // Title with total stars
-                    VStack(spacing: 4) {
-                        Text("Story Mode")
-                            .font(.system(size: 28, weight: .heavy, design: .rounded))
-                            .foregroundColor(.white)
-                            .shadow(color: AppTheme.connectorGlow.opacity(0.8), radius: 8)
-                            .shadow(color: AppTheme.accentPrimary.opacity(0.5), radius: 4)
+            VStack(spacing: 0) {
+                // Title with total stars
+                VStack(spacing: 4) {
+                    Text("Story Mode")
+                        .font(.system(size: 28, weight: .heavy, design: .rounded))
+                        .foregroundColor(.white)
+                        .shadow(color: AppTheme.connectorGlow.opacity(0.8), radius: 8)
+                        .shadow(color: AppTheme.accentPrimary.opacity(0.5), radius: 4)
 
-                        HStack(spacing: 12) {
-                            Text("Help the aliens!")
-                                .font(.system(size: 13, weight: .medium))
-                                .foregroundColor(.white.opacity(0.9))
+                    HStack(spacing: 12) {
+                        Text("Help the aliens!")
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundColor(.white.opacity(0.9))
 
-                            // Total stars badge
-                            HStack(spacing: 4) {
-                                Image(systemName: "star.fill")
-                                    .font(.system(size: 11))
-                                Text("\(progress.totalStars)")
-                                    .font(.system(size: 13, weight: .bold))
-                                Text("/150")
-                                    .font(.system(size: 10))
-                                    .foregroundColor(AppTheme.textSecondary)
-                            }
-                            .foregroundColor(AppTheme.accentTertiary)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 3)
-                            .background(AppTheme.backgroundDark.opacity(0.5))
-                            .cornerRadius(10)
+                        // Total stars badge
+                        HStack(spacing: 4) {
+                            Image(systemName: "star.fill")
+                                .font(.system(size: 11))
+                            Text("\(progress.totalStars)")
+                                .font(.system(size: 13, weight: .bold))
+                            Text("/150")
+                                .font(.system(size: 10))
+                                .foregroundColor(AppTheme.textSecondary)
                         }
+                        .foregroundColor(AppTheme.accentTertiary)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(AppTheme.backgroundDark.opacity(0.5))
+                        .cornerRadius(10)
                     }
-                    .padding(.top, 8)
-
-                    // 3D Carousel
-                    Spacer()
-
-                    carousel3D(geometry: geometry)
-                        .frame(height: geometry.size.height * 0.68)
-
-                    Spacer()
-
-                    // Progress indicator
-                    progressIndicator
-                        .padding(.bottom, 16)
                 }
+                .padding(.top, 8)
+
+                // 3D Carousel
+                Spacer()
+
+                carouselView
+                    .frame(height: screenHeight * 0.55)
+
+                Spacer()
+
+                // Progress indicator
+                progressIndicator
+                    .padding(.bottom, 16)
             }
         }
         .portraitOnPhone()
@@ -96,23 +97,24 @@ struct ChapterSelectView: View {
         }
     }
 
-    // MARK: - 3D Carousel
+    // MARK: - Carousel View
 
-    private func carousel3D(geometry: GeometryProxy) -> some View {
-        let cardWidth = geometry.size.width * 0.7
-        let cardHeight = geometry.size.height * 0.6
+    private var carouselView: some View {
+        let cardWidth = screenWidth * 0.75
+        let cardHeight = screenHeight * 0.45
         let spacing: CGFloat = 20
 
         return ZStack {
-            ForEach(Array(ChapterAlien.all.enumerated()), id: \.element.id) { index, alien in
+            ForEach(0..<ChapterAlien.all.count, id: \.self) { index in
+                let alien = ChapterAlien.all[index]
                 let offset = CGFloat(index - currentIndex) + (dragOffset / (cardWidth + spacing))
                 let absOffset = abs(offset)
 
                 // 3D transforms for sphere effect
-                let angle = offset * 35 // degrees of rotation
-                let scale = max(0.6, 1 - absOffset * 0.15)
+                let angle = offset * 30 // degrees of rotation
+                let scale = max(0.7, 1 - absOffset * 0.12)
                 let zIndex = 10 - absOffset
-                let xOffset = offset * cardWidth * 0.4
+                let xOffset = offset * cardWidth * 0.55 // show edges of adjacent cards
 
                 // Opacity based on distance
                 let opacity = max(0.3, 1 - absOffset * 0.3)
@@ -147,6 +149,8 @@ struct ChapterSelectView: View {
                 .zIndex(zIndex)
             }
         }
+        .frame(maxWidth: .infinity)
+        .contentShape(Rectangle())
         .gesture(
             DragGesture()
                 .onChanged { value in

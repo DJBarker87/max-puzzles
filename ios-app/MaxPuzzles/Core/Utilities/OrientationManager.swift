@@ -38,12 +38,12 @@ final class OrientationManager: ObservableObject {
         setNeedsOrientationUpdate()
 
         // Force rotation to portrait if currently in landscape
-        DispatchQueue.main.async {
-            if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
-                let currentOrientation = windowScene.interfaceOrientation
-                if currentOrientation.isLandscape {
-                    windowScene.requestGeometryUpdate(.iOS(interfaceOrientations: .portrait)) { _ in }
-                }
+        DispatchQueue.main.async { [weak self] in
+            guard self != nil else { return }
+            guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene else { return }
+            let currentOrientation = windowScene.interfaceOrientation
+            if currentOrientation.isLandscape {
+                windowScene.requestGeometryUpdate(.iOS(interfaceOrientations: .portrait)) { _ in }
             }
         }
     }
@@ -78,15 +78,12 @@ class AppDelegate: NSObject, UIApplicationDelegate {
 // MARK: - View Modifier for Landscape Lock
 
 /// View modifier that locks the screen to landscape orientation
+/// Does NOT restore on disappear - let the next screen set its own orientation
 struct LandscapeLockModifier: ViewModifier {
     func body(content: Content) -> some View {
         content
             .onAppear {
                 OrientationManager.shared.lockLandscape()
-            }
-            .onDisappear {
-                // Return to allowing all orientations for menus
-                OrientationManager.shared.unlockAll()
             }
     }
 }

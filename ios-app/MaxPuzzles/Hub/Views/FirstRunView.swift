@@ -12,9 +12,10 @@ struct FirstRunView: View {
     @State private var inputOpacity: Double = 0
     @State private var buttonOpacity: Double = 0
     @State private var isExiting = false
+    @State private var alienArrived = false  // Separate state for animation
 
-    // Pick a random welcome alien
-    private let welcomeAlien = ChapterAlien.all.randomElement() ?? ChapterAlien.all[0]
+    // Pick a random welcome alien (computed once)
+    @State private var welcomeAlien: ChapterAlien = ChapterAlien.all[0]
 
     private var storage: StorageService { StorageService.shared }
 
@@ -95,7 +96,7 @@ struct FirstRunView: View {
                     .resizable()
                     .scaledToFit()
                     .frame(width: 200, height: 200)
-                    .alienIdleAnimation(style: .bounce, intensity: alienOffset == 0 ? 1.0 : 0)
+                    .alienIdleAnimation(style: .bounce, intensity: alienArrived ? 1.0 : 0)
                     .scaleEffect(alienScale)
                     .offset(y: alienOffset)
             }
@@ -103,6 +104,8 @@ struct FirstRunView: View {
         }
         .opacity(isExiting ? 0 : 1)
         .onAppear {
+            // Pick a random alien on appear (avoids init-time randomization issues)
+            welcomeAlien = ChapterAlien.all.randomElement() ?? ChapterAlien.all[0]
             startAnimations()
         }
     }
@@ -111,6 +114,11 @@ struct FirstRunView: View {
         // Alien rises up from bottom with spring animation
         withAnimation(.spring(response: 0.8, dampingFraction: 0.7).delay(0.3)) {
             alienOffset = 0
+        }
+
+        // Mark alien as arrived after spring animation completes
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+            alienArrived = true
         }
 
         // Speech bubble fades in after alien arrives
@@ -126,8 +134,6 @@ struct FirstRunView: View {
                 inputOpacity = 1.0
             }
         }
-
-        // Button is part of input opacity, so no separate animation needed
     }
 
     private func completeFirstRun() {

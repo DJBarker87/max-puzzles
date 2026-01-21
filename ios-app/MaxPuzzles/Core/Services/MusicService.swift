@@ -25,6 +25,7 @@ class MusicService: ObservableObject {
 
     private var player: AVAudioPlayer?
     private let storage = StorageService.shared
+    private var currentTrack: MusicTrack?
 
     // MARK: - Initialization
 
@@ -118,8 +119,13 @@ class MusicService: ObservableObject {
             // If we have a paused player, resume it
             if player != nil {
                 resume()
+            } else if let track = currentTrack {
+                // No player exists - start playing the current track
+                play(track: track)
+            } else {
+                // No track set - default to hub music
+                play(track: .hub)
             }
-            // Otherwise the caller should start appropriate music
         } else {
             pause()
         }
@@ -200,6 +206,7 @@ enum MusicTrack: String {
 extension MusicService {
     /// Plays a predefined music track
     func play(track: MusicTrack, loop: Bool = true) {
+        currentTrack = track
         play(filename: track.filename, fileExtension: track.fileExtension, loop: loop)
     }
 

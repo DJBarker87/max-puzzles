@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 // MARK: - Level Select View
 
@@ -11,39 +12,41 @@ struct LevelSelectView: View {
     @Environment(\.dismiss) private var dismiss
 
     private var progress: StoryProgress { appState.storyProgress }
+    private var screenWidth: CGFloat { UIScreen.main.bounds.width }
 
     @State private var selectedLevel: Int?
 
     var body: some View {
-        GeometryReader { geometry in
-            ZStack {
-                // Colorful splash background
-                Image("splash_background")
-                    .resizable()
-                    .scaledToFill()
-                    .ignoresSafeArea()
+        ZStack {
+            // Colorful splash background
+            Image("splash_background")
+                .resizable()
+                .scaledToFill()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .ignoresSafeArea()
 
-                // Dark overlay for readability
-                Color.black.opacity(0.35)
-                    .ignoresSafeArea()
+            // Dark overlay for readability
+            Color.black.opacity(0.6)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .ignoresSafeArea()
 
-                VStack(spacing: 16) {
-                    // Chapter header with alien
-                    chapterHeader
+            VStack(spacing: 16) {
+                // Chapter header with alien
+                chapterHeader
 
-                    Spacer()
+                Spacer()
 
-                    // Horizontal hexagon level path
-                    horizontalLevelPath(geometry: geometry)
+                // Horizontal hexagon level path
+                horizontalLevelPath
 
-                    Spacer()
+                Spacer()
 
-                    // Chapter stats
-                    chapterStats
-                        .padding(.bottom, 20)
-                }
+                // Chapter stats
+                chapterStats
+                    .padding(.bottom, 20)
             }
         }
+        .landscapeOnly()
         .navigationTitle("Chapter \(chapter)")
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
@@ -55,7 +58,6 @@ struct LevelSelectView: View {
                 }
             }
         }
-        .portraitOnPhone()
         .navigationDestination(isPresented: Binding(
             get: { selectedLevel != nil },
             set: { if !$0 { selectedLevel = nil } }
@@ -80,10 +82,10 @@ struct LevelSelectView: View {
 
     // MARK: - Horizontal Level Path
 
-    private func horizontalLevelPath(geometry: GeometryProxy) -> some View {
+    private var horizontalLevelPath: some View {
         // Calculate sizes to fill the screen width
         let horizontalPadding: CGFloat = 16
-        let availableWidth = geometry.size.width - (horizontalPadding * 2)
+        let availableWidth = screenWidth - (horizontalPadding * 2)
 
         // 5 hexagons + 4 connectors
         // connectorWidth = hexSize * 0.25 (proportional)
@@ -115,12 +117,14 @@ struct LevelSelectView: View {
                     )
 
                     // Connector to next (except for level 5)
+                    // Offset upward to align with center of raised hexagon (not shadow)
                     if level < 5 {
                         HorizontalLevelConnector(
                             isActive: isLevelUnlocked(level + 1),
                             isPulsing: isLevelCompleted(level),
                             width: connectorWidth
                         )
+                        .offset(y: -hexSize * 0.08)  // Align with raised hex center
                     }
                 }
             }
@@ -156,8 +160,8 @@ struct LevelSelectView: View {
         if level == 1 {
             return progress.isChapterUnlocked(chapter)
         }
-        let previousStars = progress.starsForLevel(chapter: chapter, level: level - 1)
-        return previousStars >= 2
+        // Level unlocks when previous level is completed (any number of stars)
+        return progress.isLevelCompleted(chapter: chapter, level: level - 1)
     }
 
     private func isLevelCompleted(_ level: Int) -> Bool {
@@ -205,8 +209,9 @@ struct LargeHexTile: View {
     let hexSize: CGFloat
     let onTap: () -> Void
 
-    @State private var flowPhase: CGFloat = 0
-    @State private var glowPhase: CGFloat = 0
+    @State private var flowPhase1: CGFloat = 0
+    @State private var flowPhase2: CGFloat = 0
+    @State private var glowOpacity: CGFloat = 0.5
 
     private var levelLetter: String {
         ["A", "B", "C", "D", "E"][level - 1]
@@ -251,36 +256,51 @@ struct LargeHexTile: View {
             VStack(spacing: 10) {
                 // 3D Hexagon tile (poker chip style)
                 ZStack {
-                    // Pulsing glow for current/completed levels
+                    // Electric glow effect for current/completed levels (matching game exactly)
                     if shouldPulse {
-                        // Outer glow
+                        // Layer 1: Glow (blur effect)
                         HexagonShape()
-                            .fill(AppTheme.connectorGlow.opacity(0.4))
-                            .frame(width: hexSize + 30, height: hexSize + 30)
-                            .blur(radius: 15)
-                            .opacity(0.5 + glowPhase * 0.5)
+                            .stroke(Color(hex: "00ff88").opacity(glowOpacity), lineWidth: 18)
+                            .blur(radius: 6)
+                            .frame(width: hexSize, height: hexSize)
 
-                        // Inner glow
+                        // Layer 2: Main line
                         HexagonShape()
-                            .fill(AppTheme.connectorGlow.opacity(0.3))
-                            .frame(width: hexSize + 15, height: hexSize + 15)
-                            .blur(radius: 8)
+                            .stroke(Color(hex: "00dd77"), lineWidth: 10)
+                            .frame(width: hexSize, height: hexSize)
 
-                        // Energy border animation
+                        // Layer 3: Energy flow slow (dash 6 30, 1.2s)
                         HexagonShape()
                             .stroke(
-                                AppTheme.connectorGlow,
-                                style: StrokeStyle(lineWidth: 4, dash: [8, 12], dashPhase: flowPhase * 40)
+                                Color(hex: "88ffcc"),
+                                style: StrokeStyle(
+                                    lineWidth: 6,
+                                    lineCap: .round,
+                                    lineJoin: .round,
+                                    dash: [6, 30],
+                                    dashPhase: flowPhase2
+                                )
                             )
-                            .frame(width: hexSize + 10, height: hexSize + 10)
+                            .frame(width: hexSize, height: hexSize)
 
-                        // Second energy layer (faster)
+                        // Layer 4: Energy flow fast (dash 4 20, 0.8s)
                         HexagonShape()
                             .stroke(
-                                Color.white.opacity(0.8),
-                                style: StrokeStyle(lineWidth: 2, dash: [4, 16], dashPhase: flowPhase * 60)
+                                Color.white,
+                                style: StrokeStyle(
+                                    lineWidth: 4,
+                                    lineCap: .round,
+                                    lineJoin: .round,
+                                    dash: [4, 20],
+                                    dashPhase: flowPhase1
+                                )
                             )
-                            .frame(width: hexSize + 10, height: hexSize + 10)
+                            .frame(width: hexSize, height: hexSize)
+
+                        // Layer 5: Bright core
+                        HexagonShape()
+                            .stroke(Color(hex: "aaffcc"), lineWidth: 3)
+                            .frame(width: hexSize, height: hexSize)
                     }
 
                     // Layer 1: Shadow
@@ -371,13 +391,16 @@ struct LargeHexTile: View {
         .disabled(!isUnlocked)
         .onAppear {
             if shouldPulse {
-                // Flow animation for dashed border
-                withAnimation(.linear(duration: 1.2).repeatForever(autoreverses: false)) {
-                    flowPhase = 1
+                // Energy flow animations matching game exactly
+                withAnimation(.linear(duration: 0.8).repeatForever(autoreverses: false)) {
+                    flowPhase1 = -36
                 }
-                // Glow pulse animation
+                withAnimation(.linear(duration: 1.2).repeatForever(autoreverses: false)) {
+                    flowPhase2 = -36
+                }
+                // Glow pulse (0.5 to 0.8 over 1.5s)
                 withAnimation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true)) {
-                    glowPhase = 1
+                    glowOpacity = 0.8
                 }
             }
         }
@@ -425,6 +448,7 @@ struct LargeHexTile: View {
 // MARK: - Horizontal Level Connector
 
 /// Game-style electric connector between level hexagons
+/// Matches ConnectorView exactly with 5-layer stroke animation
 struct HorizontalLevelConnector: View {
     let isActive: Bool
     let isPulsing: Bool
@@ -434,87 +458,90 @@ struct HorizontalLevelConnector: View {
     @State private var flowPhase2: CGFloat = 0
     @State private var glowOpacity: CGFloat = 0.5
 
-    // Connector height (thicker for level select)
-    private let connectorHeight: CGFloat = 10
-
     var body: some View {
         ZStack {
             if isPulsing {
-                // Layer 1: Glow (blur effect)
-                RoundedRectangle(cornerRadius: connectorHeight / 2)
-                    .fill(AppTheme.connectorGlow.opacity(glowOpacity))
-                    .frame(width: width, height: connectorHeight + 10)
+                // Layer 1: Glow (blur effect) - matching game ConnectorView
+                HorizontalLine()
+                    .stroke(Color(hex: "00ff88").opacity(glowOpacity), style: StrokeStyle(lineWidth: 18, lineCap: .round))
                     .blur(radius: 6)
+                    .frame(width: width, height: 24)
 
                 // Layer 2: Main line
-                RoundedRectangle(cornerRadius: connectorHeight / 2)
-                    .fill(Color(hex: "00dd77"))
-                    .frame(width: width, height: connectorHeight)
+                HorizontalLine()
+                    .stroke(Color(hex: "00dd77"), style: StrokeStyle(lineWidth: 10, lineCap: .round))
+                    .frame(width: width, height: 24)
 
-                // Layer 3: Energy flow slow (dash effect)
-                RoundedRectangle(cornerRadius: connectorHeight / 2)
-                    .fill(Color(hex: "88ffcc"))
-                    .frame(width: width, height: connectorHeight - 2)
-                    .mask(
-                        HStack(spacing: 0) {
-                            ForEach(0..<20, id: \.self) { i in
-                                let offset = CGFloat(i) * 12 - flowPhase2 * 40
-                                Circle()
-                                    .frame(width: 6, height: 6)
-                                    .offset(x: offset)
-                            }
-                        }
-                        .frame(width: width)
+                // Layer 3: Energy flow slow (dash 6 30, 1.2s)
+                HorizontalLine()
+                    .stroke(
+                        Color(hex: "88ffcc"),
+                        style: StrokeStyle(
+                            lineWidth: 6,
+                            lineCap: .round,
+                            dash: [6, 30],
+                            dashPhase: flowPhase2
+                        )
                     )
+                    .frame(width: width, height: 24)
 
-                // Layer 4: Energy flow fast
-                RoundedRectangle(cornerRadius: connectorHeight / 2)
-                    .fill(Color.white)
-                    .frame(width: width, height: connectorHeight - 4)
-                    .mask(
-                        HStack(spacing: 0) {
-                            ForEach(0..<30, id: \.self) { i in
-                                let offset = CGFloat(i) * 8 - flowPhase1 * 50
-                                Circle()
-                                    .frame(width: 4, height: 4)
-                                    .offset(x: offset)
-                            }
-                        }
-                        .frame(width: width)
+                // Layer 4: Energy flow fast (dash 4 20, 0.8s)
+                HorizontalLine()
+                    .stroke(
+                        Color.white,
+                        style: StrokeStyle(
+                            lineWidth: 4,
+                            lineCap: .round,
+                            dash: [4, 20],
+                            dashPhase: flowPhase1
+                        )
                     )
+                    .frame(width: width, height: 24)
 
                 // Layer 5: Bright core
-                RoundedRectangle(cornerRadius: connectorHeight / 2)
-                    .fill(Color(hex: "aaffcc"))
-                    .frame(width: width, height: 3)
+                HorizontalLine()
+                    .stroke(Color(hex: "aaffcc"), style: StrokeStyle(lineWidth: 3, lineCap: .round))
+                    .frame(width: width, height: 24)
             } else if isActive {
-                // Active but not pulsing - just green
-                RoundedRectangle(cornerRadius: connectorHeight / 2)
-                    .fill(AppTheme.connectorActive)
-                    .frame(width: width, height: connectorHeight)
+                // Active but not pulsing - solid green
+                HorizontalLine()
+                    .stroke(AppTheme.connectorActive, style: StrokeStyle(lineWidth: 8, lineCap: .round))
+                    .frame(width: width, height: 24)
             } else {
                 // Inactive connector
-                RoundedRectangle(cornerRadius: connectorHeight / 2)
-                    .fill(AppTheme.connectorDefault)
-                    .frame(width: width, height: connectorHeight - 2)
+                HorizontalLine()
+                    .stroke(AppTheme.connectorDefault, style: StrokeStyle(lineWidth: 8, lineCap: .round))
+                    .frame(width: width, height: 24)
             }
         }
         .frame(width: width, height: 24)
         .onAppear {
             if isPulsing {
-                // Energy flow animations
+                // Energy flow animations matching game exactly
                 withAnimation(.linear(duration: 0.8).repeatForever(autoreverses: false)) {
-                    flowPhase1 = 1
+                    flowPhase1 = -36
                 }
                 withAnimation(.linear(duration: 1.2).repeatForever(autoreverses: false)) {
-                    flowPhase2 = 1
+                    flowPhase2 = -36
                 }
-                // Glow pulse
+                // Glow pulse (0.5 to 0.8 over 1.5s)
                 withAnimation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true)) {
                     glowOpacity = 0.8
                 }
             }
         }
+    }
+}
+
+// MARK: - Horizontal Line Shape
+
+/// Simple horizontal line shape for level connectors
+private struct HorizontalLine: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        path.move(to: CGPoint(x: 0, y: rect.midY))
+        path.addLine(to: CGPoint(x: rect.width, y: rect.midY))
+        return path
     }
 }
 

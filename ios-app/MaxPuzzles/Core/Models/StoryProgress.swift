@@ -174,6 +174,9 @@ class StoryProgress: ObservableObject {
         }
 
         data.levelProgress[key] = levelData
+
+        // Explicitly save - didSet doesn't trigger on nested property changes
+        save()
     }
 
     // MARK: - Reset
@@ -189,6 +192,8 @@ class StoryProgress: ObservableObject {
             let key = StoryProgressData.key(chapter: chapter, level: level)
             data.levelProgress.removeValue(forKey: key)
         }
+        // Explicitly save - didSet doesn't trigger on nested property changes
+        save()
     }
 
     // MARK: - Persistence
