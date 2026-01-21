@@ -13,23 +13,20 @@ struct FirstRunView: View {
     @State private var buttonOpacity: Double = 0
     @State private var isExiting = false
     @State private var alienArrived = false  // Separate state for animation
+    @FocusState private var isTextFieldFocused: Bool
 
-    // Pick a random welcome alien (computed once)
-    @State private var welcomeAlien: ChapterAlien = ChapterAlien.all[0]
+    // Pick a random welcome alien (computed once) - use first alien or a safe default
+    @State private var welcomeAlien: ChapterAlien = ChapterAlien.all.first ?? ChapterAlien.defaultAlien
 
     private var storage: StorageService { StorageService.shared }
 
     var body: some View {
         ZStack {
-            // Colorful splash background
-            Image("splash_background")
-                .resizable()
-                .scaledToFill()
+            // Solid fallback background
+            AppTheme.backgroundDark
                 .ignoresSafeArea()
 
-            // Dark overlay for readability
-            Color.black.opacity(0.4)
-                .ignoresSafeArea()
+            SplashBackground(overlayOpacity: 0.4)
 
             VStack(spacing: 20) {
                 Spacer()
@@ -43,11 +40,17 @@ struct FirstRunView: View {
                         .padding(.vertical, 16)
                         .background(AppTheme.backgroundMid)
                         .foregroundColor(.white)
+                        .tint(.white)  // Make cursor visible
                         .cornerRadius(16)
                         .overlay(
                             RoundedRectangle(cornerRadius: 16)
-                                .stroke(AppTheme.accentPrimary.opacity(0.5), lineWidth: 2)
+                                .stroke(isTextFieldFocused ? AppTheme.accentPrimary : AppTheme.accentPrimary.opacity(0.5), lineWidth: isTextFieldFocused ? 3 : 2)
                         )
+                        .focused($isTextFieldFocused)
+                        .submitLabel(.done)
+                        .onSubmit {
+                            isTextFieldFocused = false
+                        }
                         .autocorrectionDisabled()
                         .textInputAutocapitalization(.words)
 
@@ -103,6 +106,10 @@ struct FirstRunView: View {
             .padding(.bottom, -40) // Let alien overlap bottom edge slightly
         }
         .opacity(isExiting ? 0 : 1)
+        .onTapGesture {
+            // Dismiss keyboard when tapping outside text field
+            isTextFieldFocused = false
+        }
         .onAppear {
             // Pick a random alien on appear (avoids init-time randomization issues)
             welcomeAlien = ChapterAlien.all.randomElement() ?? ChapterAlien.all[0]

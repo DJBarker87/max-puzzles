@@ -155,6 +155,9 @@ struct PrimaryButton: View {
             .opacity(isDisabled ? 0.5 : 1.0)
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(title)
+        .accessibilityHint(isLoading ? "Loading" : (isDisabled ? "Disabled" : "Double tap to activate"))
+        .accessibilityAddTraits(.isButton)
         .onHover { hovering in
             withAnimation(.easeInOut(duration: AppAnimation.fast)) {
                 isHovered = hovering
@@ -203,6 +206,7 @@ struct PremiumIconButton: View {
     var size: CGFloat = 44
     var backgroundColor: Color = AppTheme.backgroundMid
     var iconColor: Color = .white
+    var accessibilityLabelText: String = ""
 
     @State private var isPressed = false
 
@@ -228,6 +232,8 @@ struct PremiumIconButton: View {
                 .scaleEffect(isPressed ? 0.92 : 1.0)
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(accessibilityLabelText.isEmpty ? icon : accessibilityLabelText)
+        .accessibilityAddTraits(.isButton)
         .simultaneousGesture(
             DragGesture(minimumDistance: 0)
                 .onChanged { _ in

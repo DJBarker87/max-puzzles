@@ -10,19 +10,37 @@ struct CellGrid {
     let divisionCells: Set<String>  // Cell keys that should prioritize division
 }
 
+// MARK: - Cell Assignment Error
+
+/// Errors that can occur during cell assignment
+enum CellAssignmentError: Error, LocalizedError {
+    case noConnectorFound(from: String, to: String)
+    case noConnectorsForCell(row: Int, col: Int)
+
+    var errorDescription: String? {
+        switch self {
+        case .noConnectorFound(let from, let to):
+            return "No connector found between \(from) and \(to)"
+        case .noConnectorsForCell(let row, let col):
+            return "No connectors found for cell (\(row),\(col))"
+        }
+    }
+}
+
 // MARK: - CellAssigner
 
 /// Assigns answers to cells based on solution path and connectors
 enum CellAssigner {
 
     /// Assign answers to all cells
+    /// - Throws: CellAssignmentError if connectors are missing
     static func assignCellAnswers(
         rows: Int,
         cols: Int,
         solutionPath: [Coordinate],
         connectors: [Connector],
         divisionConnectorIndices: [Int] = []
-    ) -> CellGrid {
+    ) throws -> CellGrid {
         let divisionConnectorSet = Set(divisionConnectorIndices)
         var divisionCells = Set<String>()
 
@@ -56,7 +74,7 @@ enum CellAssigner {
                 if matches { connectorIndex = index }
                 return matches
             })?.element else {
-                fatalError("No connector found between \(current.key) and \(next.key)")
+                throw CellAssignmentError.noConnectorFound(from: current.key, to: next.key)
             }
 
             // Cell's answer is the connector's value
@@ -82,7 +100,7 @@ enum CellAssigner {
                 let cellConnectors = ConnectorBuilder.getConnectors(for: Coordinate(row: row, col: col), in: connectors)
 
                 guard !cellConnectors.isEmpty else {
-                    fatalError("No connectors found for cell (\(row),\(col))")
+                    throw CellAssignmentError.noConnectorsForCell(row: row, col: col)
                 }
 
                 // Pick random connector's value as answer

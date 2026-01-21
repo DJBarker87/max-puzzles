@@ -335,6 +335,47 @@ struct StarView: View {
     }
 }
 
+// MARK: - Splash Background
+
+/// Reusable splash background with dark overlay
+/// Offsets the image on portrait mobile to hide the bear character
+struct SplashBackground: View {
+    var overlayOpacity: Double = 0.6
+
+    // Calculate offset once based on screen bounds (stable, no animation)
+    private var backgroundOffset: CGFloat {
+        let screen = UIScreen.main.bounds
+        let isPortrait = screen.height > screen.width
+        let isPhone = UIDevice.current.userInterfaceIdiom == .phone
+        return (isPortrait && isPhone) ? -80 : 0
+    }
+
+    var body: some View {
+        ZStack {
+            // Fallback solid color (always visible immediately)
+            AppTheme.backgroundDark
+
+            // Fallback gradient
+            AppTheme.gridBackground
+
+            // Background image - use screen bounds instead of GeometryReader
+            Image("splash_background")
+                .resizable()
+                .scaledToFill()
+                .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
+                .offset(x: backgroundOffset)
+                .clipped()
+
+            Color.black.opacity(overlayOpacity)
+        }
+        .ignoresSafeArea()
+    }
+}
+
+#Preview("Splash Background") {
+    SplashBackground()
+}
+
 #Preview {
     StarryBackground(useHubImage: true)
 }

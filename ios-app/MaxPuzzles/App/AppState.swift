@@ -33,11 +33,13 @@ class AppState: ObservableObject {
 
     /// Called when splash screen completes
     func completeLoading() {
-        isLoading = false
-        // Check if first run setup is needed
+        // IMPORTANT: Check first run BEFORE setting isLoading to false
+        // This prevents a race condition where ContentView shows MainHubView briefly
         if StorageService.shared.needsFirstRunSetup {
             needsFirstRun = true
         }
+        // Now safe to set isLoading false - needsFirstRun is already set if needed
+        isLoading = false
     }
 
     /// Called when first run setup is completed

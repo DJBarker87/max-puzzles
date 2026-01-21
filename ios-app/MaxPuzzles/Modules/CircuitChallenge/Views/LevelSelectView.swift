@@ -18,17 +18,7 @@ struct LevelSelectView: View {
 
     var body: some View {
         ZStack {
-            // Colorful splash background
-            Image("splash_background")
-                .resizable()
-                .scaledToFill()
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .ignoresSafeArea()
-
-            // Dark overlay for readability
-            Color.black.opacity(0.6)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .ignoresSafeArea()
+            SplashBackground()
 
             VStack(spacing: 16) {
                 // Chapter header with alien

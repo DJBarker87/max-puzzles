@@ -67,8 +67,11 @@ struct SummaryScreenView: View {
             } else {
                 // Results screen - use GeometryReader to fit content on screen
                 GeometryReader { geometry in
+                    let isExtraCompact = geometry.size.height < 580
+                    let spacerMin: CGFloat = isExtraCompact ? 8 : 20
+
                     VStack(spacing: 0) {
-                        Spacer(minLength: 20)
+                        Spacer(minLength: spacerMin)
 
                         if data.won {
                             winContent(screenHeight: geometry.size.height)
@@ -76,7 +79,7 @@ struct SummaryScreenView: View {
                             loseContent(screenHeight: geometry.size.height)
                         }
 
-                        Spacer(minLength: 20)
+                        Spacer(minLength: spacerMin)
                     }
                 }
                 .opacity(resultsOpacity)
@@ -91,9 +94,22 @@ struct SummaryScreenView: View {
                 startChapterCompleteCelebration()
             } else if data.isHiddenMode {
                 // Skip character reveal for hidden mode (non-chapter complete)
+                // Play win or lose music
+                if data.won {
+                    musicService.play(track: .victory, loop: false)
+                } else {
+                    musicService.play(track: .lose, loop: false)
+                }
                 showingCharacter = false
                 resultsOpacity = 1
             } else {
+                // Regular mode with character reveal
+                // Play win or lose music
+                if data.won {
+                    musicService.play(track: .victory, loop: false)
+                } else {
+                    musicService.play(track: .lose, loop: false)
+                }
                 startCharacterReveal()
             }
         }
@@ -492,11 +508,16 @@ struct SummaryScreenView: View {
     // MARK: - Win Content
 
     private func winContent(screenHeight: CGFloat) -> some View {
+        // Three tiers: extra compact (<580), compact (<700), normal
+        let isExtraCompact = screenHeight < 580
         let isCompact = screenHeight < 700
-        let characterSize: CGFloat = isCompact ? 70 : 100
-        let titleSize: CGFloat = isCompact ? 24 : 32
-        let spacing: CGFloat = isCompact ? 12 : 24
-        let padding: CGFloat = isCompact ? 16 : 28
+
+        let characterSize: CGFloat = isExtraCompact ? 50 : (isCompact ? 70 : 100)
+        let titleSize: CGFloat = isExtraCompact ? 20 : (isCompact ? 24 : 32)
+        let spacing: CGFloat = isExtraCompact ? 6 : (isCompact ? 12 : 24)
+        let padding: CGFloat = isExtraCompact ? 12 : (isCompact ? 16 : 28)
+        let statFontSize: CGFloat = isExtraCompact ? 13 : (isCompact ? 15 : 18)
+        let statSpacing: CGFloat = isExtraCompact ? 2 : (isCompact ? 6 : 10)
 
         return VStack(spacing: spacing) {
             // Small character at top of results with subtle animation
@@ -511,60 +532,98 @@ struct SummaryScreenView: View {
             }
 
             // Results Card
-            VStack(spacing: isCompact ? 10 : 20) {
+            VStack(spacing: isExtraCompact ? 6 : (isCompact ? 10 : 20)) {
                 Text("Puzzle Complete!")
                     .font(.system(size: titleSize, weight: .bold))
                     .foregroundColor(.white)
 
-                // Animated stars reveal
-                AnimatedStarReveal.summary(starsEarned: data.starsEarned, delay: 0.3)
+                // Animated stars reveal - smaller on extra compact
+                if isExtraCompact {
+                    AnimatedStarReveal.summary(starsEarned: data.starsEarned, delay: 0.3, starSize: 28)
+                } else {
+                    AnimatedStarReveal.summary(starsEarned: data.starsEarned, delay: 0.3)
+                }
 
-                VStack(spacing: isCompact ? 6 : 10) {
-                    HStack {
-                        Text("Time:")
-                            .foregroundColor(AppTheme.textSecondary)
-                        Text(data.formattedTime)
-                            .fontWeight(.bold)
-                            .foregroundColor(.white)
+                // Stats in a more compact horizontal layout for extra small screens
+                if isExtraCompact {
+                    HStack(spacing: 16) {
+                        VStack(spacing: 2) {
+                            Text(data.formattedTime)
+                                .fontWeight(.bold)
+                                .foregroundColor(.white)
+                            Text("Time")
+                                .foregroundColor(AppTheme.textSecondary)
+                                .font(.system(size: 11))
+                        }
+                        VStack(spacing: 2) {
+                            Text("+\(data.puzzleCoins)")
+                                .foregroundColor(AppTheme.accentTertiary)
+                                .fontWeight(.bold)
+                            Text("Coins")
+                                .foregroundColor(AppTheme.textSecondary)
+                                .font(.system(size: 11))
+                        }
+                        VStack(spacing: 2) {
+                            Text("\(data.mistakes)")
+                                .fontWeight(.bold)
+                                .foregroundColor(.white)
+                            Text("Mistakes")
+                                .foregroundColor(AppTheme.textSecondary)
+                                .font(.system(size: 11))
+                        }
                     }
-                    .font(.system(size: isCompact ? 15 : 18))
+                    .font(.system(size: statFontSize))
+                } else {
+                    VStack(spacing: statSpacing) {
+                        HStack {
+                            Text("Time:")
+                                .foregroundColor(AppTheme.textSecondary)
+                            Text(data.formattedTime)
+                                .fontWeight(.bold)
+                                .foregroundColor(.white)
+                        }
+                        .font(.system(size: statFontSize))
 
-                    HStack {
-                        Text("Coins:")
-                            .foregroundColor(AppTheme.textSecondary)
-                        Text("+\(data.puzzleCoins)")
-                            .foregroundColor(AppTheme.accentTertiary)
-                            .fontWeight(.bold)
-                    }
-                    .font(.system(size: isCompact ? 15 : 18))
+                        HStack {
+                            Text("Coins:")
+                                .foregroundColor(AppTheme.textSecondary)
+                            Text("+\(data.puzzleCoins)")
+                                .foregroundColor(AppTheme.accentTertiary)
+                                .fontWeight(.bold)
+                        }
+                        .font(.system(size: statFontSize))
 
-                    HStack {
-                        Text("Mistakes:")
-                            .foregroundColor(AppTheme.textSecondary)
-                        Text("\(data.mistakes)")
-                            .fontWeight(.bold)
-                            .foregroundColor(.white)
+                        HStack {
+                            Text("Mistakes:")
+                                .foregroundColor(AppTheme.textSecondary)
+                            Text("\(data.mistakes)")
+                                .fontWeight(.bold)
+                                .foregroundColor(.white)
+                        }
+                        .font(.system(size: statFontSize))
                     }
-                    .font(.system(size: isCompact ? 15 : 18))
                 }
             }
             .padding(padding)
             .background(AppTheme.backgroundMid.opacity(0.9))
-            .cornerRadius(20)
+            .cornerRadius(isExtraCompact ? 12 : 20)
             .padding(.horizontal)
 
-            actionButtons(compact: isCompact)
+            actionButtons(compact: isCompact, extraCompact: isExtraCompact)
         }
     }
 
     // MARK: - Lose Content
 
     private func loseContent(screenHeight: CGFloat) -> some View {
+        // Three tiers: extra compact (<580), compact (<700), normal
+        let isExtraCompact = screenHeight < 580
         let isCompact = screenHeight < 700
-        let characterSize: CGFloat = isCompact ? 70 : 100
-        let titleSize: CGFloat = isCompact ? 22 : 28
-        let spacing: CGFloat = isCompact ? 12 : 24
-        let padding: CGFloat = isCompact ? 16 : 28
+
+        let characterSize: CGFloat = isExtraCompact ? 50 : (isCompact ? 70 : 100)
+        let titleSize: CGFloat = isExtraCompact ? 18 : (isCompact ? 22 : 28)
+        let spacing: CGFloat = isExtraCompact ? 6 : (isCompact ? 12 : 24)
+        let padding: CGFloat = isExtraCompact ? 12 : (isCompact ? 16 : 28)
 
         return VStack(spacing: spacing) {
             // Small character at top of results with subtle animation
@@ -579,13 +638,13 @@ struct SummaryScreenView: View {
             }
 
             // Results Card
-            VStack(spacing: isCompact ? 10 : 20) {
+            VStack(spacing: isExtraCompact ? 6 : (isCompact ? 10 : 20)) {
                 Text("Out of Lives")
                     .font(.system(size: titleSize, weight: .bold))
                     .foregroundColor(.white)
 
                 Text("You made \(data.correctMoves) correct moves before running out of lives.")
-                    .font(.system(size: isCompact ? 13 : 15))
+                    .font(.system(size: isExtraCompact ? 12 : (isCompact ? 13 : 15)))
                     .foregroundColor(AppTheme.textSecondary)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 8)
@@ -597,55 +656,91 @@ struct SummaryScreenView: View {
                         .foregroundColor(AppTheme.accentTertiary)
                         .fontWeight(.bold)
                 }
-                .font(.system(size: isCompact ? 16 : 20))
+                .font(.system(size: isExtraCompact ? 14 : (isCompact ? 16 : 20)))
             }
             .padding(padding)
             .background(AppTheme.backgroundMid.opacity(0.9))
-            .cornerRadius(20)
+            .cornerRadius(isExtraCompact ? 12 : 20)
             .padding(.horizontal)
 
-            loseActionButtons(compact: isCompact)
+            loseActionButtons(compact: isCompact, extraCompact: isExtraCompact)
         }
     }
 
     // MARK: - Action Buttons
 
-    private func actionButtons(compact: Bool = false) -> some View {
-        let buttonPadding: CGFloat = compact ? 12 : 16
-        let fontSize: CGFloat = compact ? 15 : 17
-        let spacing: CGFloat = compact ? 8 : 12
+    private func actionButtons(compact: Bool = false, extraCompact: Bool = false) -> some View {
+        let buttonPadding: CGFloat = extraCompact ? 8 : (compact ? 12 : 16)
+        let fontSize: CGFloat = extraCompact ? 14 : (compact ? 15 : 17)
+        let spacing: CGFloat = extraCompact ? 4 : (compact ? 8 : 12)
+        let cornerRadius: CGFloat = extraCompact ? 8 : 12
 
         return VStack(spacing: spacing) {
             if data.isStoryMode {
                 // Story mode: Show both Retry and Next Level
-                // Next Level is primary (green)
-                Button(action: {
-                    onNextLevel?()
-                }) {
-                    Text("Next Level")
-                        .font(.system(size: fontSize, weight: .semibold))
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, buttonPadding)
-                        .background(AppTheme.accentPrimary)
-                        .cornerRadius(12)
-                }
+                // On extra compact screens, show them in a horizontal row
+                if extraCompact {
+                    HStack(spacing: 8) {
+                        // Next Level is primary (green)
+                        Button(action: {
+                            onNextLevel?()
+                        }) {
+                            Text("Next Level")
+                                .font(.system(size: fontSize, weight: .semibold))
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, buttonPadding)
+                                .background(AppTheme.accentPrimary)
+                                .cornerRadius(cornerRadius)
+                        }
 
-                // Retry to try for more stars (secondary style)
-                Button(action: {
-                    onPlayAgain?()
-                }) {
-                    Text("Retry")
-                        .font(.system(size: fontSize, weight: .semibold))
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, buttonPadding)
-                        .background(AppTheme.backgroundDark)
-                        .cornerRadius(12)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 12)
-                                .stroke(Color.white.opacity(0.2), lineWidth: 1)
-                        )
+                        // Retry (secondary style)
+                        Button(action: {
+                            onPlayAgain?()
+                        }) {
+                            Text("Retry")
+                                .font(.system(size: fontSize, weight: .semibold))
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, buttonPadding)
+                                .background(AppTheme.backgroundDark)
+                                .cornerRadius(cornerRadius)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: cornerRadius)
+                                        .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                                )
+                        }
+                    }
+                } else {
+                    // Next Level is primary (green)
+                    Button(action: {
+                        onNextLevel?()
+                    }) {
+                        Text("Next Level")
+                            .font(.system(size: fontSize, weight: .semibold))
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, buttonPadding)
+                            .background(AppTheme.accentPrimary)
+                            .cornerRadius(cornerRadius)
+                    }
+
+                    // Retry to try for more stars (secondary style)
+                    Button(action: {
+                        onPlayAgain?()
+                    }) {
+                        Text("Retry")
+                            .font(.system(size: fontSize, weight: .semibold))
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, buttonPadding)
+                            .background(AppTheme.backgroundDark)
+                            .cornerRadius(cornerRadius)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: cornerRadius)
+                                    .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                            )
+                    }
                 }
             } else {
                 // Quick Play: Play Again button
@@ -658,7 +753,7 @@ struct SummaryScreenView: View {
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, buttonPadding)
                         .background(AppTheme.accentPrimary)
-                        .cornerRadius(12)
+                        .cornerRadius(cornerRadius)
                 }
 
                 // Change Difficulty
@@ -671,9 +766,9 @@ struct SummaryScreenView: View {
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, buttonPadding)
                         .background(AppTheme.backgroundDark)
-                        .cornerRadius(12)
+                        .cornerRadius(cornerRadius)
                         .overlay(
-                            RoundedRectangle(cornerRadius: 12)
+                            RoundedRectangle(cornerRadius: cornerRadius)
                                 .stroke(Color.white.opacity(0.2), lineWidth: 1)
                         )
                 }
@@ -685,7 +780,7 @@ struct SummaryScreenView: View {
                     .font(.system(size: fontSize, weight: .semibold))
                     .foregroundColor(AppTheme.textSecondary)
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, compact ? 10 : 16)
+                    .padding(.vertical, extraCompact ? 6 : (compact ? 10 : 16))
             }
         }
         .padding(.horizontal)
@@ -699,35 +794,67 @@ struct SummaryScreenView: View {
         }
     }
 
-    private func loseActionButtons(compact: Bool = false) -> some View {
-        let buttonPadding: CGFloat = compact ? 12 : 16
-        let fontSize: CGFloat = compact ? 15 : 17
-        let spacing: CGFloat = compact ? 8 : 12
+    private func loseActionButtons(compact: Bool = false, extraCompact: Bool = false) -> some View {
+        let buttonPadding: CGFloat = extraCompact ? 8 : (compact ? 12 : 16)
+        let fontSize: CGFloat = extraCompact ? 14 : (compact ? 15 : 17)
+        let spacing: CGFloat = extraCompact ? 4 : (compact ? 8 : 12)
+        let cornerRadius: CGFloat = extraCompact ? 8 : 12
 
         return VStack(spacing: spacing) {
-            // Try Again
-            Button(action: {
-                onPlayAgain?()
-            }) {
-                Text("Try Again")
-                    .font(.system(size: fontSize, weight: .semibold))
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, buttonPadding)
-                    .background(AppTheme.accentPrimary)
-                    .cornerRadius(12)
-            }
+            // On extra compact, show Try Again and See Solution in a row
+            if extraCompact {
+                HStack(spacing: 8) {
+                    // Try Again
+                    Button(action: {
+                        onPlayAgain?()
+                    }) {
+                        Text("Try Again")
+                            .font(.system(size: fontSize, weight: .semibold))
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, buttonPadding)
+                            .background(AppTheme.accentPrimary)
+                            .cornerRadius(cornerRadius)
+                    }
 
-            // See Solution
-            if let seeSolution = onSeeSolution {
-                Button(action: seeSolution) {
-                    Text("See Solution")
+                    // See Solution
+                    if let seeSolution = onSeeSolution {
+                        Button(action: seeSolution) {
+                            Text("Solution")
+                                .font(.system(size: fontSize, weight: .semibold))
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, buttonPadding)
+                                .background(AppTheme.accentSecondary)
+                                .cornerRadius(cornerRadius)
+                        }
+                    }
+                }
+            } else {
+                // Try Again
+                Button(action: {
+                    onPlayAgain?()
+                }) {
+                    Text("Try Again")
                         .font(.system(size: fontSize, weight: .semibold))
                         .foregroundColor(.white)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, buttonPadding)
-                        .background(AppTheme.accentSecondary)
-                        .cornerRadius(12)
+                        .background(AppTheme.accentPrimary)
+                        .cornerRadius(cornerRadius)
+                }
+
+                // See Solution
+                if let seeSolution = onSeeSolution {
+                    Button(action: seeSolution) {
+                        Text("See Solution")
+                            .font(.system(size: fontSize, weight: .semibold))
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, buttonPadding)
+                            .background(AppTheme.accentSecondary)
+                            .cornerRadius(cornerRadius)
+                    }
                 }
             }
 
@@ -737,7 +864,7 @@ struct SummaryScreenView: View {
                     .font(.system(size: fontSize, weight: .semibold))
                     .foregroundColor(AppTheme.textSecondary)
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, compact ? 10 : 16)
+                    .padding(.vertical, extraCompact ? 6 : (compact ? 10 : 16))
             }
         }
         .padding(.horizontal)

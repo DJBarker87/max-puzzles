@@ -165,6 +165,8 @@ struct ActionButton: View {
             .scaleEffect(isPressed ? 0.95 : 1.0)
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(accessibilityLabelText)
+        .accessibilityAddTraits(.isButton)
         .simultaneousGesture(
             DragGesture(minimumDistance: 0)
                 .onChanged { _ in
@@ -178,6 +180,25 @@ struct ActionButton: View {
                     }
                 }
         )
+    }
+
+    private var accessibilityLabelText: String {
+        if let label = label {
+            return label
+        }
+        // Provide meaningful labels for icon-only buttons
+        switch icon {
+        case "arrow.clockwise":
+            return "Reset puzzle"
+        case "sparkles":
+            return "New puzzle"
+        case "eye":
+            return "View solution"
+        case "arrow.right":
+            return "Continue"
+        default:
+            return icon
+        }
     }
 }
 

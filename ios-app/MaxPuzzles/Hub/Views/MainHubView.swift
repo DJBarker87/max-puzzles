@@ -13,10 +13,11 @@ struct MainHubView: View {
     var body: some View {
         NavigationStack(path: $router.path) {
             ZStack {
-                // Fallback background color
-                Color(hex: "0f0f23").ignoresSafeArea()
+                // Solid fallback background
+                AppTheme.backgroundDark
+                    .ignoresSafeArea()
 
-                StarryBackground(useHubImage: true)
+                SplashBackground()
 
                 VStack(spacing: AppSpacing.xl) {
                     // Header
@@ -53,7 +54,7 @@ struct MainHubView: View {
 
     private var headerView: some View {
         HStack {
-            Text("Max's Puzzles")
+            Text("Maxi's Mindgames")
                 .font(AppTypography.titleMedium)
                 .foregroundColor(AppTheme.textPrimary)
 
@@ -152,7 +153,7 @@ struct PlaceholderView: View {
 
     var body: some View {
         ZStack {
-            StarryBackground(useHubImage: true)
+            SplashBackground()
 
             VStack(spacing: AppSpacing.lg) {
                 Text(title)
@@ -174,7 +175,7 @@ struct LoginPlaceholderView: View {
 
     var body: some View {
         ZStack {
-            StarryBackground(useHubImage: true)
+            SplashBackground()
 
             VStack(spacing: AppSpacing.lg) {
                 Image(systemName: "person.crop.circle.badge.plus")

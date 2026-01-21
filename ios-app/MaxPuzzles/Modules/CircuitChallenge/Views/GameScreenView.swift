@@ -97,6 +97,7 @@ struct GameScreenView: View {
 
     var body: some View {
         ZStack {
+            // Starry background for gameplay
             StarryBackground()
 
             if isLandscape {
@@ -366,11 +367,13 @@ struct GameScreenView: View {
         VStack(spacing: 16) {
             Text("⚠️")
                 .font(.system(size: 48))
+                .accessibilityHidden(true)
             Text(error)
                 .font(.system(size: 16))
                 .foregroundColor(AppTheme.error)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 24)
+                .accessibilityLabel("Error: \(error)")
             Button("Try Again") {
                 handleNewPuzzle()
             }
@@ -380,7 +383,10 @@ struct GameScreenView: View {
             .padding(.vertical, 12)
             .background(AppTheme.accentPrimary)
             .cornerRadius(10)
+            .accessibilityLabel("Try Again")
+            .accessibilityHint("Generates a new puzzle")
         }
+        .accessibilityElement(children: .contain)
     }
 
     private var loadingContent: some View {

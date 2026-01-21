@@ -10,68 +10,107 @@ struct ChapterSelectView: View {
     @State private var selectedChapter: ChapterAlien?
     @State private var currentIndex: Int = 0
     @State private var dragOffset: CGFloat = 0
-
-    private var screenWidth: CGFloat { UIScreen.main.bounds.width }
-    private var screenHeight: CGFloat { UIScreen.main.bounds.height }
+    @State private var viewId: UUID = UUID()  // Force view refresh on appear
 
     var body: some View {
-        ZStack {
-            // Colorful splash background
-            Image("splash_background")
-                .resizable()
-                .scaledToFill()
-                .ignoresSafeArea()
+        GeometryReader { geometry in
+            let screenWidth = geometry.size.width
+            let screenHeight = geometry.size.height
 
-            // Dark overlay for readability
-            Color.black.opacity(0.35)
-                .ignoresSafeArea()
+            ZStack {
+                SplashBackground(overlayOpacity: 0.35)
 
-            VStack(spacing: 0) {
-                // Title with total stars
-                VStack(spacing: 4) {
-                    Text("Story Mode")
-                        .font(.system(size: 28, weight: .heavy, design: .rounded))
-                        .foregroundColor(.white)
-                        .shadow(color: AppTheme.connectorGlow.opacity(0.8), radius: 8)
-                        .shadow(color: AppTheme.accentPrimary.opacity(0.5), radius: 4)
+                VStack(spacing: 0) {
+                    // Title with total stars
+                    VStack(spacing: 4) {
+                        Text("Story Mode")
+                            .font(.system(size: 28, weight: .heavy, design: .rounded))
+                            .foregroundColor(.white)
+                            .shadow(color: AppTheme.connectorGlow.opacity(0.8), radius: 8)
+                            .shadow(color: AppTheme.accentPrimary.opacity(0.5), radius: 4)
 
-                    HStack(spacing: 12) {
-                        Text("Help the aliens!")
-                            .font(.system(size: 13, weight: .medium))
-                            .foregroundColor(.white.opacity(0.9))
+                        HStack(spacing: 12) {
+                            Text("Help the aliens!")
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundColor(.white.opacity(0.9))
 
-                        // Total stars badge
-                        HStack(spacing: 4) {
-                            Image(systemName: "star.fill")
-                                .font(.system(size: 11))
-                            Text("\(progress.totalStars)")
-                                .font(.system(size: 13, weight: .bold))
-                            Text("/150")
-                                .font(.system(size: 10))
-                                .foregroundColor(AppTheme.textSecondary)
+                            // Total stars badge
+                            HStack(spacing: 4) {
+                                Image(systemName: "star.fill")
+                                    .font(.system(size: 11))
+                                Text("\(progress.totalStars)")
+                                    .font(.system(size: 13, weight: .bold))
+                                Text("/150")
+                                    .font(.system(size: 10))
+                                    .foregroundColor(AppTheme.textSecondary)
+                            }
+                            .foregroundColor(AppTheme.accentTertiary)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 3)
+                            .background(AppTheme.backgroundDark.opacity(0.5))
+                            .cornerRadius(10)
                         }
-                        .foregroundColor(AppTheme.accentTertiary)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 3)
-                        .background(AppTheme.backgroundDark.opacity(0.5))
-                        .cornerRadius(10)
                     }
-                }
-                .padding(.top, 8)
+                    .padding(.top, 8)
 
-                // 3D Carousel
-                Spacer()
+                    // 3D Carousel
+                    Spacer()
 
-                carouselView
+                    // Carousel with navigation arrows
+                    ZStack {
+                        carouselContent(screenWidth: screenWidth, screenHeight: screenHeight)
+
+                        // Navigation arrows on the sides
+                        HStack {
+                            // Left arrow (previous chapter)
+                            if currentIndex > 0 {
+                                Button(action: {
+                                    withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                                        currentIndex = max(currentIndex - 1, 0)
+                                    }
+                                }) {
+                                    Image(systemName: "chevron.left")
+                                        .font(.system(size: 28, weight: .semibold))
+                                        .foregroundColor(.white.opacity(0.7))
+                                        .padding(12)
+                                        .background(Circle().fill(Color.black.opacity(0.3)))
+                                }
+                            } else {
+                                Spacer().frame(width: 52)
+                            }
+
+                            Spacer()
+
+                            // Right arrow (next chapter)
+                            if currentIndex < ChapterAlien.all.count - 1 {
+                                Button(action: {
+                                    withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                                        currentIndex = min(currentIndex + 1, ChapterAlien.all.count - 1)
+                                    }
+                                }) {
+                                    Image(systemName: "chevron.right")
+                                        .font(.system(size: 28, weight: .semibold))
+                                        .foregroundColor(.white.opacity(0.7))
+                                        .padding(12)
+                                        .background(Circle().fill(Color.black.opacity(0.3)))
+                                }
+                            } else {
+                                Spacer().frame(width: 52)
+                            }
+                        }
+                        .padding(.horizontal, 8)
+                    }
                     .frame(height: screenHeight * 0.55)
 
-                Spacer()
+                    Spacer()
 
-                // Progress indicator
-                progressIndicator
-                    .padding(.bottom, 16)
+                    // Progress indicator
+                    progressIndicator
+                        .padding(.bottom, 16)
+                }
             }
         }
+        .id(viewId)  // Force view refresh when viewId changes
         .portraitOnPhone()
         .navigationTitle("Story Mode")
         .navigationBarTitleDisplayMode(.inline)
@@ -83,6 +122,10 @@ struct ChapterSelectView: View {
                         .foregroundColor(.white)
                 }
             }
+        }
+        .onAppear {
+            // Force view refresh when returning from game
+            viewId = UUID()
         }
         .navigationDestination(isPresented: Binding(
             get: { selectedChapter != nil },
@@ -99,8 +142,11 @@ struct ChapterSelectView: View {
 
     // MARK: - Carousel View
 
-    private var carouselView: some View {
-        let cardWidth = screenWidth * 0.75
+    private func carouselContent(screenWidth: CGFloat, screenHeight: CGFloat) -> some View {
+        // Narrower cards to always show edges of adjacent cards
+        let isSmallPhone = screenWidth < 400
+        let cardWidthPercent: CGFloat = isSmallPhone ? 0.60 : 0.68
+        let cardWidth = screenWidth * cardWidthPercent
         let cardHeight = screenHeight * 0.45
         let spacing: CGFloat = 20
 
@@ -114,10 +160,10 @@ struct ChapterSelectView: View {
                 let angle = offset * 30 // degrees of rotation
                 let scale = max(0.7, 1 - absOffset * 0.12)
                 let zIndex = 10 - absOffset
-                let xOffset = offset * cardWidth * 0.55 // show edges of adjacent cards
+                let xOffset = offset * cardWidth * 0.58 // show edges of adjacent cards
 
                 // Opacity based on distance
-                let opacity = max(0.3, 1 - absOffset * 0.3)
+                let opacity = max(0.4, 1 - absOffset * 0.25)
 
                 LargeChapterCard(
                     alien: alien,

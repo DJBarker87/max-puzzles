@@ -1,6 +1,6 @@
 import Foundation
 
-/// Represents a user in the Max's Puzzles system
+/// Represents a user in the Maxi's Mighty Mindgames system
 struct User: Identifiable, Codable, Equatable {
     let id: UUID
     var displayName: String

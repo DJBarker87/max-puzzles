@@ -171,6 +171,9 @@ struct ModuleCardView: View {
             .opacity(isLocked ? 0.6 : 1.0)
         }
         .buttonStyle(.plain)
+        .accessibilityLabel("\(title). \(description)")
+        .accessibilityHint(isLocked ? "This module is locked" : "Double tap to play")
+        .accessibilityAddTraits(.isButton)
         .onHover { hovering in
             withAnimation(.easeOut(duration: 0.2)) {
                 isHovered = hovering
@@ -312,6 +315,8 @@ struct MenuOptionCard: View {
             .offset(y: isPressed ? 1 : 0)
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(subtitle != nil ? "\(title). \(subtitle!)" : title)
+        .accessibilityAddTraits(.isButton)
         .simultaneousGesture(
             DragGesture(minimumDistance: 0)
                 .onChanged { _ in

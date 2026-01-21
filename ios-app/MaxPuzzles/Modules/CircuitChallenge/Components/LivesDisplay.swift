@@ -48,6 +48,9 @@ struct LivesDisplay: View {
         .onAppear {
             previousLives = lives
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(lives) \(lives == 1 ? "life" : "lives") remaining out of \(maxLives)")
+        .accessibilityValue("\(lives)")
     }
 
     private var heartStack: some View {

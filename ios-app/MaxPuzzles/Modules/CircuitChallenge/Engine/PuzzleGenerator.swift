@@ -76,13 +76,19 @@ enum PuzzleGenerator {
             }
 
             // Step 5: Assign cell answers based on solution path
-            var cellGrid = CellAssigner.assignCellAnswers(
-                rows: settings.gridRows,
-                cols: settings.gridCols,
-                solutionPath: pathResult.path,
-                connectors: valueResult.connectors,
-                divisionConnectorIndices: valueResult.divisionConnectorIndices
-            )
+            var cellGrid: CellGrid
+            do {
+                cellGrid = try CellAssigner.assignCellAnswers(
+                    rows: settings.gridRows,
+                    cols: settings.gridCols,
+                    solutionPath: pathResult.path,
+                    connectors: valueResult.connectors,
+                    divisionConnectorIndices: valueResult.divisionConnectorIndices
+                )
+            } catch {
+                print("Attempt \(attempt) cell assignment failed: \(error.localizedDescription)")
+                continue
+            }
 
             // Step 6: Generate arithmetic expressions for each cell
             ExpressionGenerator.applyExpressions(

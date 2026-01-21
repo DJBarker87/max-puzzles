@@ -240,6 +240,26 @@ struct HexCellView: View {
         }
         .opacity(isClickable ? 1.0 : 0.85)
         .modifier(CellPulseModifier(isPulsing: isPulsing))
+        .accessibilityLabel(accessibilityLabelText)
+        .accessibilityHint(isClickable ? "Double tap to select this cell" : "")
+        .accessibilityAddTraits(isClickable ? .isButton : [])
+    }
+
+    private var accessibilityLabelText: String {
+        switch state {
+        case .start:
+            return "Start cell, \(expression)"
+        case .finish:
+            return "Finish cell"
+        case .current:
+            return "Current cell, \(expression)"
+        case .visited:
+            return "Visited cell, \(expression)"
+        case .wrong:
+            return "Wrong answer cell"
+        case .normal:
+            return "Cell showing \(expression)"
+        }
     }
 }
 

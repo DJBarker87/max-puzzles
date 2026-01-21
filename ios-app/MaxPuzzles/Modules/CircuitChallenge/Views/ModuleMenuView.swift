@@ -21,15 +21,7 @@ struct ModuleMenuView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                // Colorful splash background
-                Image("splash_background")
-                    .resizable()
-                    .scaledToFill()
-                    .ignoresSafeArea()
-
-                // Dark overlay for readability
-                Color.black.opacity(0.35)
-                    .ignoresSafeArea()
+                SplashBackground(overlayOpacity: 0.35)
 
                 if isLandscape {
                     landscapeLayout

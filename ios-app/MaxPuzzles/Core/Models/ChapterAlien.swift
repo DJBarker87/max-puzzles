@@ -58,6 +58,17 @@ struct ChapterAlien: Identifiable {
 
 extension ChapterAlien {
 
+    /// Default fallback alien in case array is empty
+    static let defaultAlien = ChapterAlien(
+        id: 0,
+        name: "Cosmo",
+        chapter: 0,
+        imageName: "alien_bob",  // Use Bob's image as fallback
+        words: ["Friendly", "Helpful", "Fun"],
+        introMessages: ["Let's do this!", "Good luck!", "You've got this!"],
+        winMessages: ["Great job!", "Amazing!", "You did it!"]
+    )
+
     static let all: [ChapterAlien] = [
         // Chapter 1 - Bob (Green blob) - Squishy, Bouncy, Friendly
         ChapterAlien(

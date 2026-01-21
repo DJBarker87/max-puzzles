@@ -52,15 +52,7 @@ struct QuickPlaySetupView: View {
 
     var body: some View {
         ZStack {
-            // Colorful splash background
-            Image("splash_background")
-                .resizable()
-                .scaledToFill()
-                .ignoresSafeArea()
-
-            // Dark overlay for readability
-            Color.black.opacity(0.4)
-                .ignoresSafeArea()
+            SplashBackground(overlayOpacity: 0.4)
 
             if isLandscape {
                 landscapeLayout

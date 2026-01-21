@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 // MARK: - Hexagon Shape
 
@@ -113,18 +114,31 @@ extension HexagonGeometry {
         // Horizontal padding - must be at least half cell width for leftmost/rightmost cells
         let webHorizontalPadding: CGFloat = 50
 
-        // Vertical padding - must be at least cellRadius to prevent hexagon clipping
-        // Padding decreases slightly with more rows to maximize space, but never below cellRadius
-        // 4 rows or less: generous padding (cellRadius + buffer)
-        // 5 rows: standard padding (cellRadius)
-        // 6+ rows: minimal padding (cellRadius - small amount, allow slight edge proximity)
+        // Detect if we're on iPhone (narrow screen)
+        let isIPhone = UIDevice.current.userInterfaceIdiom == .phone
+
+        // Vertical padding - needs extra space on iPhone to prevent clipping and show START label
+        // iPhone needs more padding because the grid is scaled down more
         let webVerticalPadding: CGFloat
-        if rows <= 4 {
-            webVerticalPadding = 55  // cellRadius (42) + buffer
-        } else if rows == 5 {
-            webVerticalPadding = 48  // cellRadius + small buffer
+        if isIPhone {
+            // iPhone: more generous padding for all row counts
+            // Need enough space for START label above first cell
+            if rows <= 4 {
+                webVerticalPadding = 70  // Extra padding for START label visibility
+            } else if rows == 5 {
+                webVerticalPadding = 62  // Still generous for 5 rows
+            } else {
+                webVerticalPadding = 58  // 6 rows need good padding too
+            }
         } else {
-            webVerticalPadding = 44  // just above cellRadius
+            // iPad: can use tighter padding
+            if rows <= 4 {
+                webVerticalPadding = 55
+            } else if rows == 5 {
+                webVerticalPadding = 48
+            } else {
+                webVerticalPadding = 44
+            }
         }
 
         // Calculate web grid dimensions with asymmetric padding

@@ -16,7 +16,7 @@ struct SettingsView: View {
 
     var body: some View {
         ZStack {
-            StarryBackground(useHubImage: true)
+            SplashBackground()
 
             ScrollView {
                 VStack(spacing: 24) {
@@ -246,7 +246,7 @@ struct SettingsView: View {
         SettingsCard(title: "About", icon: "info.circle.fill") {
             VStack(spacing: 12) {
                 Button(action: { showAbout = true }) {
-                    SettingsRow(icon: "star.fill", title: "About Max's Puzzles")
+                    SettingsRow(icon: "star.fill", title: "About Maxi's Mighty Mindgames")
                 }
 
                 Divider()
@@ -418,18 +418,18 @@ struct AboutSheetView: View {
                         .padding(.top, 20)
 
                         // App Name
-                        Text("Max's Puzzles")
-                            .font(.system(size: 28, weight: .bold))
+                        Text("Maxi's Mighty Mindgames")
+                            .font(.system(size: 24, weight: .bold))
                             .foregroundColor(.white)
 
                         // Description
                         VStack(spacing: 16) {
-                            Text("A fun, educational maths puzzle platform for children aged 5-11.")
+                            Text("A fun, educational puzzle platform for children aged 5-11.")
                                 .font(.system(size: 16))
                                 .foregroundColor(AppTheme.textSecondary)
                                 .multilineTextAlignment(.center)
 
-                            Text("Built with love for Max")
+                            Text("Built with love for Maxi")
                                 .font(.system(size: 14))
                                 .foregroundColor(AppTheme.accentPrimary)
                         }

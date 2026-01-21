@@ -17,7 +17,7 @@ struct PuzzleMakerView: View {
 
     var body: some View {
         ZStack {
-            StarryBackground()
+            SplashBackground()
 
             if isLandscape {
                 landscapeLayout

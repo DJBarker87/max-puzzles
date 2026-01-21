@@ -135,8 +135,8 @@ struct AnimatedStarReveal: View {
 
 extension AnimatedStarReveal {
     /// Standard size for summary screens
-    static func summary(starsEarned: Int, delay: Double = 0.5) -> AnimatedStarReveal {
-        AnimatedStarReveal(starsEarned: starsEarned, starSize: 36, delay: delay)
+    static func summary(starsEarned: Int, delay: Double = 0.5, starSize: CGFloat = 36) -> AnimatedStarReveal {
+        AnimatedStarReveal(starsEarned: starsEarned, starSize: starSize, delay: delay)
     }
 
     /// Large size for celebration screens

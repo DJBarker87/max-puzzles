@@ -24,6 +24,16 @@ struct TimerDisplay: View {
         return String(format: "%d:%02d", minutes, seconds)
     }
 
+    private var accessibilityTimeString: String {
+        let minutes = elapsedSeconds / 60
+        let seconds = elapsedSeconds % 60
+        if minutes > 0 {
+            return "\(minutes) \(minutes == 1 ? "minute" : "minutes") and \(seconds) \(seconds == 1 ? "second" : "seconds")"
+        } else {
+            return "\(seconds) \(seconds == 1 ? "second" : "seconds")"
+        }
+    }
+
     private var iconSize: CGFloat { compact ? 16 : 20 }
     private var fontSize: CGFloat { compact ? 16 : 20 }
 
@@ -98,6 +108,9 @@ struct TimerDisplay: View {
         )
         // Subtle shadow
         .shadow(color: isRunning ? AppTheme.accentPrimary.opacity(0.2) : Color.black.opacity(0.2), radius: 6, y: 2)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Timer: \(accessibilityTimeString)")
+        .accessibilityValue(formattedTime)
         .onAppear {
             if isRunning {
                 startAnimations()

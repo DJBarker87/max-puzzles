@@ -15,7 +15,7 @@ final class MaxPuzzlesUITests: XCTestCase {
         app.launch()
 
         // Verify splash screen shows app name
-        XCTAssertTrue(app.staticTexts["Max's Puzzles"].exists)
+        XCTAssertTrue(app.staticTexts["Maxi's Mighty\nMindgames"].exists || app.staticTexts["Maxi's Mindgames"].waitForExistence(timeout: 3))
     }
 
     func testNavigateToCircuitChallenge() throws {

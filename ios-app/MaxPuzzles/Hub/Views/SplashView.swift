@@ -28,15 +28,7 @@ struct SplashView: View {
 
     var body: some View {
         ZStack {
-            // Colorful splash background image
-            Image("splash_background")
-                .resizable()
-                .scaledToFill()
-                .ignoresSafeArea()
-
-            // Dark overlay for text readability
-            Color.black.opacity(0.3)
-                .ignoresSafeArea()
+            SplashBackground(overlayOpacity: 0.3)
 
             // Energy ring expanding outward
             Circle()
@@ -54,15 +46,16 @@ struct SplashView: View {
                 Spacer()
 
                 // Title with premium typography
-                Text("Max's Puzzles")
-                    .font(.system(size: 48, weight: .heavy, design: .rounded))
+                Text("Maxi's Mighty\nMindgames")
+                    .font(.system(size: 42, weight: .heavy, design: .rounded))
+                    .multilineTextAlignment(.center)
                     .foregroundColor(.white)
                     .shadow(color: .black.opacity(0.8), radius: 4, x: 0, y: 2)
                     .shadow(color: AppTheme.connectorGlow.opacity(0.6), radius: 12)
                     .opacity(titleOpacity)
 
                 // Subtitle
-                Text("Fun Puzzles for Kids")
+                Text("Brain Training for Kids")
                     .font(.system(size: 18, weight: .semibold, design: .rounded))
                     .foregroundColor(.white.opacity(0.95))
                     .shadow(color: .black.opacity(0.7), radius: 3, x: 0, y: 1)
@@ -148,9 +141,7 @@ struct SplashView: View {
         // Transition to hub after 2s total
         Timer.scheduledTimer(withTimeInterval: 2.0, repeats: false) { _ in
             DispatchQueue.main.async {
-                withAnimation(.easeInOut(duration: 0.3)) {
-                    state.completeLoading()
-                }
+                state.completeLoading()
             }
         }
     }
