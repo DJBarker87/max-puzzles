@@ -32,12 +32,34 @@ struct SummaryScreenView: View {
     @State private var characterOpacity: Double = 0
     @State private var resultsOpacity: Double = 0
 
+    // State for chapter complete celebration (Level 5 wins)
+    @State private var showingChapterComplete = false
+    @State private var nextAlienScale: CGFloat = 0.1
+    @State private var nextAlienOpacity: Double = 0
+    @State private var nextAlienRotation: Double = -180
+    @State private var chapterCompleteTextOpacity: Double = 0
+    @State private var unlockGlowOpacity: Double = 0
+
+    /// Check if this is a chapter completion (Level 5 win in story mode)
+    private var isChapterComplete: Bool {
+        data.isStoryMode && data.won && data.storyLevel == 5
+    }
+
+    /// Get the next chapter's alien (for unlock celebration)
+    private var nextChapterAlien: ChapterAlien? {
+        guard let currentChapter = data.storyChapter, currentChapter < 10 else { return nil }
+        return ChapterAlien.forChapter(currentChapter + 1)
+    }
+
     var body: some View {
         ZStack {
             StarryBackground()
 
-            if data.isHiddenMode && data.hiddenModeResults != nil {
-                // Hidden mode goes straight to results (no character)
+            if showingChapterComplete {
+                // Special chapter complete celebration with next alien reveal
+                chapterCompleteCelebration
+            } else if data.isHiddenMode && data.hiddenModeResults != nil && !isChapterComplete {
+                // Hidden mode goes straight to results (unless chapter complete)
                 hiddenModeContent
             } else if showingCharacter {
                 // Full screen character reveal
@@ -62,19 +84,201 @@ struct SummaryScreenView: View {
         }
         .navigationBarHidden(true)
         .onAppear {
-            // Play appropriate music
-            if data.won {
-                musicService.play(track: .victory, loop: false)
-            } else {
-                musicService.play(track: .lose, loop: false)
-            }
-
-            // Skip character reveal for hidden mode
-            if data.isHiddenMode {
+            // Chapter complete celebration for Level 5 wins
+            if isChapterComplete {
+                showingCharacter = false
+                showingChapterComplete = true
+                startChapterCompleteCelebration()
+            } else if data.isHiddenMode {
+                // Skip character reveal for hidden mode (non-chapter complete)
                 showingCharacter = false
                 resultsOpacity = 1
             } else {
                 startCharacterReveal()
+            }
+        }
+    }
+
+    // MARK: - Chapter Complete Celebration
+
+    private var chapterCompleteCelebration: some View {
+        GeometryReader { geometry in
+            let alienSize = min(geometry.size.width, geometry.size.height) * 0.5
+
+            ZStack {
+                // Lots of confetti!
+                ConfettiView()
+
+                // Radial glow behind next alien
+                Circle()
+                    .fill(
+                        RadialGradient(
+                            colors: [
+                                AppTheme.accentPrimary.opacity(0.6),
+                                AppTheme.accentPrimary.opacity(0.3),
+                                Color.clear
+                            ],
+                            center: .center,
+                            startRadius: 0,
+                            endRadius: alienSize * 0.8
+                        )
+                    )
+                    .frame(width: alienSize * 1.6, height: alienSize * 1.6)
+                    .opacity(unlockGlowOpacity)
+                    .blur(radius: 20)
+
+                VStack(spacing: 24) {
+                    // "Chapter Complete!" text
+                    VStack(spacing: 8) {
+                        Text("Chapter Complete!")
+                            .font(.system(size: 32, weight: .heavy, design: .rounded))
+                            .foregroundColor(.white)
+                            .shadow(color: AppTheme.accentPrimary.opacity(0.8), radius: 10)
+
+                        if let chapter = data.storyChapter {
+                            Text("You finished Chapter \(chapter)!")
+                                .font(.system(size: 18, weight: .medium))
+                                .foregroundColor(AppTheme.textSecondary)
+                        }
+                    }
+                    .opacity(chapterCompleteTextOpacity)
+
+                    // Current alien celebrating (small)
+                    if let alien = data.storyAlien {
+                        Image(alien.imageName)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: alienSize * 0.5, height: alienSize * 0.5)
+                            .alienIdleAnimation(style: .bounce, intensity: 1.2)
+                            .opacity(characterOpacity)
+                    }
+
+                    // Next alien reveal (big, dramatic entrance)
+                    if let nextAlien = nextChapterAlien {
+                        VStack(spacing: 12) {
+                            Text("New Friend Unlocked!")
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundColor(AppTheme.accentTertiary)
+                                .opacity(nextAlienOpacity)
+
+                            Image(nextAlien.imageName)
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: alienSize, height: alienSize)
+                                .scaleEffect(nextAlienScale)
+                                .rotationEffect(.degrees(nextAlienRotation))
+                                .opacity(nextAlienOpacity)
+                                .shadow(color: AppTheme.accentPrimary.opacity(0.5), radius: 20)
+
+                            Text("Meet \(nextAlien.name)!")
+                                .font(.system(size: 24, weight: .bold, design: .rounded))
+                                .foregroundColor(.white)
+                                .opacity(nextAlienOpacity)
+
+                            // Show the alien's fun words
+                            HStack(spacing: 8) {
+                                ForEach(nextAlien.words, id: \.self) { word in
+                                    Text(word)
+                                        .font(.system(size: 14, weight: .medium))
+                                        .foregroundColor(AppTheme.accentPrimary)
+                                        .padding(.horizontal, 12)
+                                        .padding(.vertical, 6)
+                                        .background(AppTheme.backgroundMid)
+                                        .cornerRadius(12)
+                                }
+                            }
+                            .opacity(nextAlienOpacity)
+                        }
+                    } else if data.storyChapter == 10 {
+                        // Final chapter complete - special message
+                        VStack(spacing: 12) {
+                            Text("🏆")
+                                .font(.system(size: 80))
+                                .opacity(nextAlienOpacity)
+
+                            Text("You completed ALL chapters!")
+                                .font(.system(size: 22, weight: .bold))
+                                .foregroundColor(AppTheme.accentTertiary)
+                                .opacity(nextAlienOpacity)
+
+                            Text("You're a Puzzle Master!")
+                                .font(.system(size: 18, weight: .medium))
+                                .foregroundColor(.white)
+                                .opacity(nextAlienOpacity)
+                        }
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .onTapGesture {
+            transitionFromChapterComplete()
+        }
+    }
+
+    private func startChapterCompleteCelebration() {
+        // Play victory music
+        musicService.play(track: .victory, loop: false)
+
+        // Haptic celebration
+        FeedbackManager.shared.haptic(.success)
+
+        // Phase 1: Show "Chapter Complete!" text (0s)
+        withAnimation(.easeOut(duration: 0.5)) {
+            chapterCompleteTextOpacity = 1.0
+        }
+
+        // Phase 2: Show current alien (0.3s)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) {
+                characterOpacity = 1.0
+            }
+        }
+
+        // Phase 3: Glow starts (0.8s)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+            withAnimation(.easeInOut(duration: 0.8)) {
+                unlockGlowOpacity = 1.0
+            }
+        }
+
+        // Phase 4: Next alien spins in dramatically (1.2s)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+            FeedbackManager.shared.haptic(.medium)
+
+            withAnimation(.spring(response: 0.8, dampingFraction: 0.6)) {
+                nextAlienScale = 1.0
+                nextAlienRotation = 0
+                nextAlienOpacity = 1.0
+            }
+        }
+
+        // Phase 5: Another haptic when alien lands (1.8s)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.8) {
+            FeedbackManager.shared.haptic(.success)
+        }
+
+        // Auto-transition to results after celebration (4.5s)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 4.5) {
+            if showingChapterComplete {
+                transitionFromChapterComplete()
+            }
+        }
+    }
+
+    private func transitionFromChapterComplete() {
+        // Fade out celebration, then show results
+        withAnimation(.easeOut(duration: 0.4)) {
+            chapterCompleteTextOpacity = 0
+            characterOpacity = 0
+            nextAlienOpacity = 0
+            unlockGlowOpacity = 0
+        }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+            showingChapterComplete = false
+            withAnimation(.easeIn(duration: 0.3)) {
+                resultsOpacity = 1
             }
         }
     }
