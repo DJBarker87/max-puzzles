@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useSound } from "@/app/providers/SoundProvider";
 import Header from "@/hub/components/Header";
-import { StarryBackground } from "../components";
+import { SplashBackground } from "../components";
 import { StarDisplay } from "../components/StarReveal";
 import { chapterAliens } from "@/shared/types/chapterAlien";
 import {
@@ -14,10 +14,25 @@ import {
   getBestTimeForLevel,
   type StoryProgressData,
 } from "@/shared/types/storyProgress";
+import "./LevelSelect.css";
+
+// Chapter color themes
+const chapterColors: Record<number, string> = {
+  1: "#4ade80", // Bob - Green
+  2: "#60a5fa", // Blink - Blue
+  3: "#c084fc", // Drift - Purple
+  4: "#fb923c", // Fuzz - Orange
+  5: "#f472b6", // Prism - Pink
+  6: "#fbbf24", // Nova - Yellow/Gold
+  7: "#f87171", // Clicker - Red
+  8: "#2dd4bf", // Bolt - Teal
+  9: "#94a3b8", // Sage - Silver
+  10: "#fcd34d", // Bibomic - Gold
+};
 
 /**
  * Level selection screen with large horizontal hexagon tiles
- * Current level has green glow pulse animation
+ * Current level has green glow pulse animation with 5-layer electric flow
  */
 export default function LevelSelect() {
   const navigate = useNavigate();
@@ -30,6 +45,7 @@ export default function LevelSelect() {
   });
 
   const alien = chapterAliens.find((a) => a.chapter === chapter);
+  const accentColor = chapterColors[chapter] || "#22c55e";
 
   // Continue hub music on this screen
   useEffect(() => {
@@ -50,11 +66,11 @@ export default function LevelSelect() {
     }
   };
 
-  // Level n+1 unlocks when 2+ stars on level n
+  // Level unlocks when previous level is completed
   const isLevelUnlocked = (level: number): boolean => {
     if (!isChapterUnlocked(chapter, progress)) return false;
     if (level === 1) return true;
-    return getStarsForLevel(chapter, level - 1, progress) >= 2;
+    return isLevelCompleted(chapter, level - 1, progress);
   };
 
   // Current level is first unlocked but not completed
@@ -81,22 +97,64 @@ export default function LevelSelect() {
 
   return (
     <div className="h-screen flex flex-col relative overflow-hidden">
-      <StarryBackground />
+      <SplashBackground overlayOpacity={0.5} />
 
       <Header showMenu className="relative z-10 shrink-0" />
 
-      {/* Chapter header */}
-      <div className="flex items-center gap-4 px-6 py-4 relative z-10 shrink-0">
-        <img
-          src={alien.imagePath}
-          alt={alien.name}
-          className="w-14 h-14 object-contain"
-        />
-        <div>
-          <h1 className="text-xl font-bold text-white">{alien.name}</h1>
-          <p className="text-xs text-accent-primary/80">
-            {alien.words.join(" • ")}
-          </p>
+      {/* Alien Top Trumps Card Header */}
+      <div className="px-4 py-3 relative z-10 shrink-0">
+        <div
+          className="flex items-center gap-3 p-4 rounded-2xl"
+          style={{
+            backgroundColor: "rgba(26, 26, 62, 0.85)",
+            border: `2px solid ${accentColor}50`,
+            boxShadow: `0 0 12px ${accentColor}30`,
+          }}
+        >
+          {/* Alien image with glow */}
+          <div className="relative">
+            <div
+              className="absolute inset-0 rounded-full blur-xl opacity-50 animate-pulse"
+              style={{ backgroundColor: accentColor }}
+            />
+            <img
+              src={alien.imagePath}
+              alt={alien.name}
+              className="w-20 h-20 object-contain relative z-10"
+            />
+          </div>
+
+          {/* Name and traits */}
+          <div className="flex-1">
+            <span
+              className="text-xs font-bold px-2 py-1 rounded"
+              style={{
+                color: accentColor,
+                backgroundColor: `${accentColor}20`,
+              }}
+            >
+              CHAPTER {chapter}
+            </span>
+            <h1
+              className="text-2xl font-black text-white mt-1"
+              style={{
+                textShadow: `0 0 8px ${accentColor}80, 0 0 4px ${accentColor}50`,
+              }}
+            >
+              {alien.name.toUpperCase()}
+            </h1>
+            <div className="flex gap-2 mt-1">
+              {alien.words.map((word) => (
+                <span
+                  key={word}
+                  className="text-xs font-semibold text-white px-2 py-1 rounded-lg"
+                  style={{ backgroundColor: `${accentColor}40` }}
+                >
+                  {word}
+                </span>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
 
@@ -177,6 +235,25 @@ function LargeHexTile({
 }: LargeHexTileProps) {
   const shouldPulse = isCurrent || isCompleted;
 
+  // Hex points for SVG (pointy-top hexagon)
+  const hexPoints = "50,5 93,27 93,73 50,95 7,73 7,27";
+
+  // Get gradient colors based on state
+  const getGradientColors = () => {
+    if (isCompleted) return ["#22c55e", "#22c55e99"];
+    if (isCurrent) return ["#0d9488", "#086560"];
+    if (isUnlocked) return ["#1a1a3e", "#0f0f23"];
+    return ["#37415133", "#37415122"];
+  };
+
+  const getBorderColor = () => {
+    if (shouldPulse) return "#00ff88";
+    if (isUnlocked) return "rgba(34,197,94,0.5)";
+    return "rgba(107,114,128,0.3)";
+  };
+
+  const [c1, c2] = getGradientColors();
+
   return (
     <button
       onClick={onClick}
@@ -185,109 +262,136 @@ function LargeHexTile({
     >
       {/* Hexagon - responsive sizing */}
       <div className="relative w-full aspect-square max-w-[80px] md:max-w-[100px]">
-        {/* Pulsing glow for current/completed */}
+        {/* 5-layer electric glow for current/completed */}
         {shouldPulse && (
-          <>
-            {/* Outer glow */}
-            <div
-              className="absolute inset-[-15%] animate-pulse"
-              style={{
-                background: "radial-gradient(circle, rgba(0,255,136,0.4) 0%, transparent 60%)",
-              }}
+          <svg
+            className="absolute inset-[-20%] w-[140%] h-[140%]"
+            viewBox="0 0 100 100"
+          >
+            {/* Layer 1: Glow (blur effect) */}
+            <polygon
+              points={hexPoints}
+              fill="none"
+              stroke="#00ff88"
+              strokeWidth="6"
+              className="level-hex-glow"
+              filter="url(#hexGlowFilter)"
             />
-            {/* Inner glow */}
-            <div
-              className="absolute inset-[5%]"
-              style={{
-                background: "radial-gradient(circle, rgba(0,255,136,0.3) 0%, transparent 70%)",
-                filter: "blur(8px)",
-              }}
-            />
-            {/* Energy border animation */}
-            <svg
-              className="absolute inset-[-15%] w-[130%] h-[130%]"
-              viewBox="0 0 130 130"
-            >
-              <polygon
-                points="65,8 118,35 118,95 65,122 12,95 12,35"
-                fill="none"
-                stroke="#00ff88"
-                strokeWidth="4"
-                strokeDasharray="10 15"
-                className="animate-[dash_1.2s_linear_infinite]"
-              />
-              <polygon
-                points="65,8 118,35 118,95 65,122 12,95 12,35"
-                fill="none"
-                stroke="white"
-                strokeWidth="2"
-                strokeDasharray="5 20"
-                strokeOpacity="0.8"
-                className="animate-[dash_0.8s_linear_infinite]"
-              />
-            </svg>
-          </>
-        )}
 
-        {/* Main hexagon */}
-        <svg
-          className="absolute inset-0 w-full h-full"
-          viewBox="0 0 100 100"
-        >
-          <defs>
-            <linearGradient id={`hex-grad-${level}-${isCompleted}-${isCurrent}`} x1="0%" y1="0%" x2="100%" y2="100%">
-              {isCompleted ? (
-                <>
-                  <stop offset="0%" stopColor="#22c55e" />
-                  <stop offset="100%" stopColor="#22c55e" stopOpacity="0.7" />
-                </>
-              ) : isCurrent ? (
-                <>
-                  <stop offset="0%" stopColor="#0d9488" />
-                  <stop offset="100%" stopColor="#086560" />
-                </>
-              ) : isUnlocked ? (
-                <>
-                  <stop offset="0%" stopColor="#1a1a3e" />
-                  <stop offset="100%" stopColor="#0f0f23" />
-                </>
-              ) : (
-                <>
-                  <stop offset="0%" stopColor="#374151" stopOpacity="0.3" />
-                  <stop offset="100%" stopColor="#374151" stopOpacity="0.2" />
-                </>
-              )}
-            </linearGradient>
-            {shouldPulse && (
-              <filter id={`glow-${level}`}>
+            {/* Layer 2: Main line */}
+            <polygon
+              points={hexPoints}
+              fill="none"
+              stroke="#00dd77"
+              strokeWidth="3.5"
+            />
+
+            {/* Layer 3: Energy flow slow (dash 6 30, 1.2s) */}
+            <polygon
+              points={hexPoints}
+              fill="none"
+              stroke="#88ffcc"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeDasharray="6 30"
+              className="level-hex-energy-slow"
+            />
+
+            {/* Layer 4: Energy flow fast (dash 4 20, 0.8s) */}
+            <polygon
+              points={hexPoints}
+              fill="none"
+              stroke="white"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeDasharray="4 20"
+              className="level-hex-energy-fast"
+            />
+
+            {/* Layer 5: Bright core */}
+            <polygon
+              points={hexPoints}
+              fill="none"
+              stroke="#aaffcc"
+              strokeWidth="1"
+            />
+
+            <defs>
+              <filter id="hexGlowFilter" x="-50%" y="-50%" width="200%" height="200%">
                 <feGaussianBlur stdDeviation="3" result="coloredBlur" />
                 <feMerge>
                   <feMergeNode in="coloredBlur" />
                   <feMergeNode in="SourceGraphic" />
                 </feMerge>
               </filter>
-            )}
+            </defs>
+          </svg>
+        )}
+
+        {/* 3D Hexagon layers */}
+        <svg
+          className="absolute inset-0 w-full h-full"
+          viewBox="0 0 100 115"
+        >
+          <defs>
+            <linearGradient id={`hex-top-${level}`} x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor={c1} />
+              <stop offset="100%" stopColor={c2} />
+            </linearGradient>
+            <linearGradient id="hex-edge" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stopColor="#1a1a25" />
+              <stop offset="100%" stopColor="#0f0f15" />
+            </linearGradient>
+            <linearGradient id="hex-base" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stopColor="#2a2a3a" />
+              <stop offset="100%" stopColor="#1a1a25" />
+            </linearGradient>
           </defs>
+
+          {/* Layer 1: Shadow */}
+          <polygon
+            points="50,20 93,42 93,88 50,110 7,88 7,42"
+            fill="rgba(0,0,0,0.6)"
+          />
+
+          {/* Layer 2: Edge (3D depth) */}
+          <polygon
+            points="50,15 93,37 93,83 50,105 7,83 7,37"
+            fill="url(#hex-edge)"
+          />
+
+          {/* Layer 3: Base */}
+          <polygon
+            points="50,10 93,32 93,78 50,100 7,78 7,32"
+            fill="url(#hex-base)"
+          />
+
+          {/* Layer 4: Top face */}
           <polygon
             points="50,5 93,27 93,73 50,95 7,73 7,27"
-            fill={`url(#hex-grad-${level}-${isCompleted}-${isCurrent})`}
-            stroke={
-              shouldPulse
-                ? "#00ff88"
-                : isUnlocked
-                ? "rgba(34,197,94,0.5)"
-                : "rgba(107,114,128,0.3)"
-            }
-            strokeWidth={shouldPulse ? "3" : "2"}
-            filter={shouldPulse ? `url(#glow-${level})` : undefined}
+            fill={`url(#hex-top-${level})`}
+            stroke={getBorderColor()}
+            strokeWidth={shouldPulse ? 2 : 1.5}
+          />
+
+          {/* Layer 5: Rim highlight */}
+          <polygon
+            points="50,5 93,27 93,73 50,95 7,73 7,27"
+            fill="none"
+            stroke="rgba(255,255,255,0.15)"
+            strokeWidth="0.5"
           />
         </svg>
 
         {/* Level number or lock */}
-        <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <div className="absolute inset-0 flex flex-col items-center justify-center" style={{ marginTop: '-5%' }}>
           {isUnlocked ? (
             <>
-              <span className="text-2xl md:text-3xl font-bold text-white">{level}</span>
+              <span className="text-2xl md:text-3xl font-black text-white drop-shadow-[1px_1px_0_black]">
+                {level}
+              </span>
               {isHiddenMode && (
                 <svg className="w-3 h-3 md:w-4 md:h-4 mt-0.5 text-accent-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
@@ -316,7 +420,7 @@ function LargeHexTile({
         ) : isUnlocked ? (
           <StarDisplay stars={0} size="small" />
         ) : (
-          <span className="text-[10px] text-gray-500">2 stars needed</span>
+          <span className="text-[10px] text-gray-500">Complete prev</span>
         )}
       </div>
     </button>
@@ -332,30 +436,75 @@ interface HorizontalConnectorProps {
 
 function HorizontalConnector({ isActive, isPulsing }: HorizontalConnectorProps) {
   return (
-    <div className="relative h-6 w-4 md:w-6 flex items-center shrink-0">
-      {/* Base connector */}
-      <div
-        className={`absolute h-1 md:h-1.5 w-full rounded-full ${
-          isActive ? "bg-[#00dd77]" : "bg-[#3d3428]"
-        }`}
-      />
-
-      {/* Pulsing energy */}
-      {isPulsing && (
-        <>
-          {/* Glow */}
-          <div className="absolute h-2 md:h-3 w-full rounded-full bg-[#00ff88] opacity-50 blur-sm" />
-          {/* Energy flow animation */}
-          <div
-            className="absolute h-0.5 md:h-1 w-full overflow-hidden"
-            style={{ top: "calc(50% - 2px)" }}
-          >
-            <div
-              className="h-full w-1/3 bg-gradient-to-r from-transparent via-white to-transparent animate-[flowRight_0.8s_linear_infinite]"
+    <div className="relative h-6 w-4 md:w-6 flex items-center shrink-0" style={{ marginTop: '-10%' }}>
+      <svg className="absolute inset-0 w-full h-full" viewBox="0 0 24 24">
+        {isPulsing ? (
+          <>
+            {/* Layer 1: Glow */}
+            <line
+              x1="0" y1="12" x2="24" y2="12"
+              stroke="#00ff88"
+              strokeWidth="8"
+              strokeLinecap="round"
+              className="level-connector-glow"
+              filter="url(#connectorGlowFilter)"
             />
-          </div>
-        </>
-      )}
+
+            {/* Layer 2: Main line */}
+            <line
+              x1="0" y1="12" x2="24" y2="12"
+              stroke="#00dd77"
+              strokeWidth="5"
+              strokeLinecap="round"
+            />
+
+            {/* Layer 3: Energy flow slow */}
+            <line
+              x1="0" y1="12" x2="24" y2="12"
+              stroke="#88ffcc"
+              strokeWidth="3"
+              strokeLinecap="round"
+              strokeDasharray="6 30"
+              className="level-connector-energy-slow"
+            />
+
+            {/* Layer 4: Energy flow fast */}
+            <line
+              x1="0" y1="12" x2="24" y2="12"
+              stroke="white"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeDasharray="4 20"
+              className="level-connector-energy-fast"
+            />
+
+            {/* Layer 5: Bright core */}
+            <line
+              x1="0" y1="12" x2="24" y2="12"
+              stroke="#aaffcc"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+            />
+
+            <defs>
+              <filter id="connectorGlowFilter" x="-50%" y="-50%" width="200%" height="200%">
+                <feGaussianBlur stdDeviation="2" result="coloredBlur" />
+                <feMerge>
+                  <feMergeNode in="coloredBlur" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+            </defs>
+          </>
+        ) : (
+          <line
+            x1="0" y1="12" x2="24" y2="12"
+            stroke={isActive ? "#00dd77" : "#3d3428"}
+            strokeWidth="4"
+            strokeLinecap="round"
+          />
+        )}
+      </svg>
     </div>
   );
 }

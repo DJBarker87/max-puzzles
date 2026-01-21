@@ -24,7 +24,7 @@ export const chapterAliens: ChapterAlien[] = [
     id: 1,
     name: "Bob",
     chapter: 1,
-    imagePath: "/aliens/alien_bob.png",
+    imagePath: "/Aliens/alien_bob.png",
     words: ["Squishy", "Bouncy", "Friendly"],
     introMessages: [
       "Boing! Let's bounce through this!",
@@ -47,7 +47,7 @@ export const chapterAliens: ChapterAlien[] = [
     id: 2,
     name: "Blink",
     chapter: 2,
-    imagePath: "/aliens/alien_blink.png",
+    imagePath: "/Aliens/alien_blink.png",
     words: ["Wobbly", "Wavy", "Giggly"],
     introMessages: [
       "Hehe! This is gonna be fun!",
@@ -70,7 +70,7 @@ export const chapterAliens: ChapterAlien[] = [
     id: 3,
     name: "Drift",
     chapter: 3,
-    imagePath: "/aliens/alien_drift.png",
+    imagePath: "/Aliens/alien_drift.png",
     words: ["Floaty", "Glowy", "Slimy"],
     introMessages: [
       "Float with me to the finish!",
@@ -93,7 +93,7 @@ export const chapterAliens: ChapterAlien[] = [
     id: 4,
     name: "Fuzz",
     chapter: 4,
-    imagePath: "/aliens/alien_fuzz.png",
+    imagePath: "/Aliens/alien_fuzz.png",
     words: ["Fluffy", "Crazy", "Ticklish"],
     introMessages: [
       "Fluff yeah! Let's do this!",
@@ -116,7 +116,7 @@ export const chapterAliens: ChapterAlien[] = [
     id: 5,
     name: "Prism",
     chapter: 5,
-    imagePath: "/aliens/alien_prism.png",
+    imagePath: "/Aliens/alien_prism.png",
     words: ["Sparkly", "Shiny", "Magical"],
     introMessages: [
       "Sparkle your way to victory!",
@@ -139,7 +139,7 @@ export const chapterAliens: ChapterAlien[] = [
     id: 6,
     name: "Nova",
     chapter: 6,
-    imagePath: "/aliens/alien_nova.png",
+    imagePath: "/Aliens/alien_nova.png",
     words: ["Glowing", "Warm", "Giggly"],
     introMessages: [
       "Let's light up this puzzle!",
@@ -162,7 +162,7 @@ export const chapterAliens: ChapterAlien[] = [
     id: 7,
     name: "Clicker",
     chapter: 7,
-    imagePath: "/aliens/alien_clicker.png",
+    imagePath: "/Aliens/alien_clicker.png",
     words: ["Snappy", "Crunchy", "Cheeky"],
     introMessages: [
       "Click click! Let's get snappy!",
@@ -185,7 +185,7 @@ export const chapterAliens: ChapterAlien[] = [
     id: 8,
     name: "Bolt",
     chapter: 8,
-    imagePath: "/aliens/alien_bolt.png",
+    imagePath: "/Aliens/alien_bolt.png",
     words: ["Beepy", "Zippy", "Brainy"],
     introMessages: [
       "Beep boop! Calculating success!",
@@ -208,7 +208,7 @@ export const chapterAliens: ChapterAlien[] = [
     id: 9,
     name: "Sage",
     chapter: 9,
-    imagePath: "/aliens/alien_sage.png",
+    imagePath: "/Aliens/alien_sage.png",
     words: ["Mysterious", "Flowy", "Ancient"],
     introMessages: [
       "The ancient wisdom flows through you.",
@@ -231,7 +231,7 @@ export const chapterAliens: ChapterAlien[] = [
     id: 10,
     name: "Bibomic",
     chapter: 10,
-    imagePath: "/aliens/alien_bibomic.png",
+    imagePath: "/Aliens/alien_bibomic.png",
     words: ["Legendary", "Golden", "Ultimate"],
     introMessages: [
       "Legends are made here!",

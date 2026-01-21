@@ -1,0 +1,46 @@
+/* Level Select Screen Animations */
+
+/* Glow pulse animation */
+.level-hex-glow,
+.level-connector-glow {
+  animation: glowPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes glowPulse {
+  0%, 100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+
+/* Energy flow slow (1.2s) */
+.level-hex-energy-slow,
+.level-connector-energy-slow {
+  animation: energyFlowSlow 1.2s linear infinite;
+}
+
+@keyframes energyFlowSlow {
+  from {
+    stroke-dashoffset: 0;
+  }
+  to {
+    stroke-dashoffset: -36;
+  }
+}
+
+/* Energy flow fast (0.8s) */
+.level-hex-energy-fast,
+.level-connector-energy-fast {
+  animation: energyFlowFast 0.8s linear infinite;
+}
+
+@keyframes energyFlowFast {
+  from {
+    stroke-dashoffset: 0;
+  }
+  to {
+    stroke-dashoffset: -36;
+  }
+}

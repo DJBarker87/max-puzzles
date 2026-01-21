@@ -16,6 +16,7 @@ import {
 } from '../components'
 import { Button, Modal } from '@/ui'
 import { printCurrentPuzzle } from '../services/pdfGenerator'
+import { getStoryDifficulty } from '../engine/storyDifficulty'
 import type { DifficultySettings } from '../engine/types'
 import type { ChapterAlien } from '@/shared/types/chapterAlien'
 
@@ -43,7 +44,11 @@ export default function GameScreen({
   const navigate = useNavigate()
   const locationState = location.state as LocationState | null
 
-  const difficulty = locationState?.difficulty
+  // Calculate difficulty from story props or location state
+  const isStoryMode = !!(storyChapter && storyLevel)
+  const difficulty = isStoryMode
+    ? getStoryDifficulty({ chapter: storyChapter, level: storyLevel })
+    : locationState?.difficulty
 
   const [showExitConfirm, setShowExitConfirm] = useState(false)
 
@@ -51,12 +56,12 @@ export default function GameScreen({
   const { isMobileLandscape } = useOrientation()
   const { playMusic, playSound } = useSound()
 
-  // Redirect to setup if no difficulty
+  // Redirect to setup if no difficulty (only for quick play, not story mode)
   useEffect(() => {
-    if (!difficulty) {
+    if (!difficulty && !isStoryMode) {
       navigate('/play/circuit-challenge/quick')
     }
-  }, [difficulty, navigate])
+  }, [difficulty, isStoryMode, navigate])
 
   // Initialize game hook
   const {
@@ -334,7 +339,7 @@ export default function GameScreen({
 
       {/* Game Header - shrink-0 to prevent compression */}
       <GameHeader
-        title={state.isHiddenMode ? 'Hidden Mode' : 'Quick Play'}
+        title={isStoryMode && storyAlien ? `${storyAlien.name} ${storyLevel}` : (state.isHiddenMode ? 'Hidden Mode' : 'Quick Play')}
         lives={state.lives}
         maxLives={state.maxLives}
         elapsedMs={state.elapsedMs}

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useSound } from "@/app/providers/SoundProvider";
 import Header from "@/hub/components/Header";
-import { StarryBackground } from "../components";
+import { SplashBackground } from "../components";
 import {
   chapterAliens,
   type ChapterAlien,
@@ -96,7 +96,7 @@ export default function ChapterSelect() {
 
   return (
     <div className="h-screen flex flex-col relative overflow-hidden">
-      <StarryBackground />
+      <SplashBackground overlayOpacity={0.5} />
 
       <Header showMenu className="relative z-10 shrink-0" />
 

@@ -3,6 +3,7 @@ import { lazy, Suspense } from 'react'
 
 // Lazy load hub screens
 const SplashScreen = lazy(() => import('@/hub/screens/SplashScreen'))
+const FirstRunScreen = lazy(() => import('@/hub/screens/FirstRunScreen'))
 const LoginScreen = lazy(() => import('@/hub/screens/LoginScreen'))
 const FamilySelectScreen = lazy(() => import('@/hub/screens/FamilySelectScreen'))
 const MainHubScreen = lazy(() => import('@/hub/screens/MainHubScreen'))
@@ -68,6 +69,16 @@ const router = createBrowserRouter([
     element: (
       <LazyRoute>
         <SplashScreen />
+      </LazyRoute>
+    ),
+  },
+
+  // First run - name entry
+  {
+    path: '/first-run',
+    element: (
+      <LazyRoute>
+        <FirstRunScreen />
       </LazyRoute>
     ),
   },
