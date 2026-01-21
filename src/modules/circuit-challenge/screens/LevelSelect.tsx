@@ -235,15 +235,19 @@ function LargeHexTile({
 }: LargeHexTileProps) {
   const shouldPulse = isCurrent || isCompleted;
 
-  // Hex points for SVG (pointy-top hexagon)
-  const hexPoints = "50,5 93,27 93,73 50,95 7,73 7,27";
+  // Hex points for top face (in 100x100 viewBox, centered)
+  const topHexPoints = "50,8 88,30 88,70 50,92 12,70 12,30";
+  // 3D layer offsets
+  const shadowHexPoints = "50,20 88,42 88,82 50,104 12,82 12,42";
+  const edgeHexPoints = "50,16 88,38 88,78 50,100 12,78 12,38";
+  const baseHexPoints = "50,12 88,34 88,74 50,96 12,74 12,34";
 
   // Get gradient colors based on state
   const getGradientColors = () => {
-    if (isCompleted) return ["#22c55e", "#22c55e99"];
+    if (isCompleted) return ["#22c55e", "#16a34a"];
     if (isCurrent) return ["#0d9488", "#086560"];
-    if (isUnlocked) return ["#1a1a3e", "#0f0f23"];
-    return ["#37415133", "#37415122"];
+    if (isUnlocked) return ["#3a3a4a", "#252530"];
+    return ["#37415140", "#37415125"];
   };
 
   const getBorderColor = () => {
@@ -262,134 +266,123 @@ function LargeHexTile({
     >
       {/* Hexagon - responsive sizing */}
       <div className="relative w-full aspect-square max-w-[80px] md:max-w-[100px]">
-        {/* 5-layer electric glow for current/completed */}
-        {shouldPulse && (
-          <svg
-            className="absolute inset-[-20%] w-[140%] h-[140%]"
-            viewBox="0 0 100 100"
-          >
-            {/* Layer 1: Glow (blur effect) */}
-            <polygon
-              points={hexPoints}
-              fill="none"
-              stroke="#00ff88"
-              strokeWidth="6"
-              className="level-hex-glow"
-              filter="url(#hexGlowFilter)"
-            />
-
-            {/* Layer 2: Main line */}
-            <polygon
-              points={hexPoints}
-              fill="none"
-              stroke="#00dd77"
-              strokeWidth="3.5"
-            />
-
-            {/* Layer 3: Energy flow slow (dash 6 30, 1.2s) */}
-            <polygon
-              points={hexPoints}
-              fill="none"
-              stroke="#88ffcc"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeDasharray="6 30"
-              className="level-hex-energy-slow"
-            />
-
-            {/* Layer 4: Energy flow fast (dash 4 20, 0.8s) */}
-            <polygon
-              points={hexPoints}
-              fill="none"
-              stroke="white"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeDasharray="4 20"
-              className="level-hex-energy-fast"
-            />
-
-            {/* Layer 5: Bright core */}
-            <polygon
-              points={hexPoints}
-              fill="none"
-              stroke="#aaffcc"
-              strokeWidth="1"
-            />
-
-            <defs>
-              <filter id="hexGlowFilter" x="-50%" y="-50%" width="200%" height="200%">
-                <feGaussianBlur stdDeviation="3" result="coloredBlur" />
-                <feMerge>
-                  <feMergeNode in="coloredBlur" />
-                  <feMergeNode in="SourceGraphic" />
-                </feMerge>
-              </filter>
-            </defs>
-          </svg>
-        )}
-
-        {/* 3D Hexagon layers */}
+        {/* Single SVG with all layers */}
         <svg
-          className="absolute inset-0 w-full h-full"
-          viewBox="0 0 100 115"
+          className="absolute inset-0 w-full h-full overflow-visible"
+          viewBox="0 0 100 110"
         >
           <defs>
             <linearGradient id={`hex-top-${level}`} x1="0%" y1="0%" x2="100%" y2="100%">
               <stop offset="0%" stopColor={c1} />
               <stop offset="100%" stopColor={c2} />
             </linearGradient>
-            <linearGradient id="hex-edge" x1="0%" y1="0%" x2="0%" y2="100%">
+            <linearGradient id={`hex-edge-${level}`} x1="0%" y1="0%" x2="0%" y2="100%">
               <stop offset="0%" stopColor="#1a1a25" />
               <stop offset="100%" stopColor="#0f0f15" />
             </linearGradient>
-            <linearGradient id="hex-base" x1="0%" y1="0%" x2="0%" y2="100%">
+            <linearGradient id={`hex-base-${level}`} x1="0%" y1="0%" x2="0%" y2="100%">
               <stop offset="0%" stopColor="#2a2a3a" />
               <stop offset="100%" stopColor="#1a1a25" />
             </linearGradient>
+            <filter id={`hexGlow-${level}`} x="-50%" y="-50%" width="200%" height="200%">
+              <feGaussianBlur stdDeviation="4" result="coloredBlur" />
+              <feMerge>
+                <feMergeNode in="coloredBlur" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
           </defs>
 
-          {/* Layer 1: Shadow */}
+          {/* Electric glow layers (behind 3D hex) */}
+          {shouldPulse && (
+            <g>
+              {/* Glow blur layer */}
+              <polygon
+                points={topHexPoints}
+                fill="none"
+                stroke="#00ff88"
+                strokeWidth="8"
+                className="level-hex-glow"
+                filter={`url(#hexGlow-${level})`}
+              />
+              {/* Main glow line */}
+              <polygon
+                points={topHexPoints}
+                fill="none"
+                stroke="#00dd77"
+                strokeWidth="4"
+              />
+            </g>
+          )}
+
+          {/* 3D Shadow */}
           <polygon
-            points="50,20 93,42 93,88 50,110 7,88 7,42"
-            fill="rgba(0,0,0,0.6)"
+            points={shadowHexPoints}
+            fill="rgba(0,0,0,0.5)"
           />
 
-          {/* Layer 2: Edge (3D depth) */}
+          {/* 3D Edge */}
           <polygon
-            points="50,15 93,37 93,83 50,105 7,83 7,37"
-            fill="url(#hex-edge)"
+            points={edgeHexPoints}
+            fill={`url(#hex-edge-${level})`}
           />
 
-          {/* Layer 3: Base */}
+          {/* 3D Base */}
           <polygon
-            points="50,10 93,32 93,78 50,100 7,78 7,32"
-            fill="url(#hex-base)"
+            points={baseHexPoints}
+            fill={`url(#hex-base-${level})`}
           />
 
-          {/* Layer 4: Top face */}
+          {/* Top face */}
           <polygon
-            points="50,5 93,27 93,73 50,95 7,73 7,27"
+            points={topHexPoints}
             fill={`url(#hex-top-${level})`}
             stroke={getBorderColor()}
-            strokeWidth={shouldPulse ? 2 : 1.5}
+            strokeWidth="2"
           />
 
-          {/* Layer 5: Rim highlight */}
+          {/* Rim highlight */}
           <polygon
-            points="50,5 93,27 93,73 50,95 7,73 7,27"
+            points={topHexPoints}
             fill="none"
-            stroke="rgba(255,255,255,0.15)"
-            strokeWidth="0.5"
+            stroke="rgba(255,255,255,0.2)"
+            strokeWidth="1"
           />
+
+          {/* Energy flow animations on top */}
+          {shouldPulse && (
+            <g>
+              {/* Energy flow slow */}
+              <polygon
+                points={topHexPoints}
+                fill="none"
+                stroke="#88ffcc"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeDasharray="8 25"
+                className="level-hex-energy-slow"
+              />
+              {/* Energy flow fast */}
+              <polygon
+                points={topHexPoints}
+                fill="none"
+                stroke="white"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeDasharray="5 18"
+                className="level-hex-energy-fast"
+              />
+            </g>
+          )}
         </svg>
 
         {/* Level number or lock */}
-        <div className="absolute inset-0 flex flex-col items-center justify-center" style={{ marginTop: '-5%' }}>
+        <div className="absolute inset-0 flex flex-col items-center justify-center" style={{ marginTop: '-8%' }}>
           {isUnlocked ? (
             <>
-              <span className="text-2xl md:text-3xl font-black text-white drop-shadow-[1px_1px_0_black]">
+              <span className="text-2xl md:text-3xl font-black text-white drop-shadow-[1px_1px_2px_black]">
                 {level}
               </span>
               {isHiddenMode && (
