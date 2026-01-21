@@ -120,24 +120,18 @@ extension HexagonGeometry {
         let scaleY = size.height / webGridHeight
         let scale = min(scaleX, scaleY) * 0.98  // 98% to maximize grid size
 
-        // Apply scale to all measurements
+        // Apply scale uniformly to all measurements - no minimum constraint
+        // This ensures grids always fit on screen
         let scaledRadius = webCellRadius * scale
-
-        // Minimum radius for readability
-        let minRadius: CGFloat = 25
-        let finalRadius = max(scaledRadius, minRadius)
-
-        // Calculate final scale (may differ if we hit minimum)
-        let finalScale = finalRadius / webCellRadius
-        let finalHorizontalSpacing = webHorizontalSpacing * finalScale
-        let finalVerticalSpacing = webVerticalSpacing * finalScale
-        let finalPadding = webPadding * finalScale
+        let scaledHorizontalSpacing = webHorizontalSpacing * scale
+        let scaledVerticalSpacing = webVerticalSpacing * scale
+        let scaledPadding = webPadding * scale
 
         return HexagonGeometry(
-            cellRadius: finalRadius,
-            horizontalSpacing: finalHorizontalSpacing,
-            verticalSpacing: finalVerticalSpacing,
-            padding: finalPadding
+            cellRadius: scaledRadius,
+            horizontalSpacing: scaledHorizontalSpacing,
+            verticalSpacing: scaledVerticalSpacing,
+            padding: scaledPadding
         )
     }
 

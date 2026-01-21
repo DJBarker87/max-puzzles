@@ -35,8 +35,11 @@ class GameViewModel: ObservableObject {
     func generateNewPuzzle() {
         dispatch(.generatePuzzle)
 
-        // Run puzzle generation
-        let result = PuzzleGenerator.generatePuzzle(difficulty: state.difficulty)
+        // Apply device-specific grid caps (iPhone caps at 6×7, iPad uses full size)
+        let cappedDifficulty = state.difficulty.cappedForDevice()
+
+        // Run puzzle generation with capped settings
+        let result = PuzzleGenerator.generatePuzzle(difficulty: cappedDifficulty)
 
         switch result {
         case .success(let puzzle):

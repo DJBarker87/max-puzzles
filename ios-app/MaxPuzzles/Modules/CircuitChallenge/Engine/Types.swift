@@ -1,4 +1,7 @@
 import Foundation
+#if os(iOS)
+import UIKit
+#endif
 
 // MARK: - Coordinate
 
@@ -264,5 +267,39 @@ struct ValidationResult {
 
     static func failure(_ errors: [String], warnings: [String] = []) -> ValidationResult {
         ValidationResult(valid: false, errors: errors, warnings: warnings)
+    }
+}
+
+// MARK: - Device-Specific Grid Caps
+
+extension DifficultySettings {
+    /// Maximum grid dimensions for iPhone (matches largest story mode grid before chapter 10)
+    /// On iPhone, grids larger than this are capped to ensure cells remain readable
+    static let iPhoneMaxRows = 6
+    static let iPhoneMaxCols = 7
+
+    /// Returns settings with grid dimensions capped for the current device
+    /// On iPhone: caps at 6×7 grid
+    /// On iPad: returns original dimensions
+    func cappedForDevice() -> DifficultySettings {
+        #if os(iOS)
+        let isIPad = UIDevice.current.userInterfaceIdiom == .pad
+        if isIPad {
+            return self
+        }
+
+        // On iPhone, cap grid dimensions
+        var capped = self
+        capped.gridRows = min(gridRows, Self.iPhoneMaxRows)
+        capped.gridCols = min(gridCols, Self.iPhoneMaxCols)
+
+        // Recalculate path lengths for new grid size
+        capped.minPathLength = DifficultyPresets.calculateMinPathLength(rows: capped.gridRows, cols: capped.gridCols)
+        capped.maxPathLength = DifficultyPresets.calculateMaxPathLength(rows: capped.gridRows, cols: capped.gridCols)
+
+        return capped
+        #else
+        return self
+        #endif
     }
 }
