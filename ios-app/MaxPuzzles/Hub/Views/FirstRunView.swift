@@ -146,15 +146,16 @@ struct FirstRunView: View {
             inputOpacity = 0
         }
 
-        // Fade out whole view
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+        // Use Task for proper @MainActor handling
+        Task { @MainActor in
+            // Fade out whole view
+            try? await Task.sleep(nanoseconds: 200_000_000) // 0.2s
             withAnimation(.easeOut(duration: 0.3)) {
                 isExiting = true
             }
-        }
 
-        // Transition to main hub
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            // Transition to main hub
+            try? await Task.sleep(nanoseconds: 300_000_000) // 0.3s more (0.5s total)
             appState.completeFirstRun()
         }
     }

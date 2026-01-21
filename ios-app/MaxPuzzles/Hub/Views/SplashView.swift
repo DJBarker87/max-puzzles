@@ -133,16 +133,15 @@ struct SplashView: View {
         let storage = StorageService.shared
         _ = storage.ensureGuestSession()
 
-        // Start hub music
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+        // Use Task for proper @MainActor handling
+        Task { @MainActor in
+            // Start hub music after short delay
+            try? await Task.sleep(nanoseconds: 500_000_000) // 0.5s
             musicService.play(track: .hub)
-        }
 
-        // Transition to hub after splash
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-            withAnimation(.easeInOut(duration: 0.4)) {
-                appState.completeLoading()
-            }
+            // Transition to hub after splash
+            try? await Task.sleep(nanoseconds: 1_500_000_000) // 1.5s more (2s total)
+            appState.completeLoading()
         }
     }
 }
