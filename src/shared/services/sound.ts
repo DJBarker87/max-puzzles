@@ -92,10 +92,20 @@ class SoundService {
    * Play background music
    */
   playMusic(track: MusicTrack, loop: boolean = true): void {
-    if (this.muted) return
+    // If same track is already playing (and not ended), don't restart it
+    if (
+      this.currentTrack === track &&
+      this.musicPlayer &&
+      !this.musicPlayer.paused &&
+      !this.musicPlayer.ended
+    ) {
+      return
+    }
 
-    // Stop current music
+    // Always stop current music first (even if muted, to clean up)
     this.stopMusic()
+
+    if (this.muted) return
 
     const filePath = MUSIC_FILES[track]
     if (!filePath) return
@@ -105,6 +115,15 @@ class SoundService {
       this.musicPlayer.volume = this.musicVolume
       this.musicPlayer.loop = loop
       this.currentTrack = track
+
+      // Clean up reference when non-looping track ends
+      if (!loop) {
+        this.musicPlayer.addEventListener('ended', () => {
+          this.currentTrack = null
+          this.musicPlayer = null
+        })
+      }
+
       this.musicPlayer.play().catch((e) => {
         console.log('Music play failed (user interaction required?):', e)
       })
@@ -120,6 +139,9 @@ class SoundService {
     if (this.musicPlayer) {
       this.musicPlayer.pause()
       this.musicPlayer.currentTime = 0
+      // Remove event listeners and clear src to fully release audio
+      this.musicPlayer.src = ''
+      this.musicPlayer.load()
       this.musicPlayer = null
       this.currentTrack = null
     }
