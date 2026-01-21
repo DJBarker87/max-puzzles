@@ -18,6 +18,7 @@ const AddChildScreen = lazy(() => import('@/hub/screens/AddChildScreen'))
 const EditChildScreen = lazy(() => import('@/hub/screens/EditChildScreen'))
 const ResetPinScreen = lazy(() => import('@/hub/screens/ResetPinScreen'))
 const ParentSettingsScreen = lazy(() => import('@/hub/screens/ParentSettingsScreen'))
+const PrivacyPolicyScreen = lazy(() => import('@/hub/screens/PrivacyPolicyScreen'))
 
 // Circuit Challenge screens
 const ModuleMenu = lazy(() => import('@/modules/circuit-challenge/screens/ModuleMenu'))
@@ -118,6 +119,14 @@ const router = createBrowserRouter([
     element: (
       <LazyRoute>
         <ShopScreen />
+      </LazyRoute>
+    ),
+  },
+  {
+    path: '/privacy',
+    element: (
+      <LazyRoute>
+        <PrivacyPolicyScreen />
       </LazyRoute>
     ),
   },

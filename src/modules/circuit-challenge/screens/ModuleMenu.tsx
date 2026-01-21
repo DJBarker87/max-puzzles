@@ -86,6 +86,12 @@ export default function ModuleMenu() {
       {/* Stats summary */}
       <footer className="p-4 text-center text-text-secondary relative z-10">
         <p>Games played: 0 | Best streak: 0</p>
+        <button
+          onClick={() => navigate('/privacy')}
+          className="mt-2 text-sm text-text-secondary/70 hover:text-accent-primary transition-colors"
+        >
+          Privacy Policy
+        </button>
       </footer>
     </div>
   )
