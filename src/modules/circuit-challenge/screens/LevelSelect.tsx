@@ -301,7 +301,7 @@ function LargeHexTile({
                 points={topHexPoints}
                 fill="none"
                 stroke="#00ff88"
-                strokeWidth="8"
+                strokeWidth="14"
                 className="level-hex-glow"
                 filter={`url(#hexGlow-${level})`}
               />
@@ -310,7 +310,7 @@ function LargeHexTile({
                 points={topHexPoints}
                 fill="none"
                 stroke="#00dd77"
-                strokeWidth="4"
+                strokeWidth="6"
               />
             </g>
           )}
@@ -357,7 +357,7 @@ function LargeHexTile({
                 points={topHexPoints}
                 fill="none"
                 stroke="#88ffcc"
-                strokeWidth="2.5"
+                strokeWidth="4"
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 strokeDasharray="8 25"
@@ -368,7 +368,7 @@ function LargeHexTile({
                 points={topHexPoints}
                 fill="none"
                 stroke="white"
-                strokeWidth="1.5"
+                strokeWidth="2.5"
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 strokeDasharray="5 18"

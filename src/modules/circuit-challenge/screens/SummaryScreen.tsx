@@ -62,7 +62,7 @@ const loseMessages = [
 export default function SummaryScreen() {
   const location = useLocation()
   const navigate = useNavigate()
-  const { playMusic, playSound } = useSound()
+  const { playMusic, playSound, stopMusic } = useSound()
   const data = location.state as SummaryData | null
 
   // State for character reveal animation
@@ -82,18 +82,21 @@ export default function SummaryScreen() {
 
   const isStoryMode = !!data.storyAlien
 
-  // Check if this completion unlocks a new chapter
+  // Record story mode progress for ALL levels when won
   useEffect(() => {
-    if (data.won && isStoryMode && data.storyChapter && data.storyLevel === 5) {
-      // Check if this is the level that completes the chapter
-      const progress = getStoryProgress()
-      const wasChapterCompletedBefore = isChapterCompleted(data.storyChapter, progress)
-
-      // Record this level completion
+    if (data.won && isStoryMode && data.storyChapter && data.storyLevel) {
       const timeSeconds = Math.floor(data.elapsedMs / 1000)
       const correctMoves = data.moveHistory.filter(m => m.correct).length
       const livesLost = data.moveHistory.filter(m => !m.correct).length
       recordLevelAttempt(data.storyChapter, data.storyLevel, true, livesLost, timeSeconds, correctMoves)
+    }
+  }, [data.won, isStoryMode, data.storyChapter, data.storyLevel, data.elapsedMs, data.moveHistory])
+
+  // Check if this completion unlocks a new chapter (only for level 5)
+  useEffect(() => {
+    if (data.won && isStoryMode && data.storyChapter && data.storyLevel === 5) {
+      const progress = getStoryProgress()
+      const wasChapterCompletedBefore = isChapterCompleted(data.storyChapter, progress)
 
       // If chapter wasn't completed before but would be now, show unlock celebration
       if (!wasChapterCompletedBefore && data.storyChapter < 10) {
@@ -104,7 +107,7 @@ export default function SummaryScreen() {
         }
       }
     }
-  }, [data.won, isStoryMode, data.storyChapter, data.storyLevel, data.elapsedMs, data.moveHistory])
+  }, [data.won, isStoryMode, data.storyChapter, data.storyLevel])
 
   // Play victory or defeat stinger on mount
   useEffect(() => {
@@ -180,6 +183,7 @@ export default function SummaryScreen() {
   })()
 
   const handlePlayAgain = () => {
+    stopMusic() // Stop victory/lose music before navigating
     if (isStoryMode && data.storyChapter && data.storyLevel) {
       // Retry the same level with skip intro
       navigate(`/play/circuit-challenge/story/${data.storyChapter}/${data.storyLevel}`, {
@@ -195,6 +199,7 @@ export default function SummaryScreen() {
   const handleNextLevel = () => {
     if (!isStoryMode || !data.storyChapter || !data.storyLevel) return
 
+    stopMusic() // Stop victory music before navigating
     const currentLevel = data.storyLevel
     const currentChapter = data.storyChapter
 
@@ -211,6 +216,7 @@ export default function SummaryScreen() {
   }
 
   const handleChangeDifficulty = () => {
+    stopMusic() // Stop music before navigating
     if (isStoryMode && data.storyChapter) {
       // Go back to level select
       navigate(`/play/circuit-challenge/story/${data.storyChapter}`)
@@ -220,6 +226,7 @@ export default function SummaryScreen() {
   }
 
   const handleExit = () => {
+    stopMusic() // Stop music before navigating
     if (isStoryMode) {
       navigate('/play/circuit-challenge/story')
     } else {
@@ -228,6 +235,7 @@ export default function SummaryScreen() {
   }
 
   const handleViewSolution = () => {
+    stopMusic() // Stop music before navigating
     navigate('/play/circuit-challenge/game', {
       state: {
         difficulty: data.difficulty,

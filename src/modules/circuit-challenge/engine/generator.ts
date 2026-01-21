@@ -33,7 +33,7 @@ export function generatePuzzle(
   difficulty: DifficultySettings,
   options: GenerationOptions = {}
 ): GenerationResult {
-  const maxAttempts = options.maxAttempts ?? 20
+  const maxAttempts = options.maxAttempts ?? 30 // Increased from 20 for better success on complex grids
   const shouldValidate = options.validateResult ?? true
 
   const { gridRows, gridCols, connectorMin, connectorMax } = difficulty

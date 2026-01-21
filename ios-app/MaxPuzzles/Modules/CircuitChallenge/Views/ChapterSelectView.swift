@@ -126,6 +126,8 @@ struct ChapterSelectView: View {
         .onAppear {
             // Force view refresh when returning from game
             viewId = UUID()
+            // DEBUG: Unlock chapters for screenshots - REMOVE BEFORE RELEASE
+            appState.storyProgress.unlockChaptersForScreenshots()
         }
         .navigationDestination(isPresented: Binding(
             get: { selectedChapter != nil },

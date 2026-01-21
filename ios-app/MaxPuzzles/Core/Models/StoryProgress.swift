@@ -186,6 +186,23 @@ class StoryProgress: ObservableObject {
         data = StoryProgressData()
     }
 
+    /// DEBUG: Unlock chapters 1-6 for screenshots (remove before release)
+    func unlockChaptersForScreenshots() {
+        // Complete chapters 1-5 to unlock chapter 6
+        for chapter in 1...5 {
+            for level in 1...5 {
+                let key = StoryProgressData.key(chapter: chapter, level: level)
+                var levelData = LevelProgressData()
+                levelData.completed = true
+                levelData.stars = 3
+                levelData.bestTimeSeconds = 45.0
+                levelData.attempts = 1
+                data.levelProgress[key] = levelData
+            }
+        }
+        save()
+    }
+
     /// Reset progress for a specific chapter
     func resetChapter(_ chapter: Int) {
         for level in 1...5 {

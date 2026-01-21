@@ -146,9 +146,18 @@ function countDirectionChanges(path: Coordinate[]): number {
 
 /**
  * Check if a path is "interesting" (has enough direction changes)
+ * Shorter paths need fewer direction changes
  */
 export function isInterestingPath(path: Coordinate[]): boolean {
-  return countDirectionChanges(path) >= 3
+  let minChanges: number
+  if (path.length < 6) {
+    minChanges = 1 // Very short paths just need 1 turn
+  } else if (path.length < 8) {
+    minChanges = 2 // Short paths need 2 turns
+  } else {
+    minChanges = 3 // Normal paths need 3 turns
+  }
+  return countDirectionChanges(path) >= minChanges
 }
 
 /**
@@ -159,7 +168,7 @@ export function generatePath(
   cols: number,
   minLength: number,
   maxLength: number,
-  maxAttempts: number = 100
+  maxAttempts: number = 200 // Increased from 100 for better success on larger grids
 ): PathResult {
   const start: Coordinate = { row: 0, col: 0 }
   const finish: Coordinate = { row: rows - 1, col: cols - 1 }
@@ -200,18 +209,49 @@ export function generatePath(
 
       // Select next cell
       let next: Coordinate
-
-      // Bias towards finish as path gets longer
       const progressRatio = path.length / maxLength
-      if (Math.random() < progressRatio * 0.7) {
-        // Pick closest to finish
-        validMoves.sort((a, b) =>
-          manhattanDistance(a, finish) - manhattanDistance(b, finish)
-        )
-        next = validMoves[0]
+      const totalCells = rows * cols
+      const isSmallGrid = totalCells <= 20
+
+      // For small grids, use mostly random moves with occasional bias toward finish
+      // For large grids, use smarter scoring with dead-end avoidance
+      if (isSmallGrid) {
+        // Small grid: mostly random with light progress bias
+        if (progressRatio > 0.6 && Math.random() < 0.4) {
+          // Pick closest to finish
+          validMoves.sort((a, b) =>
+            manhattanDistance(a, finish) - manhattanDistance(b, finish)
+          )
+          next = validMoves[0]
+        } else {
+          next = validMoves[Math.floor(Math.random() * validMoves.length)]
+        }
       } else {
-        // Pick random
-        next = validMoves[Math.floor(Math.random() * validMoves.length)]
+        // Large grid: smart scoring with dead-end avoidance
+        const scoredMoves = validMoves.map(move => {
+          let score = 0
+          const distToFinish = manhattanDistance(move, finish)
+
+          // Stronger finish bias as we approach max length
+          if (progressRatio > 0.7) {
+            score -= distToFinish * (progressRatio - 0.5) * 2
+          }
+
+          // Dead-end avoidance: prefer moves with more future options
+          const futureOptions = getAdjacent(move, rows, cols)
+            .filter(opt => !visited.has(coordToKey(opt)) && !(opt.row === current.row && opt.col === current.col))
+            .length
+          score += futureOptions * 0.5
+
+          // Random factor for variety
+          score += Math.random() * 0.5
+
+          return { move, score }
+        })
+
+        // Pick move with highest score
+        scoredMoves.sort((a, b) => b.score - a.score)
+        next = scoredMoves[0].move
       }
 
       // Record diagonal commitment if applicable
