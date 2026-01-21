@@ -17,12 +17,16 @@ struct GameScreenView: View {
     @State private var summaryData: SummaryData?
     @State private var coinsPersisted = false
 
-    private let difficulty: DifficultySettings
+    // Current level state (can change for "Next Level")
+    @State private var currentChapter: Int?
+    @State private var currentLevel: Int?
+
+    private let initialDifficulty: DifficultySettings
 
     // Story mode optional parameters
     private let storyAlien: ChapterAlien?
-    private let storyChapter: Int?
-    private let storyLevel: Int?
+    private let initialChapter: Int?
+    private let initialLevel: Int?
 
     init(
         difficulty: DifficultySettings,
@@ -30,11 +34,22 @@ struct GameScreenView: View {
         storyChapter: Int? = nil,
         storyLevel: Int? = nil
     ) {
-        self.difficulty = difficulty
+        self.initialDifficulty = difficulty
         self.storyAlien = storyAlien
-        self.storyChapter = storyChapter
-        self.storyLevel = storyLevel
+        self.initialChapter = storyChapter
+        self.initialLevel = storyLevel
         _viewModel = StateObject(wrappedValue: GameViewModel(difficulty: difficulty))
+        _currentChapter = State(initialValue: storyChapter)
+        _currentLevel = State(initialValue: storyLevel)
+    }
+
+    /// Get the current difficulty based on chapter/level
+    private var currentDifficulty: DifficultySettings {
+        if let chapter = currentChapter, let level = currentLevel {
+            let storyLevel = StoryLevel(chapter: chapter, level: level)
+            return StoryDifficulty.settings(for: storyLevel)
+        }
+        return initialDifficulty
     }
 
     /// Check if in compact vertical (landscape on iPhone)
@@ -44,13 +59,19 @@ struct GameScreenView: View {
 
     /// Title for the header - shows alien name for story mode
     private var storyModeTitle: String {
-        if let alien = storyAlien, let level = storyLevel {
+        if let alien = storyAlien, let level = currentLevel {
             return "\(alien.name) \(level)"
         } else if viewModel.state.isHiddenMode {
             return "Hidden Mode"
         } else {
             return "Quick Play"
         }
+    }
+
+    /// Check if there's a next level available
+    private var hasNextLevel: Bool {
+        guard let level = currentLevel else { return false }
+        return level < 5  // 5 levels per chapter
     }
 
     var body: some View {
@@ -106,11 +127,17 @@ struct GameScreenView: View {
                         navigateToSummary = false
                         handleNewPuzzle()
                     },
-                    onNextLevel: data.isStoryMode && data.won ? {
-                        // For story mode wins, go back to level select to advance
+                    onNextLevel: data.isStoryMode && data.won && hasNextLevel ? {
+                        // Advance to next level and start new puzzle
                         navigateToSummary = false
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                            dismiss()
+                        if let chapter = currentChapter, let level = currentLevel {
+                            let newLevel = level + 1
+                            currentLevel = newLevel
+                            // Compute new difficulty explicitly (don't rely on computed property)
+                            let storyLevel = StoryLevel(chapter: chapter, level: newLevel)
+                            let newDifficulty = StoryDifficulty.settings(for: storyLevel)
+                            viewModel.setDifficulty(newDifficulty)
+                            viewModel.generateNewPuzzle()
                         }
                     } : nil,
                     onChangeDifficulty: {
@@ -395,12 +422,7 @@ struct GameScreenView: View {
     private func handleStatusChange(to newStatus: GameStatus) {
         // Navigate to summary when game ends (but not if viewing solution)
         if (newStatus == .won || newStatus == .lost) && !viewModel.state.showingSolution {
-            // Play victory sound on win
-            if newStatus == .won {
-                musicService.play(track: .victory, loop: false)
-            }
-
-            // Small delay to show final state
+            // Small delay to show final state before navigating to summary
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
                 createSummaryData()
                 navigateToSummary = true
@@ -426,7 +448,7 @@ struct GameScreenView: View {
             appState.recordPuzzleCompleted()
 
             // Record story mode progress
-            if let chapter = storyChapter, let level = storyLevel {
+            if let chapter = currentChapter, let level = currentLevel {
                 let won = viewModel.state.status == .won
                 let livesLost = viewModel.state.moveHistory.filter { !$0.correct }.count
                 let timeSeconds = Double(viewModel.state.elapsedMs) / 1000.0
@@ -455,8 +477,8 @@ struct GameScreenView: View {
             puzzle: viewModel.state.puzzle,
             difficulty: viewModel.state.difficulty,
             storyAlien: storyAlien,
-            storyChapter: storyChapter,
-            storyLevel: storyLevel
+            storyChapter: currentChapter,
+            storyLevel: currentLevel
         )
     }
 }
