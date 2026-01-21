@@ -17,9 +17,10 @@ struct GameScreenView: View {
     @State private var summaryData: SummaryData?
     @State private var coinsPersisted = false
 
-    // Current level state (can change for "Next Level")
+    // Current level state (can change for "Next Level" / "Next Chapter")
     @State private var currentChapter: Int?
     @State private var currentLevel: Int?
+    @State private var currentAlien: ChapterAlien?
 
     // Level intro overlay (for "Next Level" transitions)
     @State private var showLevelIntro = false
@@ -28,10 +29,15 @@ struct GameScreenView: View {
 
     private let initialDifficulty: DifficultySettings
 
-    // Story mode optional parameters
-    private let storyAlien: ChapterAlien?
+    // Story mode optional parameters (initial values)
+    private let initialAlien: ChapterAlien?
     private let initialChapter: Int?
     private let initialLevel: Int?
+
+    /// Whether this is story mode
+    private var isStoryMode: Bool {
+        currentChapter != nil && currentLevel != nil
+    }
 
     init(
         difficulty: DifficultySettings,
@@ -40,12 +46,13 @@ struct GameScreenView: View {
         storyLevel: Int? = nil
     ) {
         self.initialDifficulty = difficulty
-        self.storyAlien = storyAlien
+        self.initialAlien = storyAlien
         self.initialChapter = storyChapter
         self.initialLevel = storyLevel
         _viewModel = StateObject(wrappedValue: GameViewModel(difficulty: difficulty))
         _currentChapter = State(initialValue: storyChapter)
         _currentLevel = State(initialValue: storyLevel)
+        _currentAlien = State(initialValue: storyAlien)
     }
 
     /// Get the current difficulty based on chapter/level
@@ -64,7 +71,7 @@ struct GameScreenView: View {
 
     /// Title for the header - shows alien name for story mode
     private var storyModeTitle: String {
-        if let alien = storyAlien, let level = currentLevel {
+        if let alien = currentAlien, let level = currentLevel {
             return "\(alien.name) \(level)"
         } else if viewModel.state.isHiddenMode {
             return "Hidden Mode"
@@ -73,10 +80,19 @@ struct GameScreenView: View {
         }
     }
 
-    /// Check if there's a next level available
+    /// Check if there's a next level available (including next chapter)
     private var hasNextLevel: Bool {
+        guard let chapter = currentChapter, let level = currentLevel else { return false }
+        // Has next level in same chapter
+        if level < 5 { return true }
+        // On level 5: check if there's a next chapter
+        return chapter < 10
+    }
+
+    /// Check if advancing means going to next chapter
+    private var isAdvancingToNextChapter: Bool {
         guard let level = currentLevel else { return false }
-        return level < 5  // 5 levels per chapter
+        return level == 5
     }
 
     var body: some View {
@@ -100,7 +116,7 @@ struct GameScreenView: View {
             }
 
             // Level intro overlay (for "Next Level" transitions in story mode)
-            if showLevelIntro, let alien = storyAlien, let level = currentLevel {
+            if showLevelIntro, let alien = currentAlien, let level = currentLevel {
                 levelIntroOverlay(alien: alien, level: level)
                     .scaleEffect(introScale)
                     .opacity(introOpacity)
@@ -143,15 +159,31 @@ struct GameScreenView: View {
                         handleNewPuzzle()
                     },
                     onNextLevel: data.isStoryMode && data.won && hasNextLevel ? {
-                        // Advance to next level
+                        // Advance to next level (or next chapter if on level 5)
                         navigateToSummary = false
                         if let chapter = currentChapter, let level = currentLevel {
-                            let newLevel = level + 1
-                            currentLevel = newLevel
                             coinsPersisted = false // Reset for new puzzle
 
-                            // Compute new difficulty explicitly (don't rely on computed property)
-                            let storyLevel = StoryLevel(chapter: chapter, level: newLevel)
+                            let newChapter: Int
+                            let newLevel: Int
+
+                            if level == 5 && chapter < 10 {
+                                // Advance to next chapter, level 1
+                                newChapter = chapter + 1
+                                newLevel = 1
+                                // Update alien for new chapter
+                                currentAlien = ChapterAlien.forChapter(newChapter)
+                            } else {
+                                // Advance to next level in same chapter
+                                newChapter = chapter
+                                newLevel = level + 1
+                            }
+
+                            currentChapter = newChapter
+                            currentLevel = newLevel
+
+                            // Compute new difficulty explicitly
+                            let storyLevel = StoryLevel(chapter: newChapter, level: newLevel)
                             let newDifficulty = StoryDifficulty.settings(for: storyLevel)
                             viewModel.setDifficulty(newDifficulty)
 
@@ -234,7 +266,7 @@ struct GameScreenView: View {
                 Spacer()
 
                 ActionButtons(
-                    onReset: { viewModel.resetPuzzle() },
+                    onReset: isStoryMode ? nil : { viewModel.resetPuzzle() },
                     onNewPuzzle: handleNewPuzzle,
                     onViewSolution: viewModel.state.status == .lost ? { viewModel.showSolution() } : nil,
                     onContinue: viewModel.state.showingSolution ? handleContinueToSummary : nil,
@@ -292,7 +324,7 @@ struct GameScreenView: View {
     private var actionButtonsSection: some View {
         HStack(spacing: 16) {
             ActionButtons(
-                onReset: { viewModel.resetPuzzle() },
+                onReset: isStoryMode ? nil : { viewModel.resetPuzzle() },
                 onNewPuzzle: handleNewPuzzle,
                 onViewSolution: viewModel.state.status == .lost ? { viewModel.showSolution() } : nil,
                 onContinue: viewModel.state.showingSolution ? handleContinueToSummary : nil,
@@ -577,7 +609,7 @@ struct GameScreenView: View {
             hiddenModeResults: viewModel.state.hiddenModeResults,
             puzzle: viewModel.state.puzzle,
             difficulty: viewModel.state.difficulty,
-            storyAlien: storyAlien,
+            storyAlien: currentAlien,
             storyChapter: currentChapter,
             storyLevel: currentLevel
         )
