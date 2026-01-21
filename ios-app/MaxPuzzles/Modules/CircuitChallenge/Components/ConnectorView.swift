@@ -36,11 +36,10 @@ struct ConnectorView: View {
         self.cellRadius = cellRadius
     }
 
-    // Shorten endpoints to match web app exactly
-    // Web uses 25px shortening for 42px radius cells
+    // Shorten endpoints so connectors extend close to cell edges
+    // Reduced from 0.595 to 0.45 to make connectors longer and more visible
     private var shortenBy: CGFloat {
-        // Scale proportionally: 25/42 ≈ 0.595
-        return cellRadius * 0.595
+        return cellRadius * 0.45
     }
 
     private var direction: CGPoint {

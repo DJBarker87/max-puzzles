@@ -74,9 +74,9 @@ struct HexagonGeometry {
         padding + CGFloat(cols - 1) * horizontalSpacing + padding
     }
 
-    /// Calculate total grid height (add minimal amount for 3D cell depth)
+    /// Calculate total grid height
     func gridHeight(rows: Int) -> CGFloat {
-        padding + CGFloat(rows - 1) * verticalSpacing + padding + 10
+        padding + CGFloat(rows - 1) * verticalSpacing + padding
     }
 
     /// Get center point for a cell at given row/col
@@ -103,29 +103,34 @@ struct HexagonGeometry {
 
 extension HexagonGeometry {
     /// Create geometry that maximizes screen usage for the given grid size
-    /// Matches web app exactly: scales the web's base measurements proportionally
+    /// Optimized for mobile: minimal padding, maximum grid space
     static func scaled(for size: CGSize, rows: Int, cols: Int) -> HexagonGeometry {
-        // Web app base values (from PuzzleGrid.tsx), with reduced padding for mobile
+        // Web app base values
         let webCellRadius: CGFloat = 42
         let webHorizontalSpacing: CGFloat = 150
         let webVerticalSpacing: CGFloat = 140
-        let webPadding: CGFloat = 55  // Balanced padding - enough for START label at top
 
-        // Calculate web grid dimensions
-        let webGridWidth = webPadding * 2 + CGFloat(cols - 1) * webHorizontalSpacing
-        let webGridHeight = webPadding * 2 + CGFloat(rows - 1) * webVerticalSpacing + 10 // minimal extra for 3D depth
+        // Minimal padding - just enough for cell edges, no extra space
+        // Horizontal: half cell width (for leftmost/rightmost cells)
+        // Vertical: minimal for top/bottom cells
+        let webHorizontalPadding: CGFloat = 45  // ~half cell width
+        let webVerticalPadding: CGFloat = 25    // Minimal vertical padding
+
+        // Calculate web grid dimensions with asymmetric padding
+        let webGridWidth = webHorizontalPadding * 2 + CGFloat(cols - 1) * webHorizontalSpacing
+        let webGridHeight = webVerticalPadding * 2 + CGFloat(rows - 1) * webVerticalSpacing
 
         // Calculate scale factor to fit available space
         let scaleX = size.width / webGridWidth
         let scaleY = size.height / webGridHeight
-        let scale = min(scaleX, scaleY) * 0.98  // 98% to maximize grid size
+        let scale = min(scaleX, scaleY) * 0.99  // 99% to maximize grid size
 
-        // Apply scale uniformly to all measurements - no minimum constraint
-        // This ensures grids always fit on screen
+        // Apply scale uniformly to all measurements
         let scaledRadius = webCellRadius * scale
         let scaledHorizontalSpacing = webHorizontalSpacing * scale
         let scaledVerticalSpacing = webVerticalSpacing * scale
-        let scaledPadding = webPadding * scale
+        // Use the larger horizontal padding for both (keeps grid centered)
+        let scaledPadding = webHorizontalPadding * scale
 
         return HexagonGeometry(
             cellRadius: scaledRadius,
