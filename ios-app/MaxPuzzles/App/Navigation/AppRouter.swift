@@ -4,7 +4,6 @@ import SwiftUI
 enum AppRoute: Hashable {
     case splash
     case hub
-    case login
     case familySelect
     case pinEntry(childId: UUID)
     case settings

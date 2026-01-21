@@ -136,8 +136,6 @@ struct MainHubView: View {
         switch route {
         case .settings:
             SettingsView()
-        case .login:
-            LoginPlaceholderView()
         default:
             PlaceholderView(title: "Coming Soon")
         }
@@ -159,38 +157,6 @@ struct PlaceholderView: View {
                 Text(title)
                     .font(AppTypography.titleMedium)
                     .foregroundColor(AppTheme.textPrimary)
-
-                SecondaryButton("Back", icon: "arrow.left") {
-                    router.pop()
-                }
-            }
-        }
-        .navigationBarHidden(true)
-    }
-}
-
-/// Login screen placeholder (Phase 6)
-struct LoginPlaceholderView: View {
-    @EnvironmentObject var router: AppRouter
-
-    var body: some View {
-        ZStack {
-            SplashBackground()
-
-            VStack(spacing: AppSpacing.lg) {
-                Image(systemName: "person.crop.circle.badge.plus")
-                    .font(.system(size: 64))
-                    .foregroundColor(AppTheme.accentPrimary)
-
-                Text("Login / Sign Up")
-                    .font(AppTypography.titleMedium)
-                    .foregroundColor(AppTheme.textPrimary)
-
-                Text("Account creation coming in a future update!")
-                    .font(AppTypography.bodyMedium)
-                    .foregroundColor(AppTheme.textSecondary)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 32)
 
                 SecondaryButton("Back", icon: "arrow.left") {
                     router.pop()
