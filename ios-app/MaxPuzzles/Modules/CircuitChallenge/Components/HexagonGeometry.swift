@@ -110,20 +110,21 @@ extension HexagonGeometry {
         let webHorizontalSpacing: CGFloat = 150
         let webVerticalSpacing: CGFloat = 140
 
-        // Horizontal padding - half cell width for leftmost/rightmost cells
-        let webHorizontalPadding: CGFloat = 45
+        // Horizontal padding - must be at least half cell width for leftmost/rightmost cells
+        let webHorizontalPadding: CGFloat = 50
 
-        // Vertical padding - decreases with more rows to maximize space
-        // 4 rows or less: full padding (25)
-        // 5 rows: half padding (12.5)
-        // 6+ rows: no padding (0)
+        // Vertical padding - must be at least cellRadius to prevent hexagon clipping
+        // Padding decreases slightly with more rows to maximize space, but never below cellRadius
+        // 4 rows or less: generous padding (cellRadius + buffer)
+        // 5 rows: standard padding (cellRadius)
+        // 6+ rows: minimal padding (cellRadius - small amount, allow slight edge proximity)
         let webVerticalPadding: CGFloat
         if rows <= 4 {
-            webVerticalPadding = 25
+            webVerticalPadding = 55  // cellRadius (42) + buffer
         } else if rows == 5 {
-            webVerticalPadding = 12.5
+            webVerticalPadding = 48  // cellRadius + small buffer
         } else {
-            webVerticalPadding = 0
+            webVerticalPadding = 44  // just above cellRadius
         }
 
         // Calculate web grid dimensions with asymmetric padding
