@@ -129,19 +129,29 @@ struct SplashView: View {
     // MARK: - Initialization
 
     private func initializeApp() {
-        // Ensure guest session exists
+        // Ensure guest session exists (do this synchronously, it's fast)
         let storage = StorageService.shared
         _ = storage.ensureGuestSession()
 
-        // Use Task for proper @MainActor handling
-        Task { @MainActor in
-            // Start hub music after short delay
-            try? await Task.sleep(nanoseconds: 500_000_000) // 0.5s
-            musicService.play(track: .hub)
+        // Capture references for timer closures
+        let music = musicService
+        let state = appState
 
-            // Transition to hub after splash
-            try? await Task.sleep(nanoseconds: 1_500_000_000) // 1.5s more (2s total)
-            appState.completeLoading()
+        // Use Timer for reliable execution (Task.sleep can be cancelled/interrupted)
+        // Start hub music after 0.5s
+        Timer.scheduledTimer(withTimeInterval: 0.5, repeats: false) { _ in
+            DispatchQueue.main.async {
+                music.play(track: .hub)
+            }
+        }
+
+        // Transition to hub after 2s total
+        Timer.scheduledTimer(withTimeInterval: 2.0, repeats: false) { _ in
+            DispatchQueue.main.async {
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    state.completeLoading()
+                }
+            }
         }
     }
 }
