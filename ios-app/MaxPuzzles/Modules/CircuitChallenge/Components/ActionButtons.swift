@@ -6,7 +6,7 @@ import UIKit
 /// Game action buttons (Reset, New Puzzle, View Solution, Continue)
 /// Supports horizontal and vertical layouts for different orientations
 struct ActionButtons: View {
-    let onReset: () -> Void
+    let onReset: (() -> Void)?  // Optional - hidden in story mode
     let onNewPuzzle: () -> Void
     let onViewSolution: (() -> Void)?
     let onContinue: (() -> Void)?
@@ -16,7 +16,7 @@ struct ActionButtons: View {
     let compact: Bool  // For smaller side panels
 
     init(
-        onReset: @escaping () -> Void,
+        onReset: (() -> Void)? = nil,
         onNewPuzzle: @escaping () -> Void,
         onViewSolution: (() -> Void)? = nil,
         onContinue: (() -> Void)? = nil,
@@ -53,13 +53,15 @@ struct ActionButtons: View {
 
     @ViewBuilder
     private var buttonContent: some View {
-        // Reset button
-        ActionButton(
-            icon: "arrow.clockwise",
-            label: vertical ? nil : "Reset",
-            action: onReset,
-            compact: compact
-        )
+        // Reset button (hidden in story mode)
+        if let resetAction = onReset {
+            ActionButton(
+                icon: "arrow.clockwise",
+                label: vertical ? nil : "Reset",
+                action: resetAction,
+                compact: compact
+            )
+        }
 
         // New Puzzle button
         ActionButton(
