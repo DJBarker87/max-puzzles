@@ -11,6 +11,12 @@ struct PuzzleMakerView: View {
     @State private var showShareSheet = false
     @State private var pdfData: Data?
 
+    // Parental Gate state
+    @State private var showParentalGate = false
+    @State private var parentalGateAnswer = ""
+    @State private var parentalGateProblem: (question: String, answer: Int) = ("", 0)
+    @State private var parentalGateError = false
+
     private var isLandscape: Bool {
         verticalSizeClass == .compact
     }
@@ -39,6 +45,25 @@ struct PuzzleMakerView: View {
         .sheet(isPresented: $showShareSheet) {
             if let data = pdfData {
                 ShareSheet(items: [data])
+            }
+        }
+        .alert("Parental Verification", isPresented: $showParentalGate) {
+            TextField("Answer", text: $parentalGateAnswer)
+                .keyboardType(.numberPad)
+            Button("Cancel", role: .cancel) {
+                parentalGateAnswer = ""
+                parentalGateError = false
+            }
+            Button("Continue") {
+                verifyParentalGate()
+            }
+        } message: {
+            VStack {
+                if parentalGateError {
+                    Text("Incorrect answer. Please try again.\n\n\(parentalGateProblem.question)")
+                } else {
+                    Text("To share or print, please solve this problem:\n\n\(parentalGateProblem.question)")
+                }
             }
         }
     }
@@ -662,9 +687,37 @@ struct PuzzleMakerView: View {
     // MARK: - Actions
 
     private func exportPDF() {
-        guard let data = viewModel.generatePDF() else { return }
-        pdfData = data
-        showShareSheet = true
+        // Generate parental gate problem and show it
+        parentalGateProblem = generateParentalGateProblem()
+        parentalGateAnswer = ""
+        parentalGateError = false
+        showParentalGate = true
+    }
+
+    private func verifyParentalGate() {
+        if let answer = Int(parentalGateAnswer), answer == parentalGateProblem.answer {
+            // Correct answer - proceed with PDF generation
+            parentalGateAnswer = ""
+            parentalGateError = false
+            guard let data = viewModel.generatePDF() else { return }
+            pdfData = data
+            showShareSheet = true
+        } else {
+            // Wrong answer - show error and regenerate problem
+            parentalGateError = true
+            parentalGateProblem = generateParentalGateProblem()
+            parentalGateAnswer = ""
+            showParentalGate = true
+        }
+    }
+
+    private func generateParentalGateProblem() -> (question: String, answer: Int) {
+        // Generate a multiplication problem that requires adult-level math
+        // Using numbers that make it hard for young children but easy for adults
+        let num1 = Int.random(in: 12...19)
+        let num2 = Int.random(in: 6...9)
+        let answer = num1 * num2
+        return ("What is \(num1) × \(num2)?", answer)
     }
 }
 
