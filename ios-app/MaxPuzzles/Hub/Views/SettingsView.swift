@@ -28,11 +28,6 @@ struct SettingsView: View {
                     // Sound Settings Section
                     soundSection
 
-                    // Guest Mode Info Section (only shown in guest mode)
-                    if appState.isGuest {
-                        guestInfoSection
-                    }
-
                     // About Section
                     aboutSection
 
@@ -174,68 +169,6 @@ struct SettingsView: View {
                         }
                     }
                 }
-
-                Divider()
-                    .background(Color.white.opacity(0.1))
-
-                // Sound Effects Toggle
-                Toggle(isOn: Binding(
-                    get: { storage.isSoundEnabled },
-                    set: { storage.setSoundEnabled($0) }
-                )) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Sound Effects")
-                            .font(.system(size: 16, weight: .medium))
-                            .foregroundColor(.white)
-
-                        Text("Coming soon!")
-                            .font(.system(size: 13))
-                            .foregroundColor(AppTheme.textSecondary)
-                    }
-                }
-                .toggleStyle(SwitchToggleStyle(tint: AppTheme.accentPrimary))
-                .disabled(true)
-                .opacity(0.6)
-            }
-        }
-    }
-
-    // MARK: - Guest Info Section
-
-    private var guestInfoSection: some View {
-        SettingsCard(title: "Playing as Guest", icon: "person.fill.questionmark") {
-            VStack(alignment: .leading, spacing: 12) {
-                Text("Your progress is saved locally on this device.")
-                    .font(.system(size: 14))
-                    .foregroundColor(AppTheme.textSecondary)
-
-                HStack(spacing: 16) {
-                    StatBox(label: "Puzzles", value: "\(storage.puzzlesCompletedCount)")
-                    StatBox(label: "Games", value: "\(storage.totalGamesPlayed)")
-                    StatBox(label: "Coins", value: "\(storage.totalCoinsEarned)")
-                }
-
-                Button(action: {
-                    // Navigate to create account (Phase 6)
-                }) {
-                    HStack {
-                        Image(systemName: "person.badge.plus")
-                        Text("Create Account to Sync Progress")
-                    }
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(AppTheme.accentPrimary)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
-                    .background(AppTheme.accentPrimary.opacity(0.15))
-                    .cornerRadius(10)
-                }
-                .disabled(true) // Phase 6
-                .opacity(0.6)
-
-                Text("Account creation coming in a future update!")
-                    .font(.system(size: 12))
-                    .foregroundColor(AppTheme.textSecondary)
-                    .italic()
             }
         }
     }
@@ -248,17 +181,6 @@ struct SettingsView: View {
                 Button(action: { showAbout = true }) {
                     SettingsRow(icon: "star.fill", title: "About Maxi's Mighty Mindgames")
                 }
-
-                Divider()
-                    .background(Color.white.opacity(0.1))
-
-                Button(action: {
-                    // Open privacy policy (would be a web link)
-                }) {
-                    SettingsRow(icon: "hand.raised.fill", title: "Privacy Policy")
-                }
-                .disabled(true)
-                .opacity(0.6)
 
                 Divider()
                     .background(Color.white.opacity(0.1))
@@ -360,29 +282,6 @@ struct SettingsRow: View {
                 .foregroundColor(AppTheme.textSecondary)
         }
         .contentShape(Rectangle())
-    }
-}
-
-// MARK: - Stat Box
-
-struct StatBox: View {
-    let label: String
-    let value: String
-
-    var body: some View {
-        VStack(spacing: 4) {
-            Text(value)
-                .font(.system(size: 20, weight: .bold))
-                .foregroundColor(.white)
-
-            Text(label)
-                .font(.system(size: 12))
-                .foregroundColor(AppTheme.textSecondary)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 12)
-        .background(AppTheme.backgroundDark)
-        .cornerRadius(10)
     }
 }
 
