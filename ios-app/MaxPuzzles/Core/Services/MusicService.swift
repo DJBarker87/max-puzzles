@@ -96,10 +96,19 @@ class MusicService: ObservableObject {
     }
 
     /// Resumes paused music
+    /// If no player exists but we have a current track, starts playing it
     func resume() {
         guard storage.isMusicEnabled else { return }
-        player?.play()
-        isPlaying = player?.isPlaying ?? false
+
+        if let player = player {
+            // Resume existing player
+            player.play()
+            isPlaying = player.isPlaying
+        } else if let track = currentTrack {
+            // No player but we have a track - restart it
+            play(track: track)
+        }
+        // If no player and no track, do nothing - music will start when views appear
     }
 
     /// Toggles music playback

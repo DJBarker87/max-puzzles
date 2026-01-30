@@ -114,6 +114,11 @@ struct FirstRunView: View {
             // Pick a random alien on appear (avoids init-time randomization issues)
             welcomeAlien = ChapterAlien.all.randomElement() ?? ChapterAlien.all[0]
             startAnimations()
+
+            // Ensure music is playing (in case it wasn't started in splash)
+            if !musicService.isPlaying {
+                musicService.play(track: .hub)
+            }
         }
     }
 

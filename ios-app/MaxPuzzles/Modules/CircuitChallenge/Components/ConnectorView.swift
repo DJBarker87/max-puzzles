@@ -19,6 +19,11 @@ struct ConnectorView: View {
     @State private var glowOpacity: CGFloat = 0.5
     @State private var animationsStarted: Bool = false
 
+    /// Scale factor for line widths based on cell size (base is 42px radius)
+    private var lineScale: CGFloat {
+        cellRadius / 42
+    }
+
     init(
         startPoint: CGPoint,
         endPoint: CGPoint,
@@ -136,42 +141,42 @@ struct ConnectorView: View {
 
     private var traversedConnector: some View {
         ZStack {
-            // Layer 1: Glow
+            // Layer 1: Glow (scaled by cell size)
             ConnectorLine(start: shortenedStart, end: shortenedEnd)
-                .stroke(Color(hex: "00ff88").opacity(glowOpacity), style: StrokeStyle(lineWidth: 18, lineCap: .round))
-                .blur(radius: 6)
+                .stroke(Color(hex: "00ff88").opacity(glowOpacity), style: StrokeStyle(lineWidth: 18 * lineScale, lineCap: .round))
+                .blur(radius: 6 * lineScale)
 
-            // Layer 2: Main line
+            // Layer 2: Main line (scaled by cell size)
             ConnectorLine(start: shortenedStart, end: shortenedEnd)
-                .stroke(Color(hex: "00dd77"), style: StrokeStyle(lineWidth: 10, lineCap: .round))
+                .stroke(Color(hex: "00dd77"), style: StrokeStyle(lineWidth: 10 * lineScale, lineCap: .round))
 
-            // Layer 3: Energy flow slow (dash 6 30, 1.2s)
+            // Layer 3: Energy flow slow (dash 6 30, 1.2s) (scaled by cell size)
             ConnectorLine(start: shortenedStart, end: shortenedEnd)
                 .stroke(
                     Color(hex: "88ffcc"),
                     style: StrokeStyle(
-                        lineWidth: 6,
+                        lineWidth: 6 * lineScale,
                         lineCap: .round,
-                        dash: [6, 30],
+                        dash: [6 * lineScale, 30 * lineScale],
                         dashPhase: flowPhase2
                     )
                 )
 
-            // Layer 4: Energy flow fast (dash 4 20, 0.8s)
+            // Layer 4: Energy flow fast (dash 4 20, 0.8s) (scaled by cell size)
             ConnectorLine(start: shortenedStart, end: shortenedEnd)
                 .stroke(
                     Color.white,
                     style: StrokeStyle(
-                        lineWidth: 4,
+                        lineWidth: 4 * lineScale,
                         lineCap: .round,
-                        dash: [4, 20],
+                        dash: [4 * lineScale, 20 * lineScale],
                         dashPhase: flowPhase1
                     )
                 )
 
-            // Layer 5: Bright core
+            // Layer 5: Bright core (scaled by cell size)
             ConnectorLine(start: shortenedStart, end: shortenedEnd)
-                .stroke(Color(hex: "aaffcc"), style: StrokeStyle(lineWidth: 3, lineCap: .round))
+                .stroke(Color(hex: "aaffcc"), style: StrokeStyle(lineWidth: 3 * lineScale, lineCap: .round))
 
             // Value badge - scales with cell size
             ConnectorBadge(
@@ -210,16 +215,19 @@ struct ConnectorView: View {
     private func startAnimations() {
         animationsStarted = true
 
+        // Scale the animation phase offset based on cell size
+        let scaledPhase = -36 * lineScale
+
         // Staggered start for energy flow animations
         DispatchQueue.main.asyncAfter(deadline: .now() + animationDelay / 1000) {
             withAnimation(.linear(duration: 0.8).repeatForever(autoreverses: false)) {
-                flowPhase1 = -36
+                flowPhase1 = scaledPhase
             }
         }
 
         DispatchQueue.main.asyncAfter(deadline: .now() + (animationDelay + 200) / 1000) {
             withAnimation(.linear(duration: 1.2).repeatForever(autoreverses: false)) {
-                flowPhase2 = -36
+                flowPhase2 = scaledPhase
             }
         }
 

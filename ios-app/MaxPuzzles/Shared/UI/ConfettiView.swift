@@ -59,9 +59,8 @@ struct ConfettiView: View {
                 createSparkles(in: geometry.size)
                 isAnimating = true
 
-                // Haptic and sound
+                // Haptic only (sounds removed)
                 FeedbackManager.shared.haptic(.levelComplete)
-                SoundEffectsService.shared.play(.levelComplete)
             }
         }
         .allowsHitTesting(false)
@@ -353,9 +352,8 @@ struct StarPopView: View {
                     glowOpacity = 0.6
                 }
 
-                // Sound effect
+                // Haptic only (sounds removed)
                 DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
-                    SoundEffectsService.shared.play(.starReveal)
                     FeedbackManager.shared.haptic(.starReveal)
                 }
             }

@@ -108,8 +108,8 @@ class StoryProgress: ObservableObject {
         // Level 1 (A) is always unlocked if chapter is unlocked
         if level == 1 { return true }
 
-        // Otherwise, previous level must be completed
-        return isLevelCompleted(chapter: chapter, level: level - 1)
+        // Require 2+ stars on previous level to unlock next
+        return starsForLevel(chapter: chapter, level: level - 1) >= 2
     }
 
     /// Check if a specific level is completed
@@ -184,23 +184,6 @@ class StoryProgress: ObservableObject {
     /// Reset all progress (for testing/debug)
     func resetProgress() {
         data = StoryProgressData()
-    }
-
-    /// DEBUG: Unlock chapters 1-6 for screenshots (remove before release)
-    func unlockChaptersForScreenshots() {
-        // Complete chapters 1-5 to unlock chapter 6
-        for chapter in 1...5 {
-            for level in 1...5 {
-                let key = StoryProgressData.key(chapter: chapter, level: level)
-                var levelData = LevelProgressData()
-                levelData.completed = true
-                levelData.stars = 3
-                levelData.bestTimeSeconds = 45.0
-                levelData.attempts = 1
-                data.levelProgress[key] = levelData
-            }
-        }
-        save()
     }
 
     /// Reset progress for a specific chapter

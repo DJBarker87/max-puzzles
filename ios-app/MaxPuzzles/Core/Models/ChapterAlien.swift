@@ -54,6 +54,12 @@ struct ChapterAlien: Identifiable {
         let suffix = personalizedSuffixes.randomElement() ?? ""
         return baseMessage + suffix
     }
+
+    /// Get a hidden mode intro message for level 5
+    func hiddenModeIntro(playerName: String) -> String {
+        let prefix = playerName.isEmpty ? "" : "\(playerName), "
+        return "\(prefix)this is Hidden Mode! You won't see if you're right or wrong until the end. Think carefully!"
+    }
 }
 
 extension ChapterAlien {

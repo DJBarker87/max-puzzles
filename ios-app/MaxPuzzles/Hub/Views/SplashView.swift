@@ -126,23 +126,16 @@ struct SplashView: View {
         let storage = StorageService.shared
         _ = storage.ensureGuestSession()
 
-        // Capture references for timer closures
-        let music = musicService
-        let state = appState
+        // Use Task for @MainActor isolation compliance
+        // This ensures proper actor isolation when calling MusicService methods
+        Task { @MainActor in
+            // Start hub music after 0.5s
+            try? await Task.sleep(nanoseconds: 500_000_000)
+            musicService.play(track: .hub)
 
-        // Use Timer for reliable execution (Task.sleep can be cancelled/interrupted)
-        // Start hub music after 0.5s
-        Timer.scheduledTimer(withTimeInterval: 0.5, repeats: false) { _ in
-            DispatchQueue.main.async {
-                music.play(track: .hub)
-            }
-        }
-
-        // Transition to hub after 2s total
-        Timer.scheduledTimer(withTimeInterval: 2.0, repeats: false) { _ in
-            DispatchQueue.main.async {
-                state.completeLoading()
-            }
+            // Transition to hub after 1.5s more (2s total from start)
+            try? await Task.sleep(nanoseconds: 1_500_000_000)
+            appState.completeLoading()
         }
     }
 }
@@ -155,51 +148,58 @@ struct ParticleAssemblyView: View {
 
     @State private var particles: [AssemblyParticle] = []
 
-    var body: some View {
-        GeometryReader { geometry in
-            let center = CGPoint(x: geometry.size.width / 2, y: geometry.size.height / 2 - 40)
-
-            Canvas { context, size in
-                for particle in particles {
-                    let currentPos = particle.interpolatedPosition(progress: progress, target: center)
-                    let opacity = min(1, progress * 2) * (1 - progress * 0.3)
-                    let particleSize = particle.size * (1 - progress * 0.5)
-
-                    // Draw particle with glow
-                    let glowRect = CGRect(
-                        x: currentPos.x - particleSize,
-                        y: currentPos.y - particleSize,
-                        width: particleSize * 2,
-                        height: particleSize * 2
-                    )
-
-                    context.fill(
-                        Path(ellipseIn: glowRect),
-                        with: .color(particle.color.opacity(opacity * 0.5))
-                    )
-
-                    let coreRect = CGRect(
-                        x: currentPos.x - particleSize * 0.5,
-                        y: currentPos.y - particleSize * 0.5,
-                        width: particleSize,
-                        height: particleSize
-                    )
-
-                    context.fill(
-                        Path(ellipseIn: coreRect),
-                        with: .color(particle.color.opacity(opacity))
-                    )
-                }
-            }
-            .blur(radius: 2)
-            .onAppear {
-                createParticles(in: geometry.size)
-            }
-        }
-        .allowsHitTesting(false)
+    // Use screen bounds as stable size source (avoids GeometryReader zero-size issue)
+    private var screenSize: CGSize {
+        UIScreen.main.bounds.size
     }
 
-    private func createParticles(in size: CGSize) {
+    var body: some View {
+        let center = CGPoint(x: screenSize.width / 2, y: screenSize.height / 2 - 40)
+
+        Canvas { context, size in
+            for particle in particles {
+                let currentPos = particle.interpolatedPosition(progress: progress, target: center)
+                let opacity = min(1, progress * 2) * (1 - progress * 0.3)
+                let particleSize = particle.size * (1 - progress * 0.5)
+
+                // Draw particle with glow
+                let glowRect = CGRect(
+                    x: currentPos.x - particleSize,
+                    y: currentPos.y - particleSize,
+                    width: particleSize * 2,
+                    height: particleSize * 2
+                )
+
+                context.fill(
+                    Path(ellipseIn: glowRect),
+                    with: .color(particle.color.opacity(opacity * 0.5))
+                )
+
+                let coreRect = CGRect(
+                    x: currentPos.x - particleSize * 0.5,
+                    y: currentPos.y - particleSize * 0.5,
+                    width: particleSize,
+                    height: particleSize
+                )
+
+                context.fill(
+                    Path(ellipseIn: coreRect),
+                    with: .color(particle.color.opacity(opacity))
+                )
+            }
+        }
+        .blur(radius: 2)
+        .allowsHitTesting(false)
+        .onAppear {
+            createParticles()
+        }
+    }
+
+    private func createParticles() {
+        let size = screenSize
+        // Guard against zero size (shouldn't happen with UIScreen but just in case)
+        guard size.width > 0 && size.height > 0 else { return }
+
         particles = (0..<40).map { i in
             // Start from edges of screen
             let angle = Double(i) / 40 * 2 * .pi

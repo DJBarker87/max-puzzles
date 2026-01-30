@@ -126,8 +126,6 @@ struct ChapterSelectView: View {
         .onAppear {
             // Force view refresh when returning from game
             viewId = UUID()
-            // DEBUG: Unlock chapters for screenshots - REMOVE BEFORE RELEASE
-            appState.storyProgress.unlockChaptersForScreenshots()
         }
         .navigationDestination(isPresented: Binding(
             get: { selectedChapter != nil },
@@ -285,6 +283,15 @@ struct LargeChapterCard: View {
 
     @State private var isPressed = false
 
+    /// Scale factor for border widths based on device type
+    private var borderScale: CGFloat {
+        #if os(iOS)
+        return UIDevice.current.userInterfaceIdiom == .pad ? 1.5 : 1.0
+        #else
+        return 1.5
+        #endif
+    }
+
     var body: some View {
         Button(action: onTap) {
             VStack(spacing: 16) {
@@ -303,17 +310,17 @@ struct LargeChapterCard: View {
                                     ],
                                     center: .center,
                                     startRadius: 0,
-                                    endRadius: cardWidth * 0.4
+                                    endRadius: cardWidth * 0.45
                                 )
                             )
-                            .frame(width: cardWidth * 0.8, height: cardWidth * 0.8)
+                            .frame(width: cardWidth * 0.9, height: cardWidth * 0.9)
                     }
 
                     // Alien image with idle animation when unlocked and current
                     Image(alien.imageName)
                         .resizable()
                         .scaledToFit()
-                        .frame(width: cardWidth * 0.7, height: cardWidth * 0.7)
+                        .frame(width: cardWidth * 0.85, height: cardHeight * 0.45)
                         .grayscale(isUnlocked ? 0 : 1)
                         .opacity(isUnlocked ? 1 : 0.5)
                         .alienIdleAnimation(style: .float, intensity: isCurrent && isUnlocked ? 1.0 : 0)
@@ -429,7 +436,7 @@ struct LargeChapterCard: View {
                                 ? AppTheme.accentPrimary
                                 : AppTheme.accentPrimary.opacity(0.4))
                             : Color.gray.opacity(0.2),
-                        lineWidth: isCurrent ? 3 : 1.5
+                        lineWidth: (isCurrent ? 3 : 1.5) * borderScale
                     )
             )
             .shadow(

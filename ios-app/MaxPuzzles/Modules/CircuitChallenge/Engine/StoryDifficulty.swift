@@ -132,6 +132,7 @@ enum StoryDifficulty {
     // MARK: - Generate Settings
 
     /// Generate DifficultySettings for a specific story level
+    /// Settings are automatically capped for iPhone screen size
     static func settings(for storyLevel: StoryLevel) -> DifficultySettings {
         guard let config = chapters[storyLevel.chapter] else {
             // Fallback to chapter 1 if invalid
@@ -189,7 +190,9 @@ enum StoryDifficulty {
             cols: grid.cols
         )
 
-        return settings
+        // Apply device-specific caps (smaller grids on iPhone)
+        // Pass the level number so early levels (1-4) get extra-small grids
+        return settings.cappedForDevice(storyLevel: storyLevel.level)
     }
 
     // MARK: - Grid Calculation

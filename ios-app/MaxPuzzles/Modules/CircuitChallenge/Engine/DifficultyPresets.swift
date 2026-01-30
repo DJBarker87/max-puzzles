@@ -224,6 +224,7 @@ enum DifficultyPresets {
     // MARK: Helper Functions
 
     /// Get difficulty by level number (1-10)
+    /// Settings are automatically capped for iPhone screen size
     static func byLevel(_ level: Int) -> DifficultySettings {
         let index = max(0, min(9, level - 1))
         var settings = all[index]
@@ -232,10 +233,12 @@ enum DifficultyPresets {
         settings.minPathLength = calculateMinPathLength(rows: settings.gridRows, cols: settings.gridCols)
         settings.maxPathLength = calculateMaxPathLength(rows: settings.gridRows, cols: settings.gridCols)
 
-        return settings
+        // Apply device-specific caps (smaller grids on iPhone)
+        return settings.cappedForDevice()
     }
 
     /// Get difficulty by name
+    /// Settings are automatically capped for iPhone screen size
     static func byName(_ name: String) -> DifficultySettings? {
         guard var settings = all.first(where: { $0.name == name }) else {
             return nil
@@ -244,7 +247,8 @@ enum DifficultyPresets {
         settings.minPathLength = calculateMinPathLength(rows: settings.gridRows, cols: settings.gridCols)
         settings.maxPathLength = calculateMaxPathLength(rows: settings.gridRows, cols: settings.gridCols)
 
-        return settings
+        // Apply device-specific caps (smaller grids on iPhone)
+        return settings.cappedForDevice()
     }
 
     /// Calculate minimum path length based on grid size

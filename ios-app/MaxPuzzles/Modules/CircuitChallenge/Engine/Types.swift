@@ -273,15 +273,21 @@ struct ValidationResult {
 // MARK: - Device-Specific Grid Caps
 
 extension DifficultySettings {
-    /// Maximum grid dimensions for iPhone (matches largest story mode grid before chapter 10)
-    /// On iPhone, grids larger than this are capped to ensure cells remain readable
-    static let iPhoneMaxRows = 6
-    static let iPhoneMaxCols = 7
+    /// Maximum grid dimensions for iPhone
+    /// General limit: 5 rows x 6 cols for most puzzles
+    /// Story mode levels 1-4: 4 rows x 6 cols (smaller for beginners)
+    static let iPhoneMaxRows = 5
+    static let iPhoneMaxCols = 6
+
+    /// Story mode levels 1-4 have tighter constraints
+    static let iPhoneStoryEarlyMaxRows = 4
+    static let iPhoneStoryEarlyMaxCols = 6
 
     /// Returns settings with grid dimensions capped for the current device
-    /// On iPhone: caps at 6×7 grid
+    /// On iPhone: caps at 5×6 grid (or 4×6 for story levels 1-4)
     /// On iPad: returns original dimensions
-    func cappedForDevice() -> DifficultySettings {
+    /// - Parameter storyLevel: If in story mode, the current level (1-5). Pass nil for Quick Play.
+    func cappedForDevice(storyLevel: Int? = nil) -> DifficultySettings {
         #if os(iOS)
         let isIPad = UIDevice.current.userInterfaceIdiom == .pad
         if isIPad {
@@ -290,8 +296,20 @@ extension DifficultySettings {
 
         // On iPhone, cap grid dimensions
         var capped = self
-        capped.gridRows = min(gridRows, Self.iPhoneMaxRows)
-        capped.gridCols = min(gridCols, Self.iPhoneMaxCols)
+
+        // Use tighter limits for story mode levels 1-4
+        let maxRows: Int
+        let maxCols: Int
+        if let level = storyLevel, level >= 1 && level <= 4 {
+            maxRows = Self.iPhoneStoryEarlyMaxRows
+            maxCols = Self.iPhoneStoryEarlyMaxCols
+        } else {
+            maxRows = Self.iPhoneMaxRows
+            maxCols = Self.iPhoneMaxCols
+        }
+
+        capped.gridRows = min(gridRows, maxRows)
+        capped.gridCols = min(gridCols, maxCols)
 
         // Recalculate path lengths for new grid size
         capped.minPathLength = DifficultyPresets.calculateMinPathLength(rows: capped.gridRows, cols: capped.gridCols)

@@ -34,7 +34,7 @@ struct CoinDisplay: View {
 
     var body: some View {
         HStack(spacing: 4) {
-            Image(systemName: "bitcoinsign.circle.fill")
+            Image(systemName: "dollarsign.circle.fill")
                 .font(.system(size: size.iconSize))
                 .foregroundColor(AppTheme.accentTertiary)
 

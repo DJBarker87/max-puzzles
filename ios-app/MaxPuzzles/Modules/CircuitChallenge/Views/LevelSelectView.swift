@@ -150,8 +150,8 @@ struct LevelSelectView: View {
         if level == 1 {
             return progress.isChapterUnlocked(chapter)
         }
-        // Level unlocks when previous level is completed (any number of stars)
-        return progress.isLevelCompleted(chapter: chapter, level: level - 1)
+        // Require 2+ stars on previous level
+        return progress.starsForLevel(chapter: chapter, level: level - 1) >= 2
     }
 
     private func isLevelCompleted(_ level: Int) -> Bool {
@@ -225,6 +225,15 @@ struct LargeHexTile: View {
     private var edgeOffset: CGFloat { hexSize * 0.1 }
     private var baseOffset: CGFloat { hexSize * 0.05 }
 
+    // Scale factor for energy border line widths on iPad
+    private var borderScale: CGFloat {
+        #if os(iOS)
+        return UIDevice.current.userInterfaceIdiom == .pad ? 1.5 : 1.0
+        #else
+        return 1.5
+        #endif
+    }
+
     private var edgeGradient: LinearGradient {
         LinearGradient(
             colors: [Color(hex: "1a1a25"), Color(hex: "0f0f15")],
@@ -250,13 +259,13 @@ struct LargeHexTile: View {
                     if shouldPulse {
                         // Layer 1: Glow (blur effect)
                         HexagonShape()
-                            .stroke(Color(hex: "00ff88").opacity(glowOpacity), lineWidth: 18)
+                            .stroke(Color(hex: "00ff88").opacity(glowOpacity), lineWidth: 18 * borderScale)
                             .blur(radius: 6)
                             .frame(width: hexSize, height: hexSize)
 
                         // Layer 2: Main line
                         HexagonShape()
-                            .stroke(Color(hex: "00dd77"), lineWidth: 10)
+                            .stroke(Color(hex: "00dd77"), lineWidth: 10 * borderScale)
                             .frame(width: hexSize, height: hexSize)
 
                         // Layer 3: Energy flow slow (dash 6 30, 1.2s)
@@ -264,7 +273,7 @@ struct LargeHexTile: View {
                             .stroke(
                                 Color(hex: "88ffcc"),
                                 style: StrokeStyle(
-                                    lineWidth: 6,
+                                    lineWidth: 6 * borderScale,
                                     lineCap: .round,
                                     lineJoin: .round,
                                     dash: [6, 30],
@@ -278,7 +287,7 @@ struct LargeHexTile: View {
                             .stroke(
                                 Color.white,
                                 style: StrokeStyle(
-                                    lineWidth: 4,
+                                    lineWidth: 4 * borderScale,
                                     lineCap: .round,
                                     lineJoin: .round,
                                     dash: [4, 20],
@@ -289,7 +298,7 @@ struct LargeHexTile: View {
 
                         // Layer 5: Bright core
                         HexagonShape()
-                            .stroke(Color(hex: "aaffcc"), lineWidth: 3)
+                            .stroke(Color(hex: "aaffcc"), lineWidth: 3 * borderScale)
                             .frame(width: hexSize, height: hexSize)
                     }
 
@@ -448,18 +457,27 @@ struct HorizontalLevelConnector: View {
     @State private var flowPhase2: CGFloat = 0
     @State private var glowOpacity: CGFloat = 0.5
 
+    // Scale factor for energy border line widths on iPad
+    private var borderScale: CGFloat {
+        #if os(iOS)
+        return UIDevice.current.userInterfaceIdiom == .pad ? 1.5 : 1.0
+        #else
+        return 1.5
+        #endif
+    }
+
     var body: some View {
         ZStack {
             if isPulsing {
                 // Layer 1: Glow (blur effect) - matching game ConnectorView
                 HorizontalLine()
-                    .stroke(Color(hex: "00ff88").opacity(glowOpacity), style: StrokeStyle(lineWidth: 18, lineCap: .round))
+                    .stroke(Color(hex: "00ff88").opacity(glowOpacity), style: StrokeStyle(lineWidth: 18 * borderScale, lineCap: .round))
                     .blur(radius: 6)
                     .frame(width: width, height: 24)
 
                 // Layer 2: Main line
                 HorizontalLine()
-                    .stroke(Color(hex: "00dd77"), style: StrokeStyle(lineWidth: 10, lineCap: .round))
+                    .stroke(Color(hex: "00dd77"), style: StrokeStyle(lineWidth: 10 * borderScale, lineCap: .round))
                     .frame(width: width, height: 24)
 
                 // Layer 3: Energy flow slow (dash 6 30, 1.2s)
@@ -467,7 +485,7 @@ struct HorizontalLevelConnector: View {
                     .stroke(
                         Color(hex: "88ffcc"),
                         style: StrokeStyle(
-                            lineWidth: 6,
+                            lineWidth: 6 * borderScale,
                             lineCap: .round,
                             dash: [6, 30],
                             dashPhase: flowPhase2
@@ -480,7 +498,7 @@ struct HorizontalLevelConnector: View {
                     .stroke(
                         Color.white,
                         style: StrokeStyle(
-                            lineWidth: 4,
+                            lineWidth: 4 * borderScale,
                             lineCap: .round,
                             dash: [4, 20],
                             dashPhase: flowPhase1
@@ -490,7 +508,7 @@ struct HorizontalLevelConnector: View {
 
                 // Layer 5: Bright core
                 HorizontalLine()
-                    .stroke(Color(hex: "aaffcc"), style: StrokeStyle(lineWidth: 3, lineCap: .round))
+                    .stroke(Color(hex: "aaffcc"), style: StrokeStyle(lineWidth: 3 * borderScale, lineCap: .round))
                     .frame(width: width, height: 24)
             } else if isActive {
                 // Active but not pulsing - solid green
@@ -632,8 +650,12 @@ struct StoryGameScreenView: View {
     }
 
     private var introMessage: String {
-        // Use the alien's unique intro messages with personalization
         let playerName = StorageService.shared.playerName
+        // Level 5 is hidden mode - show special explanation
+        if level == 5 {
+            return alien.hiddenModeIntro(playerName: playerName)
+        }
+        // Use the alien's unique intro messages with personalization
         return alien.personalizedIntroMessage(playerName: playerName)
     }
 

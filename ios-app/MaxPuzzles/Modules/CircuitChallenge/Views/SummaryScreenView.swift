@@ -676,8 +676,8 @@ struct SummaryScreenView: View {
         let cornerRadius: CGFloat = extraCompact ? 8 : 12
 
         return VStack(spacing: spacing) {
-            if data.isStoryMode {
-                // Story mode: Show both Retry and Next Level
+            if data.isStoryMode && data.won {
+                // Story mode WIN: Show both Retry and Next Level
                 // On extra compact screens, show them in a horizontal row
                 if extraCompact {
                     HStack(spacing: 8) {
@@ -741,6 +741,19 @@ struct SummaryScreenView: View {
                                     .stroke(Color.white.opacity(0.2), lineWidth: 1)
                             )
                     }
+                }
+            } else if data.isStoryMode && !data.won {
+                // Story mode LOSS: Only show Retry button (no Next Level)
+                Button(action: {
+                    onPlayAgain?()
+                }) {
+                    Text("Try Again")
+                        .font(.system(size: fontSize, weight: .semibold))
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, buttonPadding)
+                        .background(AppTheme.accentPrimary)
+                        .cornerRadius(cornerRadius)
                 }
             } else {
                 // Quick Play: Play Again button
