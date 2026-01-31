@@ -242,7 +242,7 @@ struct HexCellView: View {
             }
         }
         .opacity(isClickable ? 1.0 : 0.85)
-        .modifier(CellPulseModifier(isPulsing: isPulsing, compact: compactGlow))
+        .modifier(CellPulseModifier(isPulsing: isPulsing, size: size, compact: compactGlow))
         .accessibilityLabel(accessibilityLabelText)
         .accessibilityHint(isClickable ? "Double tap to select this cell" : "")
         .accessibilityAddTraits(isClickable ? .isButton : [])
@@ -280,21 +280,36 @@ struct ElectricGlowOverlay: View {
     private var cellWidth: CGFloat { size * sqrt(3) }
     private var cellHeight: CGFloat { size * 2 }
 
+    // Scale factor based on cell size (baseline is ~42px radius on phones)
+    private var sizeScale: CGFloat { size / 42.0 }
+
     // Scale down glow for compact mode (phones with small grids)
     private var glowScale: CGFloat { compact ? 0.5 : 1.0 }
     private var maxGlowOpacity: CGFloat { compact ? 0.6 : 0.8 }
 
+    // Scaled line widths
+    private var glowLineWidth: CGFloat { (compact ? 10 : 18) * sizeScale }
+    private var mainLineWidth: CGFloat { (compact ? 6 : 10) * sizeScale }
+    private var energySlowWidth: CGFloat { (compact ? 4 : 6) * sizeScale }
+    private var energyFastWidth: CGFloat { (compact ? 2 : 4) * sizeScale }
+    private var coreWidth: CGFloat { (compact ? 2 : 3) * sizeScale }
+    private var blurRadius: CGFloat { (compact ? 3 : 6) * sizeScale }
+
+    // Scaled dash patterns
+    private var dashSlow: [CGFloat] { [6 * sizeScale, 30 * sizeScale] }
+    private var dashFast: [CGFloat] { [4 * sizeScale, 20 * sizeScale] }
+
     var body: some View {
         ZStack {
-            // Layer 1: Glow (blur effect) - reduced in compact mode
+            // Layer 1: Glow (blur effect) - scales with cell size
             HexagonShape()
-                .stroke(Color(hex: "00ff88").opacity(glowOpacity * glowScale), lineWidth: compact ? 10 : 18)
-                .blur(radius: compact ? 3 : 6)
+                .stroke(Color(hex: "00ff88").opacity(glowOpacity * glowScale), lineWidth: glowLineWidth)
+                .blur(radius: blurRadius)
                 .frame(width: cellWidth, height: cellHeight)
 
             // Layer 2: Main line
             HexagonShape()
-                .stroke(Color(hex: "00dd77"), lineWidth: compact ? 6 : 10)
+                .stroke(Color(hex: "00dd77"), lineWidth: mainLineWidth)
                 .frame(width: cellWidth, height: cellHeight)
 
             // Layer 3: Energy flow slow (dash 6 30, 1.2s)
@@ -302,10 +317,10 @@ struct ElectricGlowOverlay: View {
                 .stroke(
                     Color(hex: "88ffcc"),
                     style: StrokeStyle(
-                        lineWidth: compact ? 4 : 6,
+                        lineWidth: energySlowWidth,
                         lineCap: .round,
                         lineJoin: .round,
-                        dash: [6, 30],
+                        dash: dashSlow,
                         dashPhase: flowPhase2
                     )
                 )
@@ -316,10 +331,10 @@ struct ElectricGlowOverlay: View {
                 .stroke(
                     Color.white,
                     style: StrokeStyle(
-                        lineWidth: compact ? 2 : 4,
+                        lineWidth: energyFastWidth,
                         lineCap: .round,
                         lineJoin: .round,
-                        dash: [4, 20],
+                        dash: dashFast,
                         dashPhase: flowPhase1
                     )
                 )
@@ -327,16 +342,17 @@ struct ElectricGlowOverlay: View {
 
             // Layer 5: Bright core
             HexagonShape()
-                .stroke(Color(hex: "aaffcc"), lineWidth: compact ? 2 : 3)
+                .stroke(Color(hex: "aaffcc"), lineWidth: coreWidth)
                 .frame(width: cellWidth, height: cellHeight)
         }
         .onAppear {
-            // Energy flow animations matching web exactly
+            // Energy flow animations - scale phase with size
+            let phaseAmount = -36 * sizeScale
             withAnimation(.linear(duration: 0.8).repeatForever(autoreverses: false)) {
-                flowPhase1 = -36
+                flowPhase1 = phaseAmount
             }
             withAnimation(.linear(duration: 1.2).repeatForever(autoreverses: false)) {
-                flowPhase2 = -36
+                flowPhase2 = phaseAmount
             }
             // Glow pulse - reduced range in compact mode
             withAnimation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true)) {
@@ -351,12 +367,16 @@ struct ElectricGlowOverlay: View {
 /// Pulsing glow effect for current cells matching web animation exactly
 struct CellPulseModifier: ViewModifier {
     let isPulsing: Bool
+    let size: CGFloat  // Cell radius for scaling
     var compact: Bool = false  // Reduced glow for phones with small grids
     @State private var glowAmount: CGFloat = 0.4
 
-    // Reduced values for compact mode
-    private var innerRadius: CGFloat { compact ? 8 : 15 }
-    private var outerRadius: CGFloat { compact ? 16 : 30 }
+    // Scale factor based on cell size (baseline is ~42px radius on phones)
+    private var sizeScale: CGFloat { size / 42.0 }
+
+    // Scaled shadow radii
+    private var innerRadius: CGFloat { (compact ? 8 : 15) * sizeScale }
+    private var outerRadius: CGFloat { (compact ? 16 : 30) * sizeScale }
     private var maxGlow: CGFloat { compact ? 0.7 : 1.0 }
 
     func body(content: Content) -> some View {
