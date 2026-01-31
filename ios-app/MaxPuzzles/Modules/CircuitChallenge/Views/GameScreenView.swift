@@ -180,11 +180,12 @@ struct GameScreenView: View {
                         navigateToSummary = false
 
                         // Level 6 completion: Return to level select to see unlock animation
-                        // But if we advanced to a new chapter, go to chapter select instead
                         if shouldReturnToLevelSelect {
                             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                                if hasChangedChapter, let onExitToChapterSelect = onExitToChapterSelect {
-                                    onExitToChapterSelect()
+                                if hasChangedChapter, let chapter = currentChapter {
+                                    // Set pending navigation so ChapterSelectView auto-navigates
+                                    appState.pendingChapterNavigation = chapter
+                                    onExitToChapterSelect?()
                                 } else {
                                     dismiss()
                                 }

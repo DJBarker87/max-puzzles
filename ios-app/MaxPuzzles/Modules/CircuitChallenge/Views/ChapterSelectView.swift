@@ -142,6 +142,18 @@ struct ChapterSelectView: View {
         .onAppear {
             // Force view refresh when returning from game
             viewId = UUID()
+
+            // Check for pending chapter navigation (from level 6 completion after advancing chapters)
+            if let pendingChapter = appState.pendingChapterNavigation {
+                // Clear the pending navigation first
+                appState.pendingChapterNavigation = nil
+                // Navigate to the chapter's level select after a brief delay
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    selectedChapter = ChapterAlien.forChapter(pendingChapter)
+                    // Also update the carousel to show the correct chapter
+                    currentIndex = pendingChapter - 1
+                }
+            }
         }
         .navigationDestination(isPresented: Binding(
             get: { selectedChapter != nil },

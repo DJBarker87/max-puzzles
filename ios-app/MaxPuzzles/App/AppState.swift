@@ -16,6 +16,10 @@ class AppState: ObservableObject {
     /// Story mode progress tracker
     @Published var storyProgress = StoryProgress()
 
+    /// Pending navigation to a chapter's level select (for showing unlock animation)
+    /// Set by GameScreenView when completing level 6 after advancing chapters
+    @Published var pendingChapterNavigation: Int?
+
     // MARK: - Private
 
     private var backgroundDate: Date?
