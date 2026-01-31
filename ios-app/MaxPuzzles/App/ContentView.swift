@@ -5,7 +5,11 @@ struct ContentView: View {
     @EnvironmentObject var musicService: MusicService
 
     var body: some View {
-        Group {
+        ZStack {
+            // Solid background that renders immediately - prevents black screen on first layout
+            AppTheme.backgroundDark
+                .ignoresSafeArea()
+
             if appState.isLoading {
                 SplashView()
             } else if appState.needsFirstRun {

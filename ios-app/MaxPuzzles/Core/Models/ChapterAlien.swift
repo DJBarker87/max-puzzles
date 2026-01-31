@@ -55,7 +55,7 @@ struct ChapterAlien: Identifiable {
         return baseMessage + suffix
     }
 
-    /// Get a hidden mode intro message for level 5
+    /// Get a hidden mode intro message for level 7 (center tile - hidden mode)
     func hiddenModeIntro(playerName: String) -> String {
         let prefix = playerName.isEmpty ? "" : "\(playerName), "
         return "\(prefix)this is Hidden Mode! You won't see if you're right or wrong until the end. Think carefully!"

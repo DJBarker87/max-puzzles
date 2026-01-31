@@ -90,7 +90,6 @@ struct ModuleCardView: View {
                 if isLocked {
                     HStack(spacing: 4) {
                         Image(systemName: "lock.fill")
-                        Text("Coming Soon")
                     }
                     .font(.system(size: 12, weight: .medium, design: .rounded))
                     .foregroundColor(AppTheme.textSecondary)

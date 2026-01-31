@@ -12,25 +12,53 @@ struct MainHubView: View {
 
     var body: some View {
         NavigationStack(path: $router.path) {
-            ZStack {
-                // Solid fallback background
-                AppTheme.backgroundDark
-                    .ignoresSafeArea()
+            GeometryReader { geometry in
+                let isLandscape = geometry.size.width > geometry.size.height
 
-                SplashBackground()
+                ZStack {
+                    // Solid fallback background
+                    AppTheme.backgroundDark
+                        .ignoresSafeArea()
 
-                VStack(spacing: AppSpacing.xl) {
-                    // Header
-                    headerView
+                    SplashBackground()
 
-                    Spacer()
+                    if isLandscape {
+                        // Landscape: horizontal layout
+                        HStack(spacing: AppSpacing.xl) {
+                            // Header on left
+                            VStack {
+                                Text("Maxi's Mindgames")
+                                    .font(AppTypography.titleMedium)
+                                    .foregroundColor(AppTheme.textPrimary)
 
-                    // Module cards
-                    moduleSelectionView
+                                Spacer()
 
-                    Spacer()
+                                HStack(spacing: 12) {
+                                    CoinDisplay(storage.totalCoinsEarned, size: .medium)
+                                    IconButton("gear") {
+                                        router.navigate(to: .settings)
+                                    }
+                                }
+                            }
+                            .frame(width: 140)
+                            .padding(.vertical, AppSpacing.lg)
+
+                            // Module cards centered
+                            moduleSelectionView
+                                .frame(maxWidth: .infinity)
+                        }
+                        .padding(.horizontal, AppSpacing.lg)
+                    } else {
+                        // Portrait: vertical layout
+                        VStack(spacing: AppSpacing.xl) {
+                            headerView
+                            Spacer()
+                            moduleSelectionView
+                            Spacer()
+                        }
+                        .padding(.top, AppSpacing.lg)
+                    }
                 }
-                .padding(.top, AppSpacing.lg)
             }
             .navigationDestination(for: AppRoute.self) { route in
                 destinationView(for: route)
@@ -137,33 +165,9 @@ struct MainHubView: View {
         case .settings:
             SettingsView()
         default:
-            PlaceholderView(title: "Coming Soon")
+            // All routes should be handled - redirect to settings as fallback
+            SettingsView()
         }
-    }
-}
-
-// MARK: - Placeholder Views
-
-/// Generic placeholder for unimplemented screens
-struct PlaceholderView: View {
-    let title: String
-    @EnvironmentObject var router: AppRouter
-
-    var body: some View {
-        ZStack {
-            SplashBackground()
-
-            VStack(spacing: AppSpacing.lg) {
-                Text(title)
-                    .font(AppTypography.titleMedium)
-                    .foregroundColor(AppTheme.textPrimary)
-
-                SecondaryButton("Back", icon: "arrow.left") {
-                    router.pop()
-                }
-            }
-        }
-        .navigationBarHidden(true)
     }
 }
 

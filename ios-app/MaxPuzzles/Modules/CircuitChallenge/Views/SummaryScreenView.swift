@@ -40,9 +40,9 @@ struct SummaryScreenView: View {
     @State private var chapterCompleteTextOpacity: Double = 0
     @State private var unlockGlowOpacity: Double = 0
 
-    /// Check if this is a chapter completion (Level 5 win in story mode)
+    /// Check if this is a chapter completion (Level 7 win in story mode)
     private var isChapterComplete: Bool {
-        data.isStoryMode && data.won && data.storyLevel == 5
+        data.isStoryMode && data.won && data.storyLevel == 7
     }
 
     /// Get the next chapter's alien (for unlock celebration)

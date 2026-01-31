@@ -126,6 +126,7 @@ struct HexCellView: View {
     let expression: String
     let size: CGFloat
     let isClickable: Bool
+    let compactGlow: Bool  // Reduced glow for phones with small grids (4 rows)
     let onTap: (() -> Void)?
 
     init(
@@ -133,12 +134,14 @@ struct HexCellView: View {
         expression: String,
         size: CGFloat = 42,
         isClickable: Bool = false,
+        compactGlow: Bool = false,
         onTap: (() -> Void)? = nil
     ) {
         self.state = state
         self.expression = expression
         self.size = size
         self.isClickable = isClickable
+        self.compactGlow = compactGlow
         self.onTap = onTap
     }
 
@@ -228,7 +231,7 @@ struct HexCellView: View {
 
             // Electric glow overlay for current/start cells
             if isPulsing {
-                ElectricGlowOverlay(size: size)
+                ElectricGlowOverlay(size: size, compact: compactGlow)
             }
         }
         .frame(width: cellWidth + 8, height: cellHeight + shadowOffset + 4)
@@ -239,7 +242,7 @@ struct HexCellView: View {
             }
         }
         .opacity(isClickable ? 1.0 : 0.85)
-        .modifier(CellPulseModifier(isPulsing: isPulsing))
+        .modifier(CellPulseModifier(isPulsing: isPulsing, compact: compactGlow))
         .accessibilityLabel(accessibilityLabelText)
         .accessibilityHint(isClickable ? "Double tap to select this cell" : "")
         .accessibilityAddTraits(isClickable ? .isButton : [])
@@ -268,6 +271,7 @@ struct HexCellView: View {
 /// Electric energy flow effect for current/start cells matching web connector style exactly
 struct ElectricGlowOverlay: View {
     let size: CGFloat
+    var compact: Bool = false  // Reduced glow for phones with 4 rows
 
     @State private var flowPhase1: CGFloat = 0
     @State private var flowPhase2: CGFloat = 0
@@ -276,17 +280,21 @@ struct ElectricGlowOverlay: View {
     private var cellWidth: CGFloat { size * sqrt(3) }
     private var cellHeight: CGFloat { size * 2 }
 
+    // Scale down glow for compact mode (phones with small grids)
+    private var glowScale: CGFloat { compact ? 0.5 : 1.0 }
+    private var maxGlowOpacity: CGFloat { compact ? 0.6 : 0.8 }
+
     var body: some View {
         ZStack {
-            // Layer 1: Glow (blur effect)
+            // Layer 1: Glow (blur effect) - reduced in compact mode
             HexagonShape()
-                .stroke(Color(hex: "00ff88").opacity(glowOpacity), lineWidth: 18)
-                .blur(radius: 6)
+                .stroke(Color(hex: "00ff88").opacity(glowOpacity * glowScale), lineWidth: compact ? 10 : 18)
+                .blur(radius: compact ? 3 : 6)
                 .frame(width: cellWidth, height: cellHeight)
 
             // Layer 2: Main line
             HexagonShape()
-                .stroke(Color(hex: "00dd77"), lineWidth: 10)
+                .stroke(Color(hex: "00dd77"), lineWidth: compact ? 6 : 10)
                 .frame(width: cellWidth, height: cellHeight)
 
             // Layer 3: Energy flow slow (dash 6 30, 1.2s)
@@ -294,7 +302,7 @@ struct ElectricGlowOverlay: View {
                 .stroke(
                     Color(hex: "88ffcc"),
                     style: StrokeStyle(
-                        lineWidth: 6,
+                        lineWidth: compact ? 4 : 6,
                         lineCap: .round,
                         lineJoin: .round,
                         dash: [6, 30],
@@ -308,7 +316,7 @@ struct ElectricGlowOverlay: View {
                 .stroke(
                     Color.white,
                     style: StrokeStyle(
-                        lineWidth: 4,
+                        lineWidth: compact ? 2 : 4,
                         lineCap: .round,
                         lineJoin: .round,
                         dash: [4, 20],
@@ -319,7 +327,7 @@ struct ElectricGlowOverlay: View {
 
             // Layer 5: Bright core
             HexagonShape()
-                .stroke(Color(hex: "aaffcc"), lineWidth: 3)
+                .stroke(Color(hex: "aaffcc"), lineWidth: compact ? 2 : 3)
                 .frame(width: cellWidth, height: cellHeight)
         }
         .onAppear {
@@ -330,9 +338,9 @@ struct ElectricGlowOverlay: View {
             withAnimation(.linear(duration: 1.2).repeatForever(autoreverses: false)) {
                 flowPhase2 = -36
             }
-            // Glow pulse (0.5 to 0.8 over 1.5s)
+            // Glow pulse - reduced range in compact mode
             withAnimation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true)) {
-                glowOpacity = 0.8
+                glowOpacity = maxGlowOpacity
             }
         }
     }
@@ -343,16 +351,22 @@ struct ElectricGlowOverlay: View {
 /// Pulsing glow effect for current cells matching web animation exactly
 struct CellPulseModifier: ViewModifier {
     let isPulsing: Bool
+    var compact: Bool = false  // Reduced glow for phones with small grids
     @State private var glowAmount: CGFloat = 0.4
+
+    // Reduced values for compact mode
+    private var innerRadius: CGFloat { compact ? 8 : 15 }
+    private var outerRadius: CGFloat { compact ? 16 : 30 }
+    private var maxGlow: CGFloat { compact ? 0.7 : 1.0 }
 
     func body(content: Content) -> some View {
         if isPulsing {
             content
-                .shadow(color: Color(hex: "00ffc8").opacity(glowAmount), radius: 15)
-                .shadow(color: Color(hex: "00ffc8").opacity(glowAmount * 0.5), radius: 30)
+                .shadow(color: Color(hex: "00ffc8").opacity(glowAmount), radius: innerRadius)
+                .shadow(color: Color(hex: "00ffc8").opacity(glowAmount * 0.5), radius: outerRadius)
                 .onAppear {
                     withAnimation(.easeInOut(duration: 1.0).repeatForever(autoreverses: true)) {
-                        glowAmount = 1.0
+                        glowAmount = maxGlow
                     }
                 }
         } else {

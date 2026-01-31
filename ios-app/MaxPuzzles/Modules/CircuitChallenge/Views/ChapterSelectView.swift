@@ -16,31 +16,45 @@ struct ChapterSelectView: View {
         GeometryReader { geometry in
             let screenWidth = geometry.size.width
             let screenHeight = geometry.size.height
+            let isLandscape = screenWidth > screenHeight
 
             ZStack {
                 SplashBackground(overlayOpacity: 0.35)
 
                 VStack(spacing: 0) {
-                    // Title with total stars
-                    VStack(spacing: 4) {
+                    // Title with total stars - more compact in landscape
+                    HStack(spacing: 12) {
                         Text("Story Mode")
-                            .font(.system(size: 28, weight: .heavy, design: .rounded))
+                            .font(.system(size: isLandscape ? 22 : 28, weight: .heavy, design: .rounded))
                             .foregroundColor(.white)
                             .shadow(color: AppTheme.connectorGlow.opacity(0.8), radius: 8)
                             .shadow(color: AppTheme.accentPrimary.opacity(0.5), radius: 4)
 
+                        if isLandscape {
+                            // Inline stars badge in landscape
+                            HStack(spacing: 4) {
+                                Image(systemName: "star.fill")
+                                    .font(.system(size: 11))
+                                Text("\(progress.totalStars)/210")
+                                    .font(.system(size: 12, weight: .bold))
+                            }
+                            .foregroundColor(AppTheme.accentTertiary)
+                        }
+                    }
+
+                    if !isLandscape {
+                        // Portrait: subtitle below
                         HStack(spacing: 12) {
                             Text("Help the aliens!")
                                 .font(.system(size: 13, weight: .medium))
                                 .foregroundColor(.white.opacity(0.9))
 
-                            // Total stars badge
                             HStack(spacing: 4) {
                                 Image(systemName: "star.fill")
                                     .font(.system(size: 11))
                                 Text("\(progress.totalStars)")
                                     .font(.system(size: 13, weight: .bold))
-                                Text("/150")
+                                Text("/210")
                                     .font(.system(size: 10))
                                     .foregroundColor(AppTheme.textSecondary)
                             }
@@ -50,8 +64,8 @@ struct ChapterSelectView: View {
                             .background(AppTheme.backgroundDark.opacity(0.5))
                             .cornerRadius(10)
                         }
+                        .padding(.top, 4)
                     }
-                    .padding(.top, 8)
 
                     // 3D Carousel
                     Spacer()
@@ -111,7 +125,9 @@ struct ChapterSelectView: View {
             }
         }
         .id(viewId)  // Force view refresh when viewId changes
-        .portraitOnPhone()
+        .onAppear {
+            OrientationManager.shared.unlockAll()
+        }
         .navigationTitle("Story Mode")
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
@@ -143,12 +159,16 @@ struct ChapterSelectView: View {
     // MARK: - Carousel View
 
     private func carouselContent(screenWidth: CGFloat, screenHeight: CGFloat) -> some View {
-        // Narrower cards to always show edges of adjacent cards
+        // Adjust card size based on orientation
+        let isLandscape = screenWidth > screenHeight
         let isSmallPhone = screenWidth < 400
-        let cardWidthPercent: CGFloat = isSmallPhone ? 0.60 : 0.68
+
+        // In landscape: cards are taller relative to screen, narrower width
+        // In portrait: cards are wider
+        let cardWidthPercent: CGFloat = isLandscape ? 0.35 : (isSmallPhone ? 0.60 : 0.68)
         let cardWidth = screenWidth * cardWidthPercent
-        let cardHeight = screenHeight * 0.45
-        let spacing: CGFloat = 20
+        let cardHeight = isLandscape ? screenHeight * 0.75 : screenHeight * 0.52
+        let spacing: CGFloat = isLandscape ? 30 : 20
 
         return ZStack {
             ForEach(0..<ChapterAlien.all.count, id: \.self) { index in
@@ -174,6 +194,7 @@ struct ChapterSelectView: View {
                     chapterStars: progress.starsInChapter(alien.chapter),
                     cardWidth: cardWidth,
                     cardHeight: cardHeight,
+                    isLandscape: isLandscape,
                     onTap: {
                         if index == currentIndex && progress.isChapterUnlocked(alien.chapter) {
                             selectedChapter = alien
@@ -264,7 +285,7 @@ struct ChapterSelectView: View {
     }
 
     private func countCompletedLevels(_ chapter: Int) -> Int {
-        (1...5).filter { progress.isLevelCompleted(chapter: chapter, level: $0) }.count
+        (1...7).filter { progress.isLevelCompleted(chapter: chapter, level: $0) }.count
     }
 }
 
@@ -279,6 +300,7 @@ struct LargeChapterCard: View {
     let chapterStars: Int
     let cardWidth: CGFloat
     let cardHeight: CGFloat
+    let isLandscape: Bool
     let onTap: () -> Void
 
     @State private var isPressed = false
@@ -294,11 +316,16 @@ struct LargeChapterCard: View {
 
     var body: some View {
         Button(action: onTap) {
-            VStack(spacing: 16) {
+            VStack(spacing: isLandscape ? 6 : 16) {
+                // Top spacer - equal on both sides for landscape to center content
                 Spacer()
 
                 // Alien image - large and prominent
                 ZStack {
+                    // Calculate sizes once
+                    let imageSize = isLandscape ? cardHeight * 0.35 : cardHeight * 0.45
+                    let glowSize = imageSize * 1.3
+
                     // Glow effect for unlocked
                     if isUnlocked {
                         Circle()
@@ -310,17 +337,17 @@ struct LargeChapterCard: View {
                                     ],
                                     center: .center,
                                     startRadius: 0,
-                                    endRadius: cardWidth * 0.45
+                                    endRadius: glowSize * 0.5
                                 )
                             )
-                            .frame(width: cardWidth * 0.9, height: cardWidth * 0.9)
+                            .frame(width: glowSize, height: glowSize)
                     }
 
                     // Alien image with idle animation when unlocked and current
                     Image(alien.imageName)
                         .resizable()
                         .scaledToFit()
-                        .frame(width: cardWidth * 0.85, height: cardHeight * 0.45)
+                        .frame(width: cardWidth * 0.85, height: imageSize)
                         .grayscale(isUnlocked ? 0 : 1)
                         .opacity(isUnlocked ? 1 : 0.5)
                         .alienIdleAnimation(style: .float, intensity: isCurrent && isUnlocked ? 1.0 : 0)
@@ -359,60 +386,70 @@ struct LargeChapterCard: View {
                     }
                 }
 
-                Spacer()
+                // Only add spacer between alien and text in portrait (wide cards)
+                if !isLandscape {
+                    Spacer()
+                }
 
                 // Chapter info
-                VStack(spacing: 8) {
+                VStack(spacing: isLandscape ? 4 : 8) {
                     Text("Chapter \(alien.chapter)")
-                        .font(.system(size: 14, weight: .medium))
+                        .font(.system(size: isLandscape ? 12 : 14, weight: .medium))
                         .foregroundColor(isUnlocked ? AppTheme.textSecondary : .gray)
 
                     Text(alien.name)
-                        .font(.system(size: 32, weight: .heavy, design: .rounded))
+                        .font(.system(size: isLandscape ? 24 : 32, weight: .heavy, design: .rounded))
                         .foregroundColor(isUnlocked ? .white : .gray)
 
                     if isUnlocked {
                         Text(alien.words.joined(separator: " • "))
-                            .font(.system(size: 13))
+                            .font(.system(size: isLandscape ? 10 : 13))
                             .foregroundColor(AppTheme.accentPrimary.opacity(0.9))
                             .multilineTextAlignment(.center)
 
-                        // Progress bar showing levels completed
-                        VStack(spacing: 6) {
-                            // 5 level progress bars
-                            HStack(spacing: 4) {
-                                ForEach(1...5, id: \.self) { level in
-                                    RoundedRectangle(cornerRadius: 2)
-                                        .fill(level <= levelsCompleted
-                                            ? AppTheme.accentPrimary
-                                            : Color.gray.opacity(0.3))
-                                        .frame(height: 6)
+                        // Progress bar - hide in landscape to keep card compact
+                        if !isLandscape {
+                            VStack(spacing: 6) {
+                                // 7 level progress bars
+                                HStack(spacing: 3) {
+                                    ForEach(1...7, id: \.self) { level in
+                                        RoundedRectangle(cornerRadius: 2)
+                                            .fill(level <= levelsCompleted
+                                                ? AppTheme.accentPrimary
+                                                : Color.gray.opacity(0.3))
+                                            .frame(height: 6)
+                                    }
                                 }
-                            }
-                            .padding(.horizontal, 16)
+                                .padding(.horizontal, 16)
 
-                            // Stats row
-                            HStack {
-                                Text("\(levelsCompleted)/5 levels")
-                                    .font(.system(size: 11))
-                                    .foregroundColor(AppTheme.textSecondary)
-
-                                Spacer()
-
-                                HStack(spacing: 2) {
-                                    Image(systemName: "star.fill")
-                                        .font(.system(size: 10))
-                                    Text("\(chapterStars)/15")
+                                // Stats row
+                                HStack {
+                                    Text("\(levelsCompleted)/7 levels")
                                         .font(.system(size: 11))
+                                        .foregroundColor(AppTheme.textSecondary)
+
+                                    Spacer()
+
+                                    HStack(spacing: 2) {
+                                        Image(systemName: "star.fill")
+                                            .font(.system(size: 10))
+                                        Text("\(chapterStars)/21")
+                                            .font(.system(size: 11))
+                                    }
+                                    .foregroundColor(AppTheme.accentTertiary)
                                 }
-                                .foregroundColor(AppTheme.accentTertiary)
+                                .padding(.horizontal, 16)
                             }
-                            .padding(.horizontal, 16)
+                            .padding(.top, 8)
                         }
-                        .padding(.top, 8)
                     }
                 }
-                .padding(.bottom, 24)
+                // Bottom: use Spacer for landscape (to match top), padding for portrait
+                if isLandscape {
+                    Spacer()
+                } else {
+                    Spacer().frame(height: 32)
+                }
             }
             .frame(width: cardWidth, height: cardHeight)
             .background(

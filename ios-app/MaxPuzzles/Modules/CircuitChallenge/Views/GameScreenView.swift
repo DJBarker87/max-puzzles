@@ -34,6 +34,9 @@ struct GameScreenView: View {
     private let initialChapter: Int?
     private let initialLevel: Int?
 
+    // Callback when user exits after advancing to a new chapter (pop to chapter select)
+    private let onExitToChapterSelect: (() -> Void)?
+
     /// Whether this is story mode
     private var isStoryMode: Bool {
         currentChapter != nil && currentLevel != nil
@@ -43,12 +46,14 @@ struct GameScreenView: View {
         difficulty: DifficultySettings,
         storyAlien: ChapterAlien? = nil,
         storyChapter: Int? = nil,
-        storyLevel: Int? = nil
+        storyLevel: Int? = nil,
+        onExitToChapterSelect: (() -> Void)? = nil
     ) {
         self.initialDifficulty = difficulty
         self.initialAlien = storyAlien
         self.initialChapter = storyChapter
         self.initialLevel = storyLevel
+        self.onExitToChapterSelect = onExitToChapterSelect
         _viewModel = StateObject(wrappedValue: GameViewModel(difficulty: difficulty))
         _currentChapter = State(initialValue: storyChapter)
         _currentLevel = State(initialValue: storyLevel)
@@ -83,16 +88,28 @@ struct GameScreenView: View {
     /// Check if there's a next level available (including next chapter)
     private var hasNextLevel: Bool {
         guard let chapter = currentChapter, let level = currentLevel else { return false }
-        // Has next level in same chapter
-        if level < 5 { return true }
-        // On level 5: check if there's a next chapter
+        // Has next level in same chapter (levels 1-6 can advance)
+        if level < 7 { return true }
+        // Level 7: check if there's a next chapter
         return chapter < 10
     }
 
     /// Check if advancing means going to next chapter
     private var isAdvancingToNextChapter: Bool {
         guard let level = currentLevel else { return false }
-        return level == 5
+        return level == 7
+    }
+
+    /// Check if level 6 just completed - returns to level select for unlock animation
+    private var shouldReturnToLevelSelect: Bool {
+        guard let level = currentLevel else { return false }
+        return level == 6
+    }
+
+    /// Check if we advanced to a different chapter than we started on
+    private var hasChangedChapter: Bool {
+        guard let initialChapter = initialChapter, let currentChapter = currentChapter else { return false }
+        return currentChapter != initialChapter
     }
 
     var body: some View {
@@ -160,15 +177,29 @@ struct GameScreenView: View {
                         handleNewPuzzle()
                     },
                     onNextLevel: data.isStoryMode && data.won && hasNextLevel ? {
-                        // Advance to next level (or next chapter if on level 5)
                         navigateToSummary = false
+
+                        // Level 6 completion: Return to level select to see unlock animation
+                        // But if we advanced to a new chapter, go to chapter select instead
+                        if shouldReturnToLevelSelect {
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                                if hasChangedChapter, let onExitToChapterSelect = onExitToChapterSelect {
+                                    onExitToChapterSelect()
+                                } else {
+                                    dismiss()
+                                }
+                            }
+                            return
+                        }
+
+                        // Advance to next level (or next chapter if on level 7)
                         if let chapter = currentChapter, let level = currentLevel {
                             coinsPersisted = false // Reset for new puzzle
 
                             let newChapter: Int
                             let newLevel: Int
 
-                            if level == 5 && chapter < 10 {
+                            if level == 7 && chapter < 10 {
                                 // Advance to next chapter, level 1
                                 newChapter = chapter + 1
                                 newLevel = 1
@@ -211,7 +242,12 @@ struct GameScreenView: View {
                         navigateToSummary = false
                         // Small delay to let fullScreenCover dismiss before navigation
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                            dismiss()
+                            // If chapter changed, pop back to chapter select
+                            if hasChangedChapter, let onExitToChapterSelect = onExitToChapterSelect {
+                                onExitToChapterSelect()
+                            } else {
+                                dismiss()
+                            }
                         }
                     }
                 )
@@ -466,9 +502,8 @@ struct GameScreenView: View {
 
     private func levelIntroOverlay(alien: ChapterAlien, level: Int) -> some View {
         ZStack {
-            // Dark backdrop
-            Color.black.opacity(0.85)
-                .ignoresSafeArea()
+            // Fully opaque backdrop with starry background (hides grid sizing behind it)
+            StarryBackground()
 
             VStack(spacing: 24) {
                 Spacer()

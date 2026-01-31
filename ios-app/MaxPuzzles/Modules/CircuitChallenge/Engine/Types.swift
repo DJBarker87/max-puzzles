@@ -274,19 +274,19 @@ struct ValidationResult {
 
 extension DifficultySettings {
     /// Maximum grid dimensions for iPhone
-    /// General limit: 5 rows x 6 cols for most puzzles
-    /// Story mode levels 1-4: 4 rows x 6 cols (smaller for beginners)
+    /// Quick Play: 5 rows x 6 cols
+    /// Story Mode: 4 rows x 6 cols (ALL levels)
     static let iPhoneMaxRows = 5
     static let iPhoneMaxCols = 6
 
-    /// Story mode levels 1-4 have tighter constraints
-    static let iPhoneStoryEarlyMaxRows = 4
-    static let iPhoneStoryEarlyMaxCols = 6
+    /// Story mode: ALL levels capped at 4 rows on iPhone
+    static let iPhoneStoryMaxRows = 4
+    static let iPhoneStoryMaxCols = 6
 
     /// Returns settings with grid dimensions capped for the current device
-    /// On iPhone: caps at 5×6 grid (or 4×6 for story levels 1-4)
+    /// On iPhone: caps at 5×6 grid for Quick Play, 4×6 for ALL Story Mode levels
     /// On iPad: returns original dimensions
-    /// - Parameter storyLevel: If in story mode, the current level (1-5). Pass nil for Quick Play.
+    /// - Parameter storyLevel: If in story mode, pass the level number. Pass nil for Quick Play.
     func cappedForDevice(storyLevel: Int? = nil) -> DifficultySettings {
         #if os(iOS)
         let isIPad = UIDevice.current.userInterfaceIdiom == .pad
@@ -297,13 +297,16 @@ extension DifficultySettings {
         // On iPhone, cap grid dimensions
         var capped = self
 
-        // Use tighter limits for story mode levels 1-4
+        // Story mode: ALL levels capped at 4 rows
+        // Quick Play: 5 rows max
         let maxRows: Int
         let maxCols: Int
-        if let level = storyLevel, level >= 1 && level <= 4 {
-            maxRows = Self.iPhoneStoryEarlyMaxRows
-            maxCols = Self.iPhoneStoryEarlyMaxCols
+        if storyLevel != nil {
+            // Story mode: 4 rows max for ALL levels
+            maxRows = Self.iPhoneStoryMaxRows
+            maxCols = Self.iPhoneStoryMaxCols
         } else {
+            // Quick Play: 5 rows max
             maxRows = Self.iPhoneMaxRows
             maxCols = Self.iPhoneMaxCols
         }

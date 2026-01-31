@@ -99,6 +99,12 @@ struct PuzzleGridView: View {
         return isIPhone && puzzle.rows >= 6
     }
 
+    /// On iPhone with 4 rows (story mode), use compact glow to avoid blocking answers
+    private var shouldUseCompactGlow: Bool {
+        let isIPhone = UIDevice.current.userInterfaceIdiom == .phone
+        return isIPhone && puzzle.rows <= 4
+    }
+
     private func connectorsLayer(geometry: HexagonGeometry) -> some View {
         ForEach(Array(puzzle.connectors.enumerated()), id: \.offset) { index, connector in
             let isTraversed = isConnectorTraversed(connector.cellA, connector.cellB)
@@ -139,6 +145,7 @@ struct PuzzleGridView: View {
                     expression: displayExpression,
                     size: geometry.cellRadius,
                     isClickable: clickable,
+                    compactGlow: shouldUseCompactGlow,
                     onTap: clickable ? { onCellTap?(Coordinate(row: row, col: col)) } : nil
                 )
                 .position(center)

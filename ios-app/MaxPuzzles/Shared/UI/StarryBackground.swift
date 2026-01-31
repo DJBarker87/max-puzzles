@@ -358,7 +358,7 @@ struct SplashBackground: View {
             // Fallback gradient
             AppTheme.gridBackground
 
-            // Background image - use screen bounds instead of GeometryReader
+            // Background image
             Image("splash_background")
                 .resizable()
                 .scaledToFill()

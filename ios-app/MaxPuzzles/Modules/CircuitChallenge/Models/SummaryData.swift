@@ -36,7 +36,7 @@ struct SummaryData {
     /// The chapter number for story mode
     let storyChapter: Int?
 
-    /// The level number for story mode (1-5)
+    /// The level number for story mode (1-7)
     let storyLevel: Int?
 
     /// Whether this is a story mode game

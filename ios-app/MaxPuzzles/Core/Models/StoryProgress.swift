@@ -65,9 +65,9 @@ class StoryProgress: ObservableObject {
         chapter <= highestUnlockedChapter
     }
 
-    /// Check if all 5 levels of a chapter are completed
+    /// Check if all 7 levels of a chapter are completed
     func isChapterCompleted(_ chapter: Int) -> Bool {
-        for level in 1...5 {
+        for level in 1...7 {
             if !isLevelCompleted(chapter: chapter, level: level) {
                 return false
             }
@@ -75,16 +75,16 @@ class StoryProgress: ObservableObject {
         return true
     }
 
-    /// Total stars earned in a chapter (0-15)
+    /// Total stars earned in a chapter (0-21)
     func starsInChapter(_ chapter: Int) -> Int {
         var total = 0
-        for level in 1...5 {
+        for level in 1...7 {
             total += starsForLevel(chapter: chapter, level: level)
         }
         return total
     }
 
-    /// Total stars earned overall (0-150)
+    /// Total stars earned overall (0-210)
     var totalStars: Int {
         var total = 0
         for chapter in 1...10 {
@@ -188,7 +188,7 @@ class StoryProgress: ObservableObject {
 
     /// Reset progress for a specific chapter
     func resetChapter(_ chapter: Int) {
-        for level in 1...5 {
+        for level in 1...7 {
             let key = StoryProgressData.key(chapter: chapter, level: level)
             data.levelProgress.removeValue(forKey: key)
         }

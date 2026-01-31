@@ -5,11 +5,11 @@ import Foundation
 /// Identifies a specific level in story mode (e.g., "3-C" = Chapter 3, Level C)
 struct StoryLevel: Hashable, Codable {
     let chapter: Int  // 1-10
-    let level: Int    // 1-5 (A=1, B=2, C=3, D=4, E=5)
+    let level: Int    // 1-7 (A=1, B=2, C=3, D=4, E=5, F=6, G=7)
 
-    /// Level letter (A-E)
+    /// Level letter (A-G)
     var levelLetter: String {
-        ["A", "B", "C", "D", "E"][level - 1]
+        ["A", "B", "C", "D", "E", "F", "G"][level - 1]
     }
 
     /// Display string (e.g., "3-C")
@@ -19,7 +19,7 @@ struct StoryLevel: Hashable, Codable {
 
     /// Create from chapter and letter
     static func from(chapter: Int, letter: String) -> StoryLevel? {
-        guard let index = ["A", "B", "C", "D", "E"].firstIndex(of: letter.uppercased()) else {
+        guard let index = ["A", "B", "C", "D", "E", "F", "G"].firstIndex(of: letter.uppercased()) else {
             return nil
         }
         return StoryLevel(chapter: chapter, level: index + 1)
@@ -146,8 +146,8 @@ enum StoryDifficulty {
             end: config.endGrid
         )
 
-        // Determine if hidden mode
-        let isHidden = config.allHidden || storyLevel.level == 5
+        // Determine if hidden mode - Level 7 (center) is always hidden mode
+        let isHidden = config.allHidden || storyLevel.level == 7
 
         // Calculate operation weights
         let weights = calculateWeights(operations: config.operations)
@@ -202,8 +202,8 @@ enum StoryDifficulty {
         start: (rows: Int, cols: Int),
         end: (rows: Int, cols: Int)
     ) -> (rows: Int, cols: Int) {
-        // Level 5 always gets end grid
-        if level == 5 {
+        // Levels 6 and 7 get end grid (full difficulty)
+        if level >= 6 {
             return end
         }
 
@@ -212,14 +212,14 @@ enum StoryDifficulty {
             return start
         }
 
-        // Progressive growth for levels 1-4
+        // Progressive growth for levels 1-5
         // Calculate total growth needed
         let rowGrowth = end.rows - start.rows
         let colGrowth = end.cols - start.cols
         let totalGrowth = rowGrowth + colGrowth
 
-        // Distribute growth across levels 1-4
-        let growthPerLevel = totalGrowth / 4
+        // Distribute growth across levels 1-5
+        let growthPerLevel = totalGrowth / 5
         let growthForThisLevel = (level - 1) * growthPerLevel
 
         // Alternate between adding rows and cols

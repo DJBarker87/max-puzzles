@@ -14,7 +14,7 @@ class MusicService: ObservableObject {
     // MARK: - Published Properties
 
     @Published private(set) var isPlaying = false
-    @Published var volume: Float = 0.2 {
+    @Published var volume: Float = 0.5 {
         didSet {
             player?.volume = volume
             storage.setMusicVolume(volume)
@@ -32,6 +32,7 @@ class MusicService: ObservableObject {
     private init() {
         // Load saved volume
         volume = storage.musicVolume
+        print("🎵 MusicService init - volume: \(volume), musicEnabled: \(storage.isMusicEnabled)")
 
         // Configure audio session for background music
         configureAudioSession()
@@ -42,11 +43,13 @@ class MusicService: ObservableObject {
     private func configureAudioSession() {
         #if os(iOS)
         do {
-            // Use ambient category so music mixes with other apps and respects silent switch
-            try AVAudioSession.sharedInstance().setCategory(.ambient, mode: .default)
+            // Use playback category for reliable audio on simulator
+            // On device, this ignores silent switch - consider .ambient for production if needed
+            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default, options: [.mixWithOthers])
             try AVAudioSession.sharedInstance().setActive(true)
+            print("🔊 Audio session configured successfully")
         } catch {
-            print("Failed to configure audio session: \(error)")
+            print("❌ Failed to configure audio session: \(error)")
         }
         #endif
     }
@@ -60,7 +63,10 @@ class MusicService: ObservableObject {
     ///   - loop: Whether to loop the music (default: true)
     func play(filename: String, fileExtension: String = "m4a", loop: Bool = true) {
         // Don't play if music is disabled
-        guard storage.isMusicEnabled else { return }
+        guard storage.isMusicEnabled else {
+            print("🎵 Music skipped - disabled in settings")
+            return
+        }
 
         // Stop any current playback
         stop()
@@ -75,10 +81,11 @@ class MusicService: ObservableObject {
             player?.volume = volume
             player?.numberOfLoops = loop ? -1 : 0 // -1 = infinite loop
             player?.prepareToPlay()
-            player?.play()
-            isPlaying = true
+            let success = player?.play() ?? false
+            isPlaying = success
+            print("🎵 Music playback started: \(filename) - success: \(success), volume: \(volume), enabled: \(storage.isMusicEnabled)")
         } catch {
-            print("Failed to play music: \(error)")
+            print("❌ Failed to play music: \(error)")
         }
     }
 
