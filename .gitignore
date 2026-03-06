@@ -45,3 +45,15 @@ coverage/
 
 # Supabase
 .supabase
+
+# Xcode
+**/xcuserdata/
+DerivedData/
+*.xcuserstate
+*.mobileprovision
+*.p12
+*.cer
+*.ipa
+*.dSYM
+*.dSYM.zip
+Pods/
