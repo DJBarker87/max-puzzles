@@ -315,16 +315,25 @@ export default function GameScreen({
           </div>
         </Modal>
 
-        {/* Game Over Overlay */}
-        {isGameOver && (
+        {/* Game Over Overlay - hide when viewing solution */}
+        {isGameOver && !state.showingSolution && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="text-center animate-pulse">
-              <div className="text-6xl mb-4">
+            <div className="text-center">
+              <div className="text-6xl mb-4 animate-pulse">
                 {state.status === 'won' ? '🎉' : '💔'}
               </div>
-              <p className="text-2xl font-display font-bold">
+              <p className="text-2xl font-display font-bold mb-6">
                 {state.status === 'won' ? 'Puzzle Complete!' : 'Out of Lives'}
               </p>
+              {state.status === 'lost' && (
+                <Button
+                  variant="primary"
+                  onClick={showSolution}
+                  className="px-6 py-3"
+                >
+                  👁️ View Solution
+                </Button>
+              )}
             </div>
           </div>
         )}
@@ -424,16 +433,25 @@ export default function GameScreen({
         </div>
       </Modal>
 
-      {/* Game Over Overlay */}
-      {isGameOver && (
+      {/* Game Over Overlay - hide when viewing solution */}
+      {isGameOver && !state.showingSolution && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="text-center animate-pulse">
-            <div className="text-6xl mb-4">
+          <div className="text-center">
+            <div className="text-6xl mb-4 animate-pulse">
               {state.status === 'won' ? '🎉' : '💔'}
             </div>
-            <p className="text-2xl font-display font-bold">
+            <p className="text-2xl font-display font-bold mb-6">
               {state.status === 'won' ? 'Puzzle Complete!' : 'Out of Lives'}
             </p>
+            {state.status === 'lost' && (
+              <Button
+                variant="primary"
+                onClick={showSolution}
+                className="px-6 py-3"
+              >
+                👁️ View Solution
+              </Button>
+            )}
           </div>
         </div>
       )}
