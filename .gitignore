@@ -57,3 +57,7 @@ DerivedData/
 *.dSYM
 *.dSYM.zip
 Pods/
+
+# App Store screenshots (large binaries, regenerate locally)
+ios-app/AppStore/Screenshots/**
+!ios-app/AppStore/Screenshots/README.md
