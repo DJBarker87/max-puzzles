@@ -72,8 +72,15 @@ struct ModuleMenuView: View {
             VStack(spacing: 24) {
                 moduleHeader
                 VStack(spacing: 16) {
-                    quickPlayCard
                     progressionCard
+                    quickPlayCard
+
+                    Text("Grown-ups")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(.white.opacity(0.8))
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.top, 8)
+
                     puzzleMakerCard
                 }
                 .frame(maxWidth: 400)  // Limit button width
@@ -111,7 +118,7 @@ struct ModuleMenuView: View {
                     .foregroundColor(.white)
                     .shadow(color: AppTheme.connectorGlow.opacity(0.8), radius: 6)
 
-                Text("Find the path by solving arithmetic!")
+                Text("Solve the glowing hex, then follow the connector with its answer.")
                     .font(.system(size: 12))
                     .foregroundColor(AppTheme.textSecondary)
                     .multilineTextAlignment(.center)
@@ -121,8 +128,15 @@ struct ModuleMenuView: View {
             // Right: Menu cards in scroll view
             ScrollView {
                 VStack(spacing: 12) {
-                    quickPlayCard
                     progressionCard
+                    quickPlayCard
+
+                    Text("Grown-ups")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(.white.opacity(0.8))
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.top, 4)
+
                     puzzleMakerCard
                 }
                 .padding(.vertical, 16)
@@ -149,7 +163,7 @@ struct ModuleMenuView: View {
                 .shadow(color: AppTheme.connectorGlow.opacity(0.8), radius: 8)
                 .shadow(color: AppTheme.accentPrimary.opacity(0.5), radius: 4)
 
-            Text("Find the path from START to FINISH by solving arithmetic problems!")
+            Text("Solve the glowing hex, then follow the connector with its answer.")
                 .font(.system(size: 15, weight: .medium, design: .rounded))
                 .foregroundColor(.white.opacity(0.9))
                 .multilineTextAlignment(.center)
@@ -174,7 +188,7 @@ struct ModuleMenuView: View {
                         .foregroundColor(.white)
                         .shadow(color: AppTheme.connectorGlow.opacity(0.6), radius: 4)
 
-                    Text("Play at any difficulty level")
+                    Text("Choose a level or make your own")
                         .font(.system(size: 14))
                         .foregroundColor(.white.opacity(0.8))
                 }
@@ -193,6 +207,8 @@ struct ModuleMenuView: View {
                     .stroke(AppTheme.accentPrimary.opacity(0.3), lineWidth: 1)
             )
         }
+        .accessibilityLabel("Quick Play")
+        .accessibilityHint("Opens difficulty choices")
     }
 
     // MARK: - Story Mode Card
@@ -207,12 +223,12 @@ struct ModuleMenuView: View {
                     .frame(width: 56, height: 56)
 
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Story Mode")
+                    Text("Start Adventure")
                         .font(.system(size: 18, weight: .heavy, design: .rounded))
                         .foregroundColor(.white)
                         .shadow(color: AppTheme.connectorGlow.opacity(0.6), radius: 4)
 
-                    Text("Help the aliens solve puzzles!")
+                    Text("Begin with gentle Level 1 puzzles")
                         .font(.system(size: 14))
                         .foregroundColor(.white.opacity(0.8))
                 }
@@ -224,13 +240,24 @@ struct ModuleMenuView: View {
                     .foregroundColor(.white.opacity(0.7))
             }
             .padding(16)
-            .background(AppTheme.backgroundMid.opacity(0.8))
+            .background(
+                LinearGradient(
+                    colors: [
+                        AppTheme.accentPrimary.opacity(0.30),
+                        AppTheme.backgroundMid.opacity(0.92)
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            )
             .cornerRadius(16)
             .overlay(
                 RoundedRectangle(cornerRadius: 16)
-                    .stroke(AppTheme.accentTertiary.opacity(0.3), lineWidth: 1)
+                    .stroke(AppTheme.accentPrimary.opacity(0.75), lineWidth: 1)
             )
         }
+        .accessibilityLabel("Start Adventure")
+        .accessibilityHint("Starts the story at the first unlocked level")
     }
 
     // MARK: - Puzzle Maker Card
@@ -250,7 +277,7 @@ struct ModuleMenuView: View {
                         .foregroundColor(.white)
                         .shadow(color: AppTheme.connectorGlow.opacity(0.6), radius: 4)
 
-                    Text("Print puzzles for offline play")
+                    Text("Print worksheets for offline play")
                         .font(.system(size: 14))
                         .foregroundColor(.white.opacity(0.8))
                 }
@@ -269,6 +296,8 @@ struct ModuleMenuView: View {
                     .stroke(AppTheme.accentTertiary.opacity(0.3), lineWidth: 1)
             )
         }
+        .accessibilityLabel("Puzzle Maker")
+        .accessibilityHint("Opens the grown-up worksheet maker")
     }
 }
 

@@ -102,22 +102,33 @@ enum ExpressionGenerator {
     }
 
     /// Generate multiplication: a × b = target
-    static func generateMultiplication(target: Int, maxFactor: Int) -> Expression? {
-        guard target >= 4 else { return nil } // Need at least 2 × 2
+    static func generateMultiplication(
+        target: Int,
+        maxFactor: Int,
+        selectedTables: Set<Int> = []
+    ) -> Expression? {
+        guard target >= 1 else { return nil }
 
         // Find all valid factor pairs
         var pairs: [(Int, Int)] = []
-        let sqrtTarget = Int(sqrt(Double(target)))
-        let upperBound = min(maxFactor, sqrtTarget)
+        if selectedTables.isEmpty {
+            let sqrtTarget = Int(sqrt(Double(target)))
+            let upperBound = min(maxFactor, sqrtTarget)
 
-        // Guard against invalid range
-        guard upperBound >= 2 else { return nil }
-
-        for a in 2...upperBound {
-            if target % a == 0 {
-                let b = target / a
-                if b >= 2 && b <= maxFactor {
-                    pairs.append((a, b))
+            guard upperBound >= 2 else { return nil }
+            for a in 2...upperBound {
+                if target % a == 0 {
+                    let b = target / a
+                    if b >= 2 && b <= maxFactor {
+                        pairs.append((a, b))
+                    }
+                }
+            }
+        } else {
+            for table in selectedTables.sorted() where target % table == 0 {
+                let otherFactor = target / table
+                if (1...maxFactor).contains(otherFactor) {
+                    pairs.append((table, otherFactor))
                 }
             }
         }
@@ -145,14 +156,26 @@ enum ExpressionGenerator {
     }
 
     /// Generate division: a ÷ b = target (where a = target × b)
-    static func generateDivision(target: Int, maxDivisor: Int, maxDividend: Int = 1000) -> Expression? {
+    static func generateDivision(
+        target: Int,
+        maxDivisor: Int,
+        maxDividend: Int = 1000,
+        selectedTables: Set<Int> = []
+    ) -> Expression? {
         guard target >= 1 else { return nil }
 
         // a ÷ b = target, so a = target × b
         let maxB = min(maxDivisor, 12)
+        let candidateDivisors: [Int]
+        if selectedTables.isEmpty {
+            guard maxB >= 2 else { return nil }
+            candidateDivisors = Array(2...maxB)
+        } else {
+            candidateDivisors = selectedTables.sorted().filter { (1...maxB).contains($0) }
+        }
         var validDivisors: [Int] = []
 
-        for b in 2...maxB {
+        for b in candidateDivisors {
             let a = target * b
             if a <= maxDividend {
                 validDivisors.append(b)
@@ -175,7 +198,18 @@ enum ExpressionGenerator {
 
     /// Check if a number is a good multiplication candidate
     /// Returns likelihood boost (0 to 1)
-    private static func getMultiplicationBoost(target: Int, maxFactor: Int) -> Double {
+    private static func getMultiplicationBoost(
+        target: Int,
+        maxFactor: Int,
+        selectedTables: Set<Int>
+    ) -> Double {
+        if !selectedTables.isEmpty {
+            let hasSelectedFact = selectedTables.contains { table in
+                target % table == 0 && (1...maxFactor).contains(target / table)
+            }
+            return hasSelectedFact ? 0.72 : 0
+        }
+
         // Check if this number has valid factor pairs (factors >= 2)
         var hasValidFactors = false
         let sqrtTarget = Int(sqrt(Double(target)))
@@ -230,7 +264,11 @@ enum ExpressionGenerator {
                 }
             } else if difficulty.multiplicationEnabled && !prioritizeDivision {
                 // Check for multiplication boost
-                let multBoost = getMultiplicationBoost(target: target, maxFactor: difficulty.multDivRange)
+                let multBoost = getMultiplicationBoost(
+                    target: target,
+                    maxFactor: difficulty.multDivRange,
+                    selectedTables: difficulty.timesTables
+                )
                 if multBoost > 0 && Double.random(in: 0...1) < multBoost {
                     operation = .multiplication
                 } else {
@@ -248,10 +286,18 @@ enum ExpressionGenerator {
             case .subtraction:
                 expression = generateSubtraction(target: target, maxOperand: difficulty.addSubRange)
             case .multiplication:
-                expression = generateMultiplication(target: target, maxFactor: difficulty.multDivRange)
+                expression = generateMultiplication(
+                    target: target,
+                    maxFactor: difficulty.multDivRange,
+                    selectedTables: difficulty.timesTables
+                )
             case .division:
                 if target <= maxDivisionAnswer {
-                    expression = generateDivision(target: target, maxDivisor: difficulty.multDivRange)
+                    expression = generateDivision(
+                        target: target,
+                        maxDivisor: difficulty.multDivRange,
+                        selectedTables: difficulty.timesTables
+                    )
                 }
             }
 

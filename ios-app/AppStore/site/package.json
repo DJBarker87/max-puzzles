@@ -1,0 +1,7 @@
+{
+  "name": "maxis-mighty-mindgames-support",
+  "private": true,
+  "scripts": {
+    "build": "mkdir -p dist && cp index.html privacy.html support.html styles.css dist/"
+  }
+}

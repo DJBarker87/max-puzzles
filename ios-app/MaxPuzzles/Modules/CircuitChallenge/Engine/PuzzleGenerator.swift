@@ -67,7 +67,8 @@ enum PuzzleGenerator {
                 maxValue: settings.connectorMax,
                 divisionEnabled: settings.divisionEnabled,
                 solutionPath: pathResult.path,
-                multDivRange: settings.multDivRange
+                multDivRange: settings.multDivRange,
+                allowedValues: exactTableConnectorValues(for: settings)
             )
 
             guard valueResult.success else {
@@ -125,5 +126,33 @@ enum PuzzleGenerator {
         print("  Path failures: \(pathFailures), Connector failures: \(connectorFailures), Validation failures: \(validationFailures)")
 
         return .failure("Failed to generate puzzle after \(options.maxAttempts) attempts. Try adjusting difficulty settings.")
+    }
+
+    /// Multiplication/division-only custom games need answers that can actually be expressed
+    /// using the chosen tables. Mixed-operation games retain the full numeric palette.
+    private static func exactTableConnectorValues(for settings: DifficultySettings) -> [Int]? {
+        let tables = settings.timesTables
+        guard !tables.isEmpty,
+              !settings.additionEnabled,
+              !settings.subtractionEnabled else {
+            return nil
+        }
+
+        let factLimit = max(settings.multDivRange, 1)
+        var values: Set<Int> = []
+
+        if settings.multiplicationEnabled {
+            for table in tables {
+                for factor in 1...factLimit {
+                    values.insert(table * factor)
+                }
+            }
+        }
+
+        if settings.divisionEnabled {
+            values.formUnion(1...factLimit)
+        }
+
+        return values.sorted()
     }
 }

@@ -15,6 +15,7 @@ class GameViewModel: ObservableObject {
     // MARK: - Private
 
     private var timerCancellable: AnyCancellable?
+    private var generationTask: Task<Void, Never>?
     private var coinAnimationTimers: [UUID: AnyCancellable] = [:]
     private var wrongMoveTimer: AnyCancellable?
 
@@ -33,19 +34,27 @@ class GameViewModel: ObservableObject {
 
     /// Generate a new puzzle
     func generateNewPuzzle() {
+        generationTask?.cancel()
         dispatch(.generatePuzzle)
 
         // Apply device-specific grid caps (iPhone caps at 6×7, iPad uses full size)
         let cappedDifficulty = state.difficulty.cappedForDevice()
 
-        // Run puzzle generation with capped settings
-        let result = PuzzleGenerator.generatePuzzle(difficulty: cappedDifficulty)
+        // Puzzle generation can retry many candidate paths. Keep that work off
+        // the main actor so the loading state paints and controls stay responsive.
+        generationTask = Task { [weak self] in
+            let result = await Task.detached(priority: .userInitiated) {
+                PuzzleGenerator.generatePuzzle(difficulty: cappedDifficulty)
+            }.value
 
-        switch result {
-        case .success(let puzzle):
-            dispatch(.puzzleGenerated(puzzle))
-        case .failure(let error):
-            dispatch(.puzzleGenerationFailed(error))
+            guard !Task.isCancelled, let self else { return }
+
+            switch result {
+            case .success(let puzzle):
+                self.dispatch(.puzzleGenerated(puzzle))
+            case .failure(let error):
+                self.dispatch(.puzzleGenerationFailed(error))
+            }
         }
     }
 
@@ -55,6 +64,8 @@ class GameViewModel: ObservableObject {
         if state.status == .ready {
             dispatch(.startTimer)
             startTimer()
+        } else {
+            updateElapsedTime()
         }
 
         dispatch(.makeMove(coord))
@@ -68,6 +79,7 @@ class GameViewModel: ObservableObject {
 
     /// Request a new puzzle (clears current puzzle)
     func requestNewPuzzle() {
+        generationTask?.cancel()
         stopTimer()
         dispatch(.newPuzzle)
     }
@@ -90,14 +102,33 @@ class GameViewModel: ObservableObject {
     // MARK: - Timer Management
 
     private func startTimer() {
-        timerCancellable = Timer.publish(every: 0.1, on: .main, in: .common)
+        timerCancellable?.cancel()
+        timerCancellable = Timer.publish(every: 1.0, on: .main, in: .common)
             .autoconnect()
             .sink { [weak self] _ in
-                guard let self = self,
-                      let startTime = self.state.startTime else { return }
-                let elapsed = Int(Date().timeIntervalSince(startTime) * 1000)
-                self.dispatch(.tickTimer(elapsed))
+                self?.updateElapsedTime()
             }
+    }
+
+    /// Pause gameplay time when the app is inactive or the game leaves screen.
+    func pauseTimer() {
+        guard state.isTimerRunning else { return }
+        updateElapsedTime()
+        stopTimer()
+        dispatch(.pauseTimer(state.elapsedMs))
+    }
+
+    /// Resume without counting time spent in the background.
+    func resumeTimer() {
+        guard state.status == .playing, !state.isTimerRunning else { return }
+        dispatch(.resumeTimer)
+        startTimer()
+    }
+
+    private func updateElapsedTime() {
+        guard state.isTimerRunning, let startTime = state.startTime else { return }
+        let elapsed = Int(Date().timeIntervalSince(startTime) * 1000)
+        dispatch(.tickTimer(elapsed))
     }
 
     private func stopTimer() {
@@ -163,6 +194,17 @@ class GameViewModel: ObservableObject {
         case .tickTimer(let elapsed):
             guard newState.isTimerRunning else { break }
             newState.elapsedMs = elapsed
+
+        case .pauseTimer(let elapsed):
+            guard newState.isTimerRunning else { break }
+            newState.elapsedMs = elapsed
+            newState.startTime = nil
+            newState.isTimerRunning = false
+
+        case .resumeTimer:
+            guard newState.status == .playing, !newState.isTimerRunning else { break }
+            newState.startTime = Date().addingTimeInterval(-Double(newState.elapsedMs) / 1000.0)
+            newState.isTimerRunning = true
 
         case .makeMove(let targetCoord):
             newState = processMakeMove(state: newState, targetCoord: targetCoord)
@@ -378,8 +420,7 @@ class GameViewModel: ObservableObject {
     // MARK: - Haptics
 
     private func triggerHaptics(correct: Bool) {
-        let generator = UINotificationFeedbackGenerator()
-        generator.notificationOccurred(correct ? .success : .error)
+        FeedbackManager.shared.haptic(correct ? .correctMove : .soft)
     }
 
     private func triggerWinHaptics() {

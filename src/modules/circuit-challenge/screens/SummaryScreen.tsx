@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useSound } from '@/app/providers/SoundProvider'
 import { Button, Card } from '@/ui'
@@ -74,43 +74,60 @@ export default function SummaryScreen() {
   const [unlockedAlien, setUnlockedAlien] = useState<ChapterAlien | null>(null)
   const [chapterUnlockVisible, setChapterUnlockVisible] = useState(false)
 
-  // Redirect if no data
-  if (!data) {
-    navigate('/play/circuit-challenge')
-    return null
+  const isStoryMode = !!data?.storyAlien
+
+  const dismissCharacter = useCallback(() => {
+    setCharacterVisible(false)
+    setTimeout(() => {
+      setShowingCharacter(false)
+      if (unlockedAlien) {
+        setShowChapterUnlock(true)
+        setTimeout(() => setChapterUnlockVisible(true), 100)
+      }
+    }, 300)
+  }, [unlockedAlien])
+
+  const dismissChapterUnlock = () => {
+    setChapterUnlockVisible(false)
+    setTimeout(() => {
+      setShowChapterUnlock(false)
+      setUnlockedAlien(null)
+    }, 300)
   }
 
-  const isStoryMode = !!data.storyAlien
+  useEffect(() => {
+    if (!data) {
+      navigate('/play/circuit-challenge', { replace: true })
+    }
+  }, [data, navigate])
+
+  // Check before recording the completion so a newly unlocked chapter can be detected.
+  useEffect(() => {
+    if (!data || !data.won || !isStoryMode || !data.storyChapter || data.storyLevel !== 5) return
+
+    const progress = getStoryProgress()
+    const wasChapterCompletedBefore = isChapterCompleted(data.storyChapter, progress)
+    if (!wasChapterCompletedBefore && data.storyChapter < 10) {
+      const nextChapter = data.storyChapter + 1
+      const nextAlien = chapterAliens.find(a => a.chapter === nextChapter)
+      if (nextAlien) setUnlockedAlien(nextAlien)
+    }
+  }, [data, isStoryMode])
 
   // Record story mode progress for ALL levels when won
   useEffect(() => {
+    if (!data) return
     if (data.won && isStoryMode && data.storyChapter && data.storyLevel) {
       const timeSeconds = Math.floor(data.elapsedMs / 1000)
       const correctMoves = data.moveHistory.filter(m => m.correct).length
       const livesLost = data.moveHistory.filter(m => !m.correct).length
       recordLevelAttempt(data.storyChapter, data.storyLevel, true, livesLost, timeSeconds, correctMoves)
     }
-  }, [data.won, isStoryMode, data.storyChapter, data.storyLevel, data.elapsedMs, data.moveHistory])
-
-  // Check if this completion unlocks a new chapter (only for level 5)
-  useEffect(() => {
-    if (data.won && isStoryMode && data.storyChapter && data.storyLevel === 5) {
-      const progress = getStoryProgress()
-      const wasChapterCompletedBefore = isChapterCompleted(data.storyChapter, progress)
-
-      // If chapter wasn't completed before but would be now, show unlock celebration
-      if (!wasChapterCompletedBefore && data.storyChapter < 10) {
-        const nextChapter = data.storyChapter + 1
-        const nextAlien = chapterAliens.find(a => a.chapter === nextChapter)
-        if (nextAlien) {
-          setUnlockedAlien(nextAlien)
-        }
-      }
-    }
-  }, [data.won, isStoryMode, data.storyChapter, data.storyLevel])
+  }, [data, isStoryMode])
 
   // Play victory or defeat stinger on mount
   useEffect(() => {
+    if (!data) return
     if (data.won) {
       playMusic('victory', false) // Play victory stinger once (no loop)
       playSound('complete')
@@ -118,10 +135,11 @@ export default function SummaryScreen() {
       playMusic('lose', false) // Play defeat stinger once (no loop)
       playSound('gameOver')
     }
-  }, [data.won, playMusic, playSound])
+  }, [data, playMusic, playSound])
 
   // Character reveal animation for non-hidden mode
   useEffect(() => {
+    if (!data) return
     if (data.isHiddenMode) {
       setShowingCharacter(false)
       return
@@ -136,27 +154,9 @@ export default function SummaryScreen() {
     }, 2000)
 
     return () => clearTimeout(timer)
-  }, [data.isHiddenMode])
+  }, [data, dismissCharacter])
 
-  const dismissCharacter = () => {
-    setCharacterVisible(false)
-    setTimeout(() => {
-      setShowingCharacter(false)
-      // If we have an unlocked alien, show the unlock celebration
-      if (unlockedAlien) {
-        setShowChapterUnlock(true)
-        setTimeout(() => setChapterUnlockVisible(true), 100)
-      }
-    }, 300)
-  }
-
-  const dismissChapterUnlock = () => {
-    setChapterUnlockVisible(false)
-    setTimeout(() => {
-      setShowChapterUnlock(false)
-      setUnlockedAlien(null)
-    }, 300)
-  }
+  if (!data) return null
 
   // Calculate statistics
   const totalMoves = data.moveHistory.length
@@ -253,10 +253,9 @@ export default function SummaryScreen() {
   if (showingCharacter && !data.isHiddenMode) {
     return (
       <div
-        className={`min-h-screen flex flex-col items-center justify-center p-4 relative transition-all duration-300 ${
+        className={`summary-screen min-h-screen flex flex-col items-center justify-center p-4 relative transition-all duration-300 ${
           characterVisible ? 'opacity-100 scale-100' : 'opacity-0 scale-95'
         }`}
-        onClick={dismissCharacter}
       >
         <StarryBackground />
 
@@ -308,6 +307,10 @@ export default function SummaryScreen() {
               </div>
             </>
           ) : null}
+
+          <Button variant="primary" className="mt-8 min-h-11" onClick={dismissCharacter}>
+            Continue
+          </Button>
         </div>
       </div>
     )
@@ -317,10 +320,9 @@ export default function SummaryScreen() {
   if (showChapterUnlock && unlockedAlien) {
     return (
       <div
-        className={`min-h-screen flex flex-col items-center justify-center p-4 relative transition-all duration-500 ${
+        className={`summary-screen min-h-screen flex flex-col items-center justify-center p-4 relative transition-all duration-500 ${
           chapterUnlockVisible ? 'opacity-100 scale-100' : 'opacity-0 scale-90'
         }`}
-        onClick={dismissChapterUnlock}
       >
         <StarryBackground />
 
@@ -375,10 +377,9 @@ export default function SummaryScreen() {
             </p>
           </div>
 
-          {/* Tap hint */}
-          <p className="text-text-secondary text-sm mt-8 animate-pulse">
-            Tap to continue
-          </p>
+          <Button variant="primary" className="mt-8 min-h-11" onClick={dismissChapterUnlock}>
+            Continue
+          </Button>
         </div>
       </div>
     )
@@ -389,7 +390,7 @@ export default function SummaryScreen() {
     const { correctCount, mistakeCount } = data.hiddenModeResults
 
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center p-4 relative">
+      <div className="summary-screen min-h-screen flex flex-col items-center justify-center p-4 relative">
         <StarryBackground />
 
         <Card className="w-full max-w-md text-center relative z-10 p-6">
@@ -434,7 +435,7 @@ export default function SummaryScreen() {
 
           <div className="border-t border-white/10 pt-4 mb-6">
             <p className="text-lg">
-              Coins:{' '}
+              Points:{' '}
               <span className="font-bold text-accent-tertiary">
                 +{data.puzzleCoins}
               </span>
@@ -478,7 +479,7 @@ export default function SummaryScreen() {
   // Standard mode win
   if (data.won) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center p-4 relative">
+      <div className="summary-screen min-h-screen flex flex-col items-center justify-center p-4 relative">
         <StarryBackground />
 
         <Card className="w-full max-w-md text-center relative z-10 p-6">
@@ -505,7 +506,7 @@ export default function SummaryScreen() {
               Time: <span className="font-bold">{timeFormatted}</span>
             </p>
             <p>
-              Coins:{' '}
+              Points:{' '}
               <span className="font-bold text-accent-tertiary">
                 +{data.puzzleCoins}
               </span>
@@ -549,7 +550,7 @@ export default function SummaryScreen() {
 
   // Game Over (Lost)
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-4 relative">
+    <div className="summary-screen min-h-screen flex flex-col items-center justify-center p-4 relative">
       <StarryBackground />
 
       <Card className="w-full max-w-md text-center relative z-10 p-6">
@@ -570,7 +571,7 @@ export default function SummaryScreen() {
         </p>
 
         <p className="text-lg mb-6">
-          Coins:{' '}
+          Points:{' '}
           <span className="font-bold text-accent-tertiary">
             +{data.puzzleCoins}
           </span>

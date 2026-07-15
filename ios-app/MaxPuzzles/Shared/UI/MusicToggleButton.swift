@@ -50,6 +50,7 @@ struct MusicToggleButton: View {
                     .foregroundColor(storage.isMusicEnabled ? AppTheme.accentPrimary : AppTheme.textSecondary)
             }
         }
+        .frame(minWidth: 44, minHeight: 44)
         .accessibilityLabel(storage.isMusicEnabled ? "Turn music off" : "Turn music on")
         .accessibilityHint("Double tap to toggle background music")
     }

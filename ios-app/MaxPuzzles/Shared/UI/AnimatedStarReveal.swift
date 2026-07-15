@@ -3,6 +3,8 @@ import UIKit
 
 /// Animated star reveal that shows stars popping in one-by-one with bounce effect
 struct AnimatedStarReveal: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     let starsEarned: Int
     let totalStars: Int
     let starSize: CGFloat
@@ -57,7 +59,11 @@ struct AnimatedStarReveal: View {
         }
         .onAppear {
             setupInitialState()
-            animateStars()
+            if reduceMotion {
+                revealStarsWithoutAnimation()
+            } else {
+                animateStars()
+            }
         }
     }
 
@@ -127,6 +133,13 @@ struct AnimatedStarReveal: View {
                 let generator = UIImpactFeedbackGenerator(style: .medium)
                 generator.impactOccurred()
             }
+        }
+    }
+
+    private func revealStarsWithoutAnimation() {
+        for starIndex in 0..<min(starsEarned, totalStars) {
+            revealedStars[starIndex] = true
+            starScales[starIndex] = 1
         }
     }
 }

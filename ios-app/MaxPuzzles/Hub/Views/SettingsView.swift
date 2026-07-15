@@ -10,9 +10,14 @@ struct SettingsView: View {
     @ObservedObject var storage = StorageService.shared
 
     @State private var showLogoutConfirmation = false
+    @State private var showParentGate = false
     @State private var showAbout = false
     @State private var editingName = false
     @State private var nameInput = ""
+    @State private var parentChallengeLeft = 18
+    @State private var parentChallengeRight = 27
+    @State private var parentChallengeAnswer = ""
+    @State private var parentGateError: String?
 
     var body: some View {
         ZStack {
@@ -61,6 +66,17 @@ struct SettingsView: View {
         .sheet(isPresented: $showAbout) {
             AboutSheetView()
         }
+        .sheet(isPresented: $showParentGate) {
+            ParentGateView(
+                left: parentChallengeLeft,
+                right: parentChallengeRight,
+                answer: $parentChallengeAnswer,
+                errorMessage: parentGateError,
+                onCancel: { showParentGate = false },
+                onContinue: validateParentGate
+            )
+            .presentationDetents([.large])
+        }
     }
 
     // MARK: - Profile Section
@@ -90,12 +106,12 @@ struct SettingsView: View {
                                 .foregroundColor(AppTheme.accentPrimary)
                         }
                     } else {
-                        Text(storage.guestDisplayName)
+                        Text(storage.playerName.isEmpty ? "Guest" : storage.playerName)
                             .font(.system(size: 16, weight: .medium))
                             .foregroundColor(.white)
 
                         Button(action: {
-                            nameInput = storage.guestDisplayName == "Guest" ? "" : storage.guestDisplayName
+                            nameInput = storage.playerName
                             editingName = true
                         }) {
                             Image(systemName: "pencil.circle.fill")
@@ -113,7 +129,7 @@ struct SettingsView: View {
     }
 
     private func saveName() {
-        storage.setGuestDisplayName(nameInput)
+        storage.setPlayerName(nameInput)
         editingName = false
     }
 
@@ -122,7 +138,49 @@ struct SettingsView: View {
     private var soundSection: some View {
         SettingsCard(title: "Audio", icon: "speaker.wave.2.fill") {
             VStack(spacing: 16) {
-                // Music Toggle
+                Toggle(isOn: Binding(
+                    get: { storage.isSoundEnabled },
+                    set: { SoundEffectsService.shared.isEnabled = $0 }
+                )) {
+                    audioLabel(title: "Sound effects", detail: "Taps, rewards and gentle corrections")
+                }
+                .toggleStyle(SwitchToggleStyle(tint: AppTheme.accentPrimary))
+
+                if storage.isSoundEnabled {
+                    audioSlider(
+                        title: "Effects volume",
+                        value: Binding(
+                            get: { Double(storage.soundEffectsVolume) },
+                            set: { SoundEffectsService.shared.volume = Float($0) }
+                        )
+                    )
+                }
+
+                Divider().background(Color.white.opacity(0.1))
+
+                Toggle(isOn: Binding(
+                    get: { storage.isVoiceEnabled },
+                    set: { enabled in
+                        storage.setVoiceEnabled(enabled)
+                        if !enabled { LetterSpeechService.shared.stop() }
+                    }
+                )) {
+                    audioLabel(title: "Spoken instructions", detail: "Letters, words and formation prompts")
+                }
+                .toggleStyle(SwitchToggleStyle(tint: AppTheme.accentPrimary))
+
+                if storage.isVoiceEnabled {
+                    audioSlider(
+                        title: "Voice volume",
+                        value: Binding(
+                            get: { Double(storage.voiceVolume) },
+                            set: { storage.setVoiceVolume(Float($0)) }
+                        )
+                    )
+                }
+
+                Divider().background(Color.white.opacity(0.1))
+
                 Toggle(isOn: Binding(
                     get: { storage.isMusicEnabled },
                     set: { enabled in
@@ -130,45 +188,49 @@ struct SettingsView: View {
                         MusicService.shared.onMusicSettingChanged(enabled: enabled)
                     }
                 )) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Music")
-                            .font(.system(size: 16, weight: .medium))
-                            .foregroundColor(.white)
-
-                        Text("Background music")
-                            .font(.system(size: 13))
-                            .foregroundColor(AppTheme.textSecondary)
-                    }
+                    audioLabel(title: "Music", detail: "Background music")
                 }
                 .toggleStyle(SwitchToggleStyle(tint: AppTheme.accentPrimary))
 
                 // Music Volume Slider
                 if storage.isMusicEnabled {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Music Volume")
-                            .font(.system(size: 14))
-                            .foregroundColor(AppTheme.textSecondary)
-
-                        HStack(spacing: 12) {
-                            Image(systemName: "speaker.fill")
-                                .font(.system(size: 12))
-                                .foregroundColor(AppTheme.textSecondary)
-
-                            Slider(
-                                value: Binding(
-                                    get: { Double(storage.musicVolume) },
-                                    set: { MusicService.shared.volume = Float($0) }
-                                ),
-                                in: 0...1
-                            )
-                            .tint(AppTheme.accentPrimary)
-
-                            Image(systemName: "speaker.wave.3.fill")
-                                .font(.system(size: 12))
-                                .foregroundColor(AppTheme.textSecondary)
-                        }
-                    }
+                    audioSlider(
+                        title: "Music volume",
+                        value: Binding(
+                            get: { Double(storage.musicVolume) },
+                            set: { MusicService.shared.volume = Float($0) }
+                        )
+                    )
                 }
+            }
+        }
+    }
+
+    private func audioLabel(title: String, detail: String) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title)
+                .font(.headline)
+                .foregroundColor(.white)
+            Text(detail)
+                .font(.subheadline)
+                .foregroundColor(AppTheme.textSecondary)
+        }
+    }
+
+    private func audioSlider(title: String, value: Binding<Double>) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title)
+                .font(.subheadline)
+                .foregroundColor(AppTheme.textSecondary)
+            HStack(spacing: 12) {
+                Image(systemName: "speaker.fill")
+                    .font(.caption)
+                    .foregroundColor(AppTheme.textSecondary)
+                Slider(value: value, in: 0...1)
+                    .tint(AppTheme.accentPrimary)
+                Image(systemName: "speaker.wave.3.fill")
+                    .font(.caption)
+                    .foregroundColor(AppTheme.textSecondary)
             }
         }
     }
@@ -203,7 +265,7 @@ struct SettingsView: View {
     private var dataSection: some View {
         SettingsCard(title: "Data", icon: "externaldrive.fill") {
             VStack(spacing: 12) {
-                Button(action: { showLogoutConfirmation = true }) {
+                Button(action: beginParentGate) {
                     SettingsRow(
                         icon: "trash.fill",
                         title: "Clear All Data",
@@ -223,9 +285,116 @@ struct SettingsView: View {
     }
 
     private func clearAllData() {
+        LetterSpeechService.shared.stop()
+        CustomPromptAudioService.shared.deleteAllRecordings()
+        MusicService.shared.stop()
         storage.clearAllData()
+        CometLearningStore.shared.resetAfterDataClear()
+        MusicService.shared.volume = storage.musicVolume
         // Re-create guest session
         _ = storage.ensureGuestSession()
+        appState.needsFirstRun = true
+        dismiss()
+    }
+
+    private func beginParentGate() {
+        parentChallengeLeft = Int.random(in: 14...29)
+        parentChallengeRight = Int.random(in: 17...38)
+        parentChallengeAnswer = ""
+        parentGateError = nil
+        showParentGate = true
+    }
+
+    private func validateParentGate() {
+        guard Int(parentChallengeAnswer) == parentChallengeLeft + parentChallengeRight else {
+            parentGateError = "That answer isn't right. Please try again."
+            return
+        }
+
+        parentGateError = nil
+        showParentGate = false
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+            showLogoutConfirmation = true
+        }
+    }
+}
+
+// MARK: - Parent Gate
+
+private struct ParentGateView: View {
+    let left: Int
+    let right: Int
+    @Binding var answer: String
+    let errorMessage: String?
+    let onCancel: () -> Void
+    let onContinue: () -> Void
+
+    @FocusState private var answerFocused: Bool
+
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                AppTheme.backgroundDark.ignoresSafeArea()
+
+                VStack(spacing: 20) {
+                    Image(systemName: "person.crop.circle.badge.checkmark")
+                        .font(.system(size: 44))
+                        .foregroundColor(AppTheme.accentPrimary)
+                        .accessibilityHidden(true)
+
+                    Text("Grown-ups only")
+                        .font(.system(size: 24, weight: .bold, design: .rounded))
+                        .foregroundColor(.white)
+
+                    Text("To protect the player's progress, solve this check before continuing.")
+                        .font(.body)
+                        .foregroundColor(AppTheme.textSecondary)
+                        .multilineTextAlignment(.center)
+
+                    Text("What is \(left) + \(right)?")
+                        .font(.system(size: 22, weight: .semibold, design: .rounded))
+                        .foregroundColor(.white)
+
+                    TextField("Answer", text: $answer)
+                        .keyboardType(.numberPad)
+                        .multilineTextAlignment(.center)
+                        .font(.system(size: 22, weight: .semibold))
+                        .foregroundColor(.white)
+                        .padding(12)
+                        .background(AppTheme.backgroundMid)
+                        .cornerRadius(12)
+                        .focused($answerFocused)
+                        .accessibilityLabel("Answer to \(left) plus \(right)")
+
+                    if let errorMessage {
+                        Text(errorMessage)
+                            .font(.footnote)
+                            .foregroundColor(AppTheme.error)
+                            .accessibilityLabel("Error: \(errorMessage)")
+                    }
+
+                    Button("Continue") {
+                        onContinue()
+                    }
+                    .font(.system(size: 17, weight: .bold))
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity, minHeight: 48)
+                    .background(AppTheme.accentPrimary)
+                    .cornerRadius(12)
+                }
+                .padding(24)
+                .frame(maxWidth: 420)
+            }
+            .navigationTitle("Parent check")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel", action: onCancel)
+                }
+            }
+            .onAppear { answerFocused = true }
+        }
+        .preferredColorScheme(.dark)
     }
 }
 

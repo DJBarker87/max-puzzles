@@ -32,6 +32,12 @@ enum GameAction {
     /// Timer tick with elapsed milliseconds
     case tickTimer(Int)
 
+    /// Pause the timer while preserving elapsed play time
+    case pauseTimer(Int)
+
+    /// Resume a previously paused timer
+    case resumeTimer
+
     // MARK: - Reset/New
 
     /// Reset to the start of the same puzzle

@@ -17,7 +17,8 @@ final class MaxPuzzlesTests: XCTestCase {
         let appState = AppState()
         XCTAssertTrue(appState.isLoading, "App should start in loading state")
         XCTAssertTrue(appState.isGuest, "App should start in guest mode")
-        XCTAssertNil(appState.currentUser, "No user should be set initially")
+        XCTAssertNotNil(appState.currentUser, "A local guest should be available immediately")
+        XCTAssertTrue(appState.currentUser?.isGuest == true)
     }
 
     func testGuestUserCreation() throws {

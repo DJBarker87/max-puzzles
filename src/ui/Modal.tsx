@@ -30,23 +30,50 @@ export default function Modal({
   const modalRef = useRef<HTMLDivElement>(null)
   const previousActiveElement = useRef<HTMLElement | null>(null)
 
-  // Handle escape key
+  // Handle escape key and keep keyboard focus inside the open dialog.
   useEffect(() => {
-    const handleEscape = (e: KeyboardEvent) => {
+    const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && isOpen) {
         onClose()
+        return
+      }
+
+      if (e.key !== 'Tab' || !isOpen || !modalRef.current) return
+
+      const focusable = Array.from(
+        modalRef.current.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        )
+      )
+      if (focusable.length === 0) {
+        e.preventDefault()
+        modalRef.current.focus()
+        return
+      }
+
+      const first = focusable[0]
+      const last = focusable[focusable.length - 1]
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault()
+        last.focus()
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault()
+        first.focus()
       }
     }
 
-    document.addEventListener('keydown', handleEscape)
-    return () => document.removeEventListener('keydown', handleEscape)
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
   }, [isOpen, onClose])
 
   // Focus trap and restoration
   useEffect(() => {
     if (isOpen) {
       previousActiveElement.current = document.activeElement as HTMLElement
-      modalRef.current?.focus()
+      const firstFocusable = modalRef.current?.querySelector<HTMLElement>(
+        'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      )
+      ;(firstFocusable ?? modalRef.current)?.focus()
 
       // Prevent body scroll
       document.body.style.overflow = 'hidden'
@@ -76,10 +103,12 @@ export default function Modal({
       aria-labelledby={title ? 'modal-title' : undefined}
     >
       {/* Backdrop */}
-      <div
+      <button
+        type="button"
+        tabIndex={-1}
         className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-fade-in"
         onClick={onClose}
-        aria-hidden="true"
+        aria-label="Close modal"
       />
 
       {/* Modal content */}
@@ -111,7 +140,7 @@ export default function Modal({
               <button
                 onClick={onClose}
                 className="
-                  p-2 -mr-2
+                  w-11 h-11 -mr-2 flex items-center justify-center
                   text-text-secondary hover:text-text-primary
                   rounded-lg
                   transition-colors

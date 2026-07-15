@@ -1,0 +1,31 @@
+{
+  "appleId": "6758100458",
+  "bundleId": "com.maxpuzzles.app",
+  "platform": "IOS",
+  "version": "1.2",
+  "build": "4",
+  "locale": "en-GB",
+  "copyright": "2026 Dominic Barker",
+  "primaryCategory": "EDUCATION",
+  "secondaryCategory": "GAMES",
+  "secondarySubcategories": ["GAMES_FAMILY", "GAMES_PUZZLE"],
+  "kidsAgeBand": "SIX_TO_EIGHT",
+  "privacy": "DATA_NOT_COLLECTED",
+  "supportUrl": "https://maxis-mighty-mindgames-support.vercel.app/support",
+  "privacyPolicyUrl": "https://maxis-mighty-mindgames-support.vercel.app/privacy",
+  "marketingUrl": "https://max-puzzles.vercel.app",
+  "screenshots": {
+    "APP_IPHONE_67": "../Screenshots/Upload-Ready/iPhone-6.9",
+    "APP_IPAD_PRO_3GEN_129": "../Screenshots/Upload-Ready/iPad-13"
+  },
+  "screenshotOrder": [
+    "03-guided-letter-c.jpg",
+    "04-whole-word-mission.jpg",
+    "08-circuit-challenge.jpg",
+    "05-quick-practice.jpg",
+    "02-comet-writer.jpg",
+    "07-capital-letter.jpg",
+    "06-flight-school.jpg",
+    "01-hub.jpg"
+  ]
+}

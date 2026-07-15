@@ -165,6 +165,7 @@ struct ActionButton: View {
             .scaleEffect(isPressed ? 0.95 : 1.0)
         }
         .buttonStyle(.plain)
+        .frame(minWidth: 44, minHeight: 44)
         .accessibilityLabel(accessibilityLabelText)
         .accessibilityAddTraits(.isButton)
         .simultaneousGesture(

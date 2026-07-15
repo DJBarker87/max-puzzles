@@ -21,7 +21,7 @@ struct GameHeaderView: View {
                 Image(systemName: "chevron.left")
                     .font(.system(size: 18, weight: .semibold))
                     .foregroundColor(.white)
-                    .frame(width: 40, height: 40)
+                    .frame(width: 44, height: 44)
                     .background(AppTheme.backgroundDark.opacity(0.8))
                     .cornerRadius(10)
             }

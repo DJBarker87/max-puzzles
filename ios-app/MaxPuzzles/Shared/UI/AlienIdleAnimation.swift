@@ -10,6 +10,8 @@ enum AlienAnimationStyle {
 
 /// View modifier that adds idle animation to alien character images
 struct AlienIdleAnimationModifier: ViewModifier {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     let style: AlienAnimationStyle
     let intensity: CGFloat
 
@@ -23,12 +25,14 @@ struct AlienIdleAnimationModifier: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .offset(y: yOffset)
-            .offset(x: xOffset)
-            .scaleEffect(scale)
-            .rotationEffect(.degrees(rotation))
+            .offset(y: reduceMotion ? 0 : yOffset)
+            .offset(x: reduceMotion ? 0 : xOffset)
+            .scaleEffect(reduceMotion ? 1 : scale)
+            .rotationEffect(.degrees(reduceMotion ? 0 : rotation))
             .onAppear {
-                startAnimation()
+                if !reduceMotion {
+                    startAnimation()
+                }
             }
     }
 

@@ -38,10 +38,6 @@ struct LivesDisplay: View {
             }
         }
         .onChange(of: lives) { newValue in
-            if let prev = previousLives, newValue < prev {
-                // Life lost - play haptic only (sounds removed)
-                FeedbackManager.shared.haptic(.wrongMove)
-            }
             previousLives = newValue
         }
         .onAppear {

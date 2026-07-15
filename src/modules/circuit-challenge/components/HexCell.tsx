@@ -137,9 +137,15 @@ export default function HexCell({
     <g
       className={`hex-cell ${isClickable ? 'cursor-pointer' : ''} ${isPulsing ? 'cell-current' : ''}`}
       onClick={isClickable ? onClick : undefined}
+      onKeyDown={isClickable ? (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault()
+          onClick?.()
+        }
+      } : undefined}
       role={isClickable ? 'button' : undefined}
       tabIndex={isClickable ? 0 : undefined}
-      aria-label={expression}
+      aria-label={isClickable ? `${expression}, available move` : expression}
       style={{
         cursor: isClickable ? 'pointer' : 'default',
       }}
@@ -155,6 +161,7 @@ export default function HexCell({
 
       {/* Layer 4: Top face */}
       <polygon
+        className="hex-cell-focus-ring"
         points={topPoints}
         fill={gradients.top}
         stroke={gradients.stroke}

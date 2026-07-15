@@ -174,6 +174,8 @@ struct PuzzleGridView: View {
 
     private func isCellClickable(row: Int, col: Int) -> Bool {
         guard !disabled, onCellTap != nil else { return false }
+        let coord = Coordinate(row: row, col: col)
+        guard !visitedCells.contains(coord) else { return false }
         let rowDiff = abs(row - currentPosition.row)
         let colDiff = abs(col - currentPosition.col)
         return rowDiff <= 1 && colDiff <= 1 && !(rowDiff == 0 && colDiff == 0)

@@ -20,7 +20,7 @@ class PuzzleMakerViewModel: ObservableObject {
     @Published var multiplicationEnabled: Bool = false
     @Published var divisionEnabled: Bool = false
     @Published var addSubRange: Double = 20
-    @Published var multDivRange: Double = 5
+    @Published var selectedTimesTables: Set<Int> = [2, 5, 10]
     @Published var gridRows: Int = 4
     @Published var gridCols: Int = 5
 
@@ -39,8 +39,11 @@ class PuzzleMakerViewModel: ObservableObject {
 
     var hasValidOperations: Bool {
         if isCustomMode {
-            return additionEnabled || subtractionEnabled ||
-                   multiplicationEnabled || divisionEnabled
+            let hasOperation = additionEnabled || subtractionEnabled ||
+                multiplicationEnabled || divisionEnabled
+            let tablesAreValid = !(multiplicationEnabled || divisionEnabled) ||
+                !selectedTimesTables.isEmpty
+            return hasOperation && tablesAreValid
         }
         return true
     }
@@ -101,6 +104,11 @@ class PuzzleMakerViewModel: ObservableObject {
         case "÷": return divisionEnabled
         default: return false
         }
+    }
+
+    func setTimesTables(_ tables: Set<Int>) {
+        selectedTimesTables = Set(tables.filter { (1...12).contains($0) })
+        clearPuzzles()
     }
 
     func setGridRows(_ rows: Int) {
@@ -183,6 +191,9 @@ class PuzzleMakerViewModel: ObservableObject {
     private func createCustomDifficulty() -> DifficultySettings {
         let rows = gridRows
         let cols = gridCols
+        let usesTables = multiplicationEnabled || divisionEnabled
+        let maximumTableProduct = (selectedTimesTables.max() ?? 1) * 12
+        let hasAddSub = additionEnabled || subtractionEnabled
 
         return DifficultySettings(
             name: "Custom",
@@ -191,9 +202,10 @@ class PuzzleMakerViewModel: ObservableObject {
             multiplicationEnabled: multiplicationEnabled,
             divisionEnabled: divisionEnabled,
             addSubRange: Int(addSubRange),
-            multDivRange: Int(multDivRange),
-            connectorMin: 5,
-            connectorMax: max(Int(addSubRange), multiplicationEnabled || divisionEnabled ? Int(multDivRange) * Int(multDivRange) : Int(addSubRange)),
+            multDivRange: usesTables ? 12 : 0,
+            selectedTimesTables: usesTables ? selectedTimesTables : nil,
+            connectorMin: usesTables && !hasAddSub ? 1 : 5,
+            connectorMax: max(Int(addSubRange), usesTables ? maximumTableProduct : Int(addSubRange)),
             gridRows: rows,
             gridCols: cols,
             minPathLength: DifficultyPresets.calculateMinPathLength(rows: rows, cols: cols),
@@ -225,6 +237,9 @@ class PuzzleMakerViewModel: ObservableObject {
             opsStr = ops.dropLast().joined(separator: ", ") + " & " + (ops.last ?? "")
         }
 
-        return "\(opsStr.capitalized), numbers up to \(preset.addSubRange), \(preset.gridRows)×\(preset.gridCols) grid"
+        let tableDescription = preset.timesTables.isEmpty
+            ? ""
+            : ", tables \(preset.timesTables.sorted().map(String.init).joined(separator: ", "))"
+        return "\(opsStr.capitalized), numbers up to \(preset.addSubRange)\(tableDescription), \(preset.gridRows)×\(preset.gridCols) grid"
     }
 }

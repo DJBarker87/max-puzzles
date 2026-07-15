@@ -148,8 +148,13 @@ enum ConnectorBuilder {
         maxValue: Int,
         divisionEnabled: Bool = false,
         solutionPath: [Coordinate] = [],
-        multDivRange: Int = 12
+        multDivRange: Int = 12,
+        allowedValues: [Int]? = nil
     ) -> ValueAssignmentResult {
+
+        guard minValue <= maxValue else {
+            return .failure("Connector range is empty")
+        }
 
         // Build map: cellKey -> list of connector indices touching that cell
         var cellConnectorMap: [String: [Int]] = [:]
@@ -162,8 +167,17 @@ enum ConnectorBuilder {
             cellConnectorMap[keyB, default: []].append(index)
         }
 
-        // Create array with nil values initially
-        var connectorValues: [Int?] = Array(repeating: nil, count: unvaluedConnectors.count)
+        let palette = allowedValues.map { values in
+            Array(Set(values.filter { (minValue...maxValue).contains($0) })).sorted()
+        } ?? Array(minValue...maxValue)
+        guard !palette.isEmpty else {
+            return .failure("The selected times tables do not provide any connector values")
+        }
+        if let impossibleCell = cellConnectorMap.first(where: { $0.value.count > palette.count }) {
+            return .failure(
+                "Cell \(impossibleCell.key) needs \(impossibleCell.value.count) unique values, but the range only has \(palette.count)"
+            )
+        }
 
         // When division is enabled, identify path connectors and reserve some for division
         var divisionConnectorIndices: [Int] = []
@@ -182,60 +196,16 @@ enum ConnectorBuilder {
             let shuffledPathIndices = pathConnectorIndices.shuffled()
             divisionConnectorIndices = Array(shuffledPathIndices.prefix(numDivisionConnectors))
 
-            // Assign division connectors FIRST with small values (1 to multDivRange)
-            for index in divisionConnectorIndices {
-                if let value = assignValueToConnector(
-                    index: index,
-                    unvaluedConnectors: unvaluedConnectors,
-                    connectorValues: &connectorValues,
-                    cellConnectorMap: cellConnectorMap,
-                    minValue: max(1, minValue),
-                    maxValue: min(multDivRange, maxValue),
-                    preferSmall: true,
-                    maxSmallValue: multDivRange
-                ) {
-                    connectorValues[index] = value
-                } else {
-                    // Fallback to full range
-                    if let fallbackValue = assignValueToConnector(
-                        index: index,
-                        unvaluedConnectors: unvaluedConnectors,
-                        connectorValues: &connectorValues,
-                        cellConnectorMap: cellConnectorMap,
-                        minValue: minValue,
-                        maxValue: maxValue,
-                        preferSmall: false
-                    ) {
-                        connectorValues[index] = fallbackValue
-                    } else {
-                        let connector = unvaluedConnectors[index]
-                        return .failure("No available values for division connector between \(connector.cellA.key) and \(connector.cellB.key)")
-                    }
-                }
-            }
         }
 
-        // Assign remaining connectors in shuffled order
-        let assignedIndices = Set(divisionConnectorIndices)
-        let remainingIndices = (0..<unvaluedConnectors.count)
-            .filter { !assignedIndices.contains($0) }
-            .shuffled()
-
-        for index in remainingIndices {
-            if let value = assignValueToConnector(
-                index: index,
-                unvaluedConnectors: unvaluedConnectors,
-                connectorValues: &connectorValues,
-                cellConnectorMap: cellConnectorMap,
-                minValue: minValue,
-                maxValue: maxValue,
-                preferSmall: false
-            ) {
-                connectorValues[index] = value
-            } else {
-                let connector = unvaluedConnectors[index]
-                return .failure("No available values for connector between \(connector.cellA.key) and \(connector.cellB.key)")
-            }
+        guard let connectorValues = solveConnectorValues(
+            unvaluedConnectors: unvaluedConnectors,
+            cellConnectorMap: cellConnectorMap,
+            palette: palette,
+            divisionConnectorIndices: Set(divisionConnectorIndices),
+            multDivRange: multDivRange
+        ) else {
+            return .failure("No unique connector-value assignment exists for this graph and range")
         }
 
         // Convert to Connector type
@@ -244,7 +214,7 @@ enum ConnectorBuilder {
                 type: uv.type,
                 cellA: uv.cellA,
                 cellB: uv.cellB,
-                value: connectorValues[index]!,
+                value: connectorValues[index],
                 direction: uv.direction
             )
         }
@@ -270,52 +240,94 @@ enum ConnectorBuilder {
         return false
     }
 
-    /// Assign a value to a single connector
-    private static func assignValueToConnector(
-        index: Int,
+    /// Edge-colour the connector graph. A one-pass random greedy assignment can paint itself into
+    /// a corner even when a valid assignment exists, especially in Level 1's six-value palette.
+    /// Most-constrained-first backtracking makes those launches reliable while staying tiny for
+    /// the small grids used by the game.
+    private static func solveConnectorValues(
         unvaluedConnectors: [UnvaluedConnector],
-        connectorValues: inout [Int?],
         cellConnectorMap: [String: [Int]],
-        minValue: Int,
-        maxValue: Int,
-        preferSmall: Bool,
-        maxSmallValue: Int = 12
-    ) -> Int? {
-        let connector = unvaluedConnectors[index]
+        palette: [Int],
+        divisionConnectorIndices: Set<Int>,
+        multDivRange: Int
+    ) -> [Int]? {
+        guard !unvaluedConnectors.isEmpty else { return [] }
 
-        // Collect all values already used by connectors touching cellA or cellB
-        var usedValues = Set<Int>()
+        var values = Array<Int?>(repeating: nil, count: unvaluedConnectors.count)
+        var usedByCell: [String: Set<Int>] = [:]
+        for key in cellConnectorMap.keys {
+            usedByCell[key] = []
+        }
 
-        let touchingA = cellConnectorMap[connector.cellA.key] ?? []
-        let touchingB = cellConnectorMap[connector.cellB.key] ?? []
+        var unassigned = Set(unvaluedConnectors.indices)
+        var exploredNodes = 0
+        let nodeBudget = max(250_000, unvaluedConnectors.count * 5_000)
 
-        for i in touchingA {
-            if let value = connectorValues[i] {
-                usedValues.insert(value)
+        func availableValues(for index: Int) -> [Int] {
+            let connector = unvaluedConnectors[index]
+            let usedA = usedByCell[connector.cellA.key] ?? []
+            let usedB = usedByCell[connector.cellB.key] ?? []
+            return palette.filter { !usedA.contains($0) && !usedB.contains($0) }
+        }
+
+        func orderedValues(_ available: [Int], for index: Int) -> [Int] {
+            guard divisionConnectorIndices.contains(index) else {
+                return available.shuffled()
             }
+
+            let small = available.filter { $0 <= multDivRange }.shuffled()
+            let remaining = available.filter { $0 > multDivRange }.shuffled()
+            return small + remaining
         }
-        for i in touchingB {
-            if let value = connectorValues[i] {
-                usedValues.insert(value)
+
+        func solve() -> Bool {
+            guard !unassigned.isEmpty else { return true }
+            exploredNodes += 1
+            guard exploredNodes <= nodeBudget else { return false }
+
+            var selectedIndex: Int?
+            var selectedAvailable: [Int] = []
+            var selectedDegree = -1
+
+            for index in unassigned {
+                let available = availableValues(for: index)
+                if available.isEmpty { return false }
+
+                let connector = unvaluedConnectors[index]
+                let degree = (cellConnectorMap[connector.cellA.key]?.count ?? 0)
+                    + (cellConnectorMap[connector.cellB.key]?.count ?? 0)
+
+                if selectedIndex == nil
+                    || available.count < selectedAvailable.count
+                    || (available.count == selectedAvailable.count && degree > selectedDegree) {
+                    selectedIndex = index
+                    selectedAvailable = available
+                    selectedDegree = degree
+                }
             }
-        }
 
-        // Find available values
-        var available = (minValue...maxValue).filter { !usedValues.contains($0) }
+            guard let index = selectedIndex else { return true }
+            let connector = unvaluedConnectors[index]
+            unassigned.remove(index)
 
-        if available.isEmpty {
-            return nil
-        }
+            for value in orderedValues(selectedAvailable, for: index) {
+                values[index] = value
+                usedByCell[connector.cellA.key, default: []].insert(value)
+                usedByCell[connector.cellB.key, default: []].insert(value)
 
-        // If preferring small values, filter to small values if possible
-        if preferSmall {
-            let smallValues = available.filter { $0 <= maxSmallValue }
-            if !smallValues.isEmpty {
-                return smallValues.randomElement()
+                if solve() { return true }
+
+                usedByCell[connector.cellA.key]?.remove(value)
+                usedByCell[connector.cellB.key]?.remove(value)
+                values[index] = nil
             }
+
+            unassigned.insert(index)
+            return false
         }
 
-        return available.randomElement()
+        guard solve() else { return nil }
+        return values.compactMap { $0 }
     }
 
     // MARK: - Helper Functions for External Use

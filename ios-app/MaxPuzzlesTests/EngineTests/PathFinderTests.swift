@@ -36,6 +36,23 @@ final class PathFinderTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(successCount, 15, "At least 15/20 paths should generate successfully")
     }
 
+    func testPathNeverExceedsMaximumWhenFinishIsOneMoveAway() {
+        let maxLength = 15
+
+        for _ in 0..<100 {
+            let result = PathFinder.generatePath(
+                rows: 4,
+                cols: 5,
+                minLength: 6,
+                maxLength: maxLength
+            )
+
+            if result.success {
+                XCTAssertLessThanOrEqual(result.path.count, maxLength)
+            }
+        }
+    }
+
     func testPathHasNoDuplicates() {
         let result = PathFinder.generatePath(rows: 5, cols: 5, minLength: 10, maxLength: 20)
 

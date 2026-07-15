@@ -5,6 +5,7 @@ import SwiftUI
 struct SplashView: View {
     @EnvironmentObject var appState: AppState
     @EnvironmentObject var musicService: MusicService
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     // Animation states
     @State private var phase: SplashPhase = .initial
@@ -67,7 +68,13 @@ struct SplashView: View {
             .padding(.top, 60)
         }
         .onAppear {
-            startPremiumAnimation()
+            if reduceMotion {
+                phase = .complete
+                titleOpacity = 1
+                subtitleOpacity = 1
+            } else {
+                startPremiumAnimation()
+            }
             initializeApp()
         }
     }
@@ -129,12 +136,18 @@ struct SplashView: View {
         // Use Task for @MainActor isolation compliance
         // This ensures proper actor isolation when calling MusicService methods
         Task { @MainActor in
-            // Start hub music after 0.5s
-            try? await Task.sleep(nanoseconds: 500_000_000)
+            if reduceMotion {
+                appState.completeLoading()
+                musicService.play(track: .hub)
+                return
+            }
+
+            // Preserve a brief branded hand-off without making returning children wait through
+            // the entire decorative animation on every launch.
+            try? await Task.sleep(nanoseconds: 100_000_000)
             musicService.play(track: .hub)
 
-            // Transition to hub after 1.5s more (2s total from start)
-            try? await Task.sleep(nanoseconds: 1_500_000_000)
+            try? await Task.sleep(nanoseconds: 200_000_000)
             appState.completeLoading()
         }
     }

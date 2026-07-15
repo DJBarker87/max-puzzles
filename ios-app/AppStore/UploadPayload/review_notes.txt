@@ -1,0 +1,13 @@
+No account, sign-in, payment or network connection is required. The app contains no adverts, in-app purchases, third-party analytics or tracking SDKs.
+
+Suggested review path:
+
+1. On the hub, select Comet Writer.
+2. Select Quick Practice to choose any lowercase letter, capital or number.
+3. Select Start with c to see the three-stage guided formation lesson.
+4. Under Ready for a challenge, select Word Mission to write a complete word on one screen.
+5. Under Grown-up tools, open Mission Control or My Words. The random multiplication question is the parental gate; there is no fixed passcode.
+6. Microphone access is requested only after a grown-up passes the gate, opens My Words and explicitly chooses to record a local pronunciation.
+7. Return to the hub, select Circuit Challenge, then Quick Play and Custom Settings. Enable multiplication or division to see the individual times-table picker.
+
+All child profiles, scores, writing traces, custom words and optional audio recordings are stored locally. A grown-up may explicitly export a locally generated progress report or puzzle through the system share sheet. Pencil-only input is shown only on iPad, where Apple Pencil is available.

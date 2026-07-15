@@ -2,10 +2,13 @@ import SwiftUI
 
 /// Premium card displaying a puzzle module with glass effect and micro-interactions
 struct ModuleCardView: View {
+    @Environment(\.verticalSizeClass) private var verticalSizeClass
+
     let title: String
     let description: String
     let iconName: String
     var imageName: String? = nil  // Optional custom image instead of SF Symbol
+    var iconGlowColor: Color = AppTheme.accentPrimary
     let isLocked: Bool
     let action: () -> Void
 
@@ -14,9 +17,14 @@ struct ModuleCardView: View {
     @State private var iconBounce = false
     @State private var glowPulse: CGFloat = 0
 
+    private var isCompactHeight: Bool { verticalSizeClass == .compact }
+    private var iconFrameSize: CGFloat { isCompactHeight ? 88 : 120 }
+    private var symbolGlowSize: CGFloat { isCompactHeight ? 80 : 104 }
+    private var symbolCircleSize: CGFloat { isCompactHeight ? 72 : 96 }
+
     var body: some View {
         Button(action: handleTap) {
-            VStack(spacing: AppSpacing.md) {
+            VStack(spacing: isCompactHeight ? 10 : AppSpacing.md) {
                 // Icon with glow
                 ZStack {
                     // Custom image or SF Symbol icon
@@ -25,14 +33,17 @@ struct ModuleCardView: View {
                         Image(imageName)
                             .resizable()
                             .scaledToFit()
-                            .frame(width: 120, height: 120)
-                            .shadow(color: AppTheme.accentPrimary.opacity(0.6), radius: 15)
+                            .frame(
+                                width: iconFrameSize,
+                                height: iconFrameSize
+                            )
+                            .shadow(color: iconGlowColor.opacity(0.62), radius: 15)
                             .scaleEffect(iconBounce ? 1.08 : 1.0)
                     } else {
                         // Outer glow
                         Circle()
                             .fill(AppTheme.accentPrimary.opacity(0.2 + glowPulse * 0.15))
-                            .frame(width: 90, height: 90)
+                            .frame(width: symbolGlowSize, height: symbolGlowSize)
                             .blur(radius: 12)
 
                         // Glass circle
@@ -47,7 +58,7 @@ struct ModuleCardView: View {
                                     endPoint: .bottomTrailing
                                 )
                             )
-                            .frame(width: 80, height: 80)
+                            .frame(width: symbolCircleSize, height: symbolCircleSize)
                             .overlay(
                                 Circle()
                                     .stroke(
@@ -65,17 +76,21 @@ struct ModuleCardView: View {
 
                         // Icon
                         Image(systemName: iconName)
-                            .font(.system(size: 36, weight: .semibold))
+                            .font(.system(size: isCompactHeight ? 32 : 42, weight: .semibold))
                             .foregroundColor(AppTheme.accentPrimary)
                             .shadow(color: AppTheme.accentPrimary.opacity(0.5), radius: 6)
                             .scaleEffect(iconBounce ? 1.1 : 1.0)
                     }
                 }
+                .frame(width: iconFrameSize, height: iconFrameSize)
 
                 // Title with electric typography - bold with glow effect
                 Text(title)
-                    .font(.system(size: 22, weight: .heavy, design: .rounded))
+                    .font(.system(size: isCompactHeight ? 19 : 22, weight: .heavy, design: .rounded))
                     .foregroundColor(.white)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2, reservesSpace: true)
+                    .minimumScaleFactor(0.82)
                     .shadow(color: AppTheme.connectorGlow.opacity(0.8), radius: 8)
                     .shadow(color: AppTheme.accentPrimary.opacity(0.5), radius: 4)
 
@@ -84,7 +99,7 @@ struct ModuleCardView: View {
                     .font(.system(size: 14, weight: .regular, design: .rounded))
                     .foregroundColor(AppTheme.textSecondary)
                     .multilineTextAlignment(.center)
-                    .lineLimit(2)
+                    .lineLimit(isCompactHeight ? 1 : 2, reservesSpace: true)
 
                 // Lock indicator or play button
                 if isLocked {
@@ -109,8 +124,9 @@ struct ModuleCardView: View {
                         )
                 }
             }
-            .padding(AppSpacing.lg)
-            .frame(width: 200)
+            .padding(.vertical, isCompactHeight ? AppSpacing.md : AppSpacing.lg)
+            .padding(.horizontal, AppSpacing.md)
+            .frame(maxWidth: .infinity)
             // Glass effect background
             .background(
                 ZStack {
@@ -170,8 +186,8 @@ struct ModuleCardView: View {
             .opacity(isLocked ? 0.6 : 1.0)
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("\(title). \(description)")
-        .accessibilityHint(isLocked ? "This module is locked" : "Double tap to play")
+        .accessibilityLabel(title)
+        .accessibilityHint(isLocked ? "This module is locked" : "\(description). Double tap to play")
         .accessibilityAddTraits(.isButton)
         .onHover { hovering in
             withAnimation(.easeOut(duration: 0.2)) {

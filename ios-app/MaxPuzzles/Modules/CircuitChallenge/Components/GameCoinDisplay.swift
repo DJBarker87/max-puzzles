@@ -2,7 +2,7 @@ import SwiftUI
 
 // MARK: - GameCoinDisplay
 
-/// Coin display for in-game showing current puzzle earnings with floating animations
+/// In-game puzzle-points display with floating feedback.
 struct GameCoinDisplay: View {
     let amount: Int
     let showChange: CoinAnimation?
@@ -30,13 +30,14 @@ struct GameCoinDisplay: View {
         ZStack(alignment: .top) {
             // Main display
             HStack(spacing: 6) {
-                // Coin icon
+                // Energy-point icon. Points are scoped to the current puzzle;
+                // they do not imply a currency or an unfinished shop.
                 Circle()
                     .fill(AppTheme.accentTertiary)
                     .frame(width: size.iconSize, height: size.iconSize)
                     .overlay {
-                        Text("$")
-                            .font(.system(size: size.iconSize * 0.6, weight: .bold))
+                        Image(systemName: "bolt.fill")
+                            .font(.system(size: size.iconSize * 0.5, weight: .bold))
                             .foregroundColor(.black)
                     }
 
@@ -54,6 +55,8 @@ struct GameCoinDisplay: View {
                 RoundedRectangle(cornerRadius: 20)
                     .stroke(Color.white.opacity(0.1), lineWidth: 1)
             )
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("Puzzle points: \(amount)")
 
             // Floating animation
             if let change = showChange {

@@ -136,6 +136,7 @@ export default function PuzzleGrid({
 
   const isCellClickable = (row: number, col: number): boolean => {
     if (disabled) return false
+    if (visitedCells.some(cell => cell.row === row && cell.col === col)) return false
     const rowDiff = Math.abs(row - currentPosition.row)
     const colDiff = Math.abs(col - currentPosition.col)
     return rowDiff <= 1 && colDiff <= 1 && !(rowDiff === 0 && colDiff === 0)

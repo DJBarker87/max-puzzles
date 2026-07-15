@@ -4,6 +4,7 @@ import SwiftUI
 struct FirstRunView: View {
     @EnvironmentObject var appState: AppState
     @EnvironmentObject var musicService: MusicService
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var playerName: String = ""
     @State private var alienOffset: CGFloat = 400  // Start below screen
@@ -25,8 +26,13 @@ struct FirstRunView: View {
             // Solid fallback background
             AppTheme.backgroundDark
                 .ignoresSafeArea()
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    isTextFieldFocused = false
+                }
 
             SplashBackground(overlayOpacity: 0.4)
+                .allowsHitTesting(false)
 
             VStack(spacing: 20) {
                 Spacer()
@@ -74,10 +80,12 @@ struct FirstRunView: View {
                         .cornerRadius(14)
                         .shadow(color: playerName.isEmpty ? .clear : AppTheme.accentPrimary.opacity(0.4), radius: 12)
                     }
+                    .accessibilityLabel(playerName.isEmpty ? "Skip" : "Let's Play!")
                 }
                 .frame(maxWidth: 400)
                 .padding(.horizontal, 24)
                 .opacity(inputOpacity)
+                .accessibilityHidden(inputOpacity < 0.9)
 
                 // Speech bubble (appears above alien)
                 SpeechBubble(pointsUp: false) {
@@ -86,9 +94,10 @@ struct FirstRunView: View {
                             .font(.system(size: 17, weight: .bold))
                             .foregroundColor(AppTheme.backgroundDark)
 
-                        Text("What's your name?")
+                        Text("What's your name? It stays on this device.")
                             .font(.system(size: 15, weight: .medium))
                             .foregroundColor(AppTheme.backgroundDark.opacity(0.8))
+                            .multilineTextAlignment(.center)
                     }
                 }
                 .padding(.horizontal, 50)
@@ -106,14 +115,17 @@ struct FirstRunView: View {
             .padding(.bottom, -40) // Let alien overlap bottom edge slightly
         }
         .opacity(isExiting ? 0 : 1)
-        .onTapGesture {
-            // Dismiss keyboard when tapping outside text field
-            isTextFieldFocused = false
-        }
         .onAppear {
             // Pick a random alien on appear (avoids init-time randomization issues)
             welcomeAlien = ChapterAlien.all.randomElement() ?? ChapterAlien.all[0]
-            startAnimations()
+            if reduceMotion {
+                alienOffset = 0
+                alienArrived = true
+                bubbleOpacity = 1
+                inputOpacity = 1
+            } else {
+                startAnimations()
+            }
 
             // Ensure music is playing (in case it wasn't started in splash)
             if !musicService.isPlaying {
@@ -156,6 +168,11 @@ struct FirstRunView: View {
 
         // Haptic feedback
         FeedbackManager.shared.haptic(.success)
+
+        if reduceMotion {
+            appState.completeFirstRun()
+            return
+        }
 
         // Exit animation - alien drops back down
         withAnimation(.easeIn(duration: 0.3)) {

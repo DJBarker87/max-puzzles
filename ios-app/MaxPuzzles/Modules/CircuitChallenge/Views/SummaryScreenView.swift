@@ -7,6 +7,7 @@ struct SummaryScreenView: View {
     let data: SummaryData
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     /// Callback when user wants to play again / retry
     var onPlayAgain: (() -> Void)?
@@ -32,7 +33,7 @@ struct SummaryScreenView: View {
     @State private var characterOpacity: Double = 0
     @State private var resultsOpacity: Double = 0
 
-    // State for chapter complete celebration (Level 5 wins)
+    // State for chapter complete celebration (Level 7 wins)
     @State private var showingChapterComplete = false
     @State private var nextAlienScale: CGFloat = 0.1
     @State private var nextAlienOpacity: Double = 0
@@ -87,28 +88,30 @@ struct SummaryScreenView: View {
         }
         .navigationBarHidden(true)
         .onAppear {
-            // Chapter complete celebration for Level 5 wins
+            // Chapter complete celebration for Level 7 wins
             if isChapterComplete {
                 showingCharacter = false
                 showingChapterComplete = true
                 startChapterCompleteCelebration()
             } else if data.isHiddenMode {
                 // Skip character reveal for hidden mode (non-chapter complete)
-                // Play win or lose music
+                // Celebrate wins; use the short, gentle correction cue for a retry screen.
                 if data.won {
                     musicService.play(track: .victory, loop: false)
                 } else {
-                    musicService.play(track: .lose, loop: false)
+                    musicService.stop()
+                    SoundEffectsService.shared.play(.levelFail)
                 }
                 showingCharacter = false
                 resultsOpacity = 1
             } else {
                 // Regular mode with character reveal
-                // Play win or lose music
+                // Celebrate wins; failure feedback stays brief and non-alarming.
                 if data.won {
                     musicService.play(track: .victory, loop: false)
                 } else {
-                    musicService.play(track: .lose, loop: false)
+                    musicService.stop()
+                    SoundEffectsService.shared.play(.levelFail)
                 }
                 startCharacterReveal()
             }
@@ -223,12 +226,14 @@ struct SummaryScreenView: View {
                                 .opacity(nextAlienOpacity)
                         }
                     }
+
+                    PrimaryButton("Continue", icon: "arrow.right") {
+                        transitionFromChapterComplete()
+                    }
+                    .opacity(nextAlienOpacity)
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-        }
-        .onTapGesture {
-            transitionFromChapterComplete()
         }
     }
 
@@ -337,14 +342,19 @@ struct SummaryScreenView: View {
                         }
                     }
                 }
+
+                VStack {
+                    Spacer()
+                    PrimaryButton("Continue", icon: "arrow.right") {
+                        transitionToResults()
+                    }
+                    .padding(.bottom, 28)
+                }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .scaleEffect(characterScale)
         .opacity(characterOpacity)
-        .onTapGesture {
-            transitionToResults()
-        }
     }
 
     // Get the player name for personalization
@@ -397,6 +407,12 @@ struct SummaryScreenView: View {
     }
 
     private func startCharacterReveal() {
+        if reduceMotion {
+            characterScale = 1
+            characterOpacity = 1
+            return
+        }
+
         // Animate character in
         withAnimation(.spring(response: 0.6, dampingFraction: 0.7)) {
             characterScale = 1.0
@@ -476,10 +492,10 @@ struct SummaryScreenView: View {
                             .background(Color.white.opacity(0.1))
                             .padding(.vertical, 8)
 
-                        // Coins summary
+                        // Puzzle points summary
                         VStack(spacing: 4) {
                             HStack {
-                                Text("Coins:")
+                                Text("Points:")
                                     .foregroundColor(.white)
                                 Text("+\(data.puzzleCoins)")
                                     .foregroundColor(AppTheme.accentTertiary)
@@ -559,7 +575,7 @@ struct SummaryScreenView: View {
                             Text("+\(data.puzzleCoins)")
                                 .foregroundColor(AppTheme.accentTertiary)
                                 .fontWeight(.bold)
-                            Text("Coins")
+                            Text("Points")
                                 .foregroundColor(AppTheme.textSecondary)
                                 .font(.system(size: 11))
                         }
@@ -585,7 +601,7 @@ struct SummaryScreenView: View {
                         .font(.system(size: statFontSize))
 
                         HStack {
-                            Text("Coins:")
+                            Text("Points:")
                                 .foregroundColor(AppTheme.textSecondary)
                             Text("+\(data.puzzleCoins)")
                                 .foregroundColor(AppTheme.accentTertiary)
@@ -650,7 +666,7 @@ struct SummaryScreenView: View {
                     .padding(.horizontal, 8)
 
                 HStack {
-                    Text("Coins:")
+                    Text("Points:")
                         .foregroundColor(AppTheme.textSecondary)
                     Text("+\(data.puzzleCoins)")
                         .foregroundColor(AppTheme.accentTertiary)
@@ -670,7 +686,7 @@ struct SummaryScreenView: View {
     // MARK: - Action Buttons
 
     private func actionButtons(compact: Bool = false, extraCompact: Bool = false) -> some View {
-        let buttonPadding: CGFloat = extraCompact ? 8 : (compact ? 12 : 16)
+        let buttonPadding: CGFloat = extraCompact ? 14 : (compact ? 14 : 16)
         let fontSize: CGFloat = extraCompact ? 14 : (compact ? 15 : 17)
         let spacing: CGFloat = extraCompact ? 4 : (compact ? 8 : 12)
         let cornerRadius: CGFloat = extraCompact ? 8 : 12
@@ -792,7 +808,7 @@ struct SummaryScreenView: View {
                 Text("Exit")
                     .font(.system(size: fontSize, weight: .semibold))
                     .foregroundColor(AppTheme.textSecondary)
-                    .frame(maxWidth: .infinity)
+                    .frame(maxWidth: .infinity, minHeight: 44)
                     .padding(.vertical, extraCompact ? 6 : (compact ? 10 : 16))
             }
         }
@@ -808,7 +824,7 @@ struct SummaryScreenView: View {
     }
 
     private func loseActionButtons(compact: Bool = false, extraCompact: Bool = false) -> some View {
-        let buttonPadding: CGFloat = extraCompact ? 8 : (compact ? 12 : 16)
+        let buttonPadding: CGFloat = extraCompact ? 14 : (compact ? 14 : 16)
         let fontSize: CGFloat = extraCompact ? 14 : (compact ? 15 : 17)
         let spacing: CGFloat = extraCompact ? 4 : (compact ? 8 : 12)
         let cornerRadius: CGFloat = extraCompact ? 8 : 12
@@ -876,7 +892,7 @@ struct SummaryScreenView: View {
                 Text("Exit")
                     .font(.system(size: fontSize, weight: .semibold))
                     .foregroundColor(AppTheme.textSecondary)
-                    .frame(maxWidth: .infinity)
+                    .frame(maxWidth: .infinity, minHeight: 44)
                     .padding(.vertical, extraCompact ? 6 : (compact ? 10 : 16))
             }
         }

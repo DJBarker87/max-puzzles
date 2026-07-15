@@ -218,15 +218,14 @@ class FeedbackManager: ObservableObject {
             ))
 
         case .wrongMove:
-            // Buzz pattern - error feel
+            // A soft single nudge communicates "try again" without an alarm-like buzz.
             events.append(CHHapticEvent(
-                eventType: .hapticContinuous,
+                eventType: .hapticTransient,
                 parameters: [
-                    CHHapticEventParameter(parameterID: .hapticIntensity, value: 0.8),
-                    CHHapticEventParameter(parameterID: .hapticSharpness, value: 0.8)
+                    CHHapticEventParameter(parameterID: .hapticIntensity, value: 0.35),
+                    CHHapticEventParameter(parameterID: .hapticSharpness, value: 0.18)
                 ],
-                relativeTime: 0,
-                duration: 0.15
+                relativeTime: 0
             ))
 
         case .starReveal:
@@ -285,8 +284,10 @@ class FeedbackManager: ObservableObject {
         switch type {
         case .correctMove, .starReveal:
             notificationFeedback.notificationOccurred(.success)
-        case .wrongMove, .levelFail:
-            notificationFeedback.notificationOccurred(.error)
+        case .wrongMove:
+            impactSoft.impactOccurred(intensity: 0.45)
+        case .levelFail:
+            impactMedium.impactOccurred(intensity: 0.65)
         case .levelComplete:
             // Triple success
             notificationFeedback.notificationOccurred(.success)
@@ -304,12 +305,10 @@ class FeedbackManager: ObservableObject {
     // MARK: - Screen Shake
 
     /// Trigger screen shake animation for wrong moves
-    func triggerShake() {
+    func triggerShake(enabled: Bool = true) {
+        guard enabled else { return }
         isShaking = true
         shakeAmount = 1
-
-        // Also trigger haptic
-        haptic(.wrongMove)
 
         // Auto-reset after 300ms (matches web app)
         shakeTimer?.cancel()

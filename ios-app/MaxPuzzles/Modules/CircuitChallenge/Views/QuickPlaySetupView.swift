@@ -7,7 +7,7 @@ struct QuickPlaySetupView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.verticalSizeClass) private var verticalSizeClass
 
-    @State private var selectedPreset: Int = 4 // Default to Level 5
+    @State private var selectedPreset: Int = 0 // Start new players at Level 1
     @State private var isCustomMode: Bool = false
     @State private var hiddenMode: Bool = false
 
@@ -17,7 +17,7 @@ struct QuickPlaySetupView: View {
     @State private var multiplicationEnabled: Bool = false
     @State private var divisionEnabled: Bool = false
     @State private var addSubRange: Double = 20
-    @State private var multDivRange: Double = 5
+    @State private var selectedTimesTables: Set<Int> = [2, 5, 10]
     @State private var gridRows: Int = 4
     @State private var gridCols: Int = 5
 
@@ -29,13 +29,16 @@ struct QuickPlaySetupView: View {
     }
 
     private var currentPreset: DifficultySettings {
-        DifficultyPresets.byLevel(selectedPreset + 1)
+        DifficultyPresets.byLevel(selectedPreset + 1).cappedForDevice()
     }
 
     private var hasValidOperations: Bool {
         if isCustomMode {
-            return additionEnabled || subtractionEnabled ||
-                   multiplicationEnabled || divisionEnabled
+            let hasOperation = additionEnabled || subtractionEnabled ||
+                multiplicationEnabled || divisionEnabled
+            let tablesAreValid = !(multiplicationEnabled || divisionEnabled) ||
+                !selectedTimesTables.isEmpty
+            return hasOperation && tablesAreValid
         }
         return true
     }
@@ -111,10 +114,12 @@ struct QuickPlaySetupView: View {
 
             // Right column: Custom settings (if enabled)
             if isCustomMode {
-                VStack(spacing: 8) {
-                    compactCustomSettingsCard
-                    Spacer()
+                ScrollView {
+                    VStack(spacing: 8) {
+                        compactCustomSettingsCard
+                    }
                 }
+                .scrollIndicators(.hidden)
                 .frame(maxWidth: .infinity)
             }
         }
@@ -219,8 +224,12 @@ struct QuickPlaySetupView: View {
                     .tint(AppTheme.accentPrimary)
             }
 
+            if multiplicationEnabled || divisionEnabled {
+                TimesTablePicker(selection: $selectedTimesTables, compact: true)
+            }
+
             // Grid size
-            HStack(spacing: 16) {
+            VStack(alignment: .leading, spacing: 8) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Rows")
                         .font(.system(size: 11))
@@ -252,7 +261,7 @@ struct QuickPlaySetupView: View {
         Button(action: { isOn.wrappedValue.toggle() }) {
             Text(symbol)
                 .font(.system(size: 16, weight: .bold))
-                .frame(width: 36, height: 36)
+                .frame(width: 44, height: 44)
                 .background(isOn.wrappedValue ? AppTheme.accentPrimary : AppTheme.backgroundDark)
                 .foregroundColor(.white)
                 .cornerRadius(8)
@@ -263,7 +272,7 @@ struct QuickPlaySetupView: View {
         Button(action: action) {
             Text("\(value)")
                 .font(.system(size: 12, weight: .medium))
-                .frame(width: 28, height: 28)
+                .frame(width: 44, height: 44)
                 .background(selected ? AppTheme.accentPrimary : AppTheme.backgroundDark)
                 .foregroundColor(.white)
                 .cornerRadius(6)
@@ -354,15 +363,9 @@ struct QuickPlaySetupView: View {
                             .tint(AppTheme.accentPrimary)
                     }
 
-                    // Mult/Div Range (if enabled)
+                    // Exact multiplication/division facts (if enabled)
                     if multiplicationEnabled || divisionEnabled {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("×/÷ Number Range: \(Int(multDivRange))")
-                                .font(.system(size: 14))
-                                .foregroundColor(.white)
-                            Slider(value: $multDivRange, in: 2...12, step: 1)
-                                .tint(AppTheme.accentPrimary)
-                        }
+                        TimesTablePicker(selection: $selectedTimesTables)
                     }
 
                     // Grid Size
@@ -389,7 +392,11 @@ struct QuickPlaySetupView: View {
             }
 
             if !hasValidOperations {
-                Text("At least one operation must be enabled")
+                Text(
+                    (multiplicationEnabled || divisionEnabled) && selectedTimesTables.isEmpty
+                        ? "Choose at least one times table"
+                        : "At least one operation must be enabled"
+                )
                     .font(.system(size: 12))
                     .foregroundColor(AppTheme.error)
             }
@@ -445,7 +452,7 @@ struct QuickPlaySetupView: View {
         Button(action: action) {
             Text("\(value)")
                 .font(.system(size: 14, weight: .medium))
-                .frame(width: 36, height: 36)
+                .frame(width: 44, height: 44)
                 .background(selected ? AppTheme.accentPrimary : AppTheme.backgroundDark)
                 .foregroundColor(.white)
                 .cornerRadius(8)
@@ -490,6 +497,9 @@ struct QuickPlaySetupView: View {
     private func createCustomDifficulty() -> DifficultySettings {
         let rows = gridRows
         let cols = gridCols
+        let usesTables = multiplicationEnabled || divisionEnabled
+        let maximumTableProduct = (selectedTimesTables.max() ?? 1) * 12
+        let hasAddSub = additionEnabled || subtractionEnabled
 
         return DifficultySettings(
             name: "Custom",
@@ -498,9 +508,10 @@ struct QuickPlaySetupView: View {
             multiplicationEnabled: multiplicationEnabled,
             divisionEnabled: divisionEnabled,
             addSubRange: Int(addSubRange),
-            multDivRange: Int(multDivRange),
-            connectorMin: 5,
-            connectorMax: max(Int(addSubRange), multiplicationEnabled || divisionEnabled ? Int(multDivRange) * Int(multDivRange) : Int(addSubRange)),
+            multDivRange: usesTables ? 12 : 0,
+            selectedTimesTables: usesTables ? selectedTimesTables : nil,
+            connectorMin: usesTables && !hasAddSub ? 1 : 5,
+            connectorMax: max(Int(addSubRange), usesTables ? maximumTableProduct : Int(addSubRange)),
             gridRows: rows,
             gridCols: cols,
             minPathLength: DifficultyPresets.calculateMinPathLength(rows: rows, cols: cols),
@@ -514,6 +525,71 @@ struct QuickPlaySetupView: View {
             hiddenMode: hiddenMode,
             secondsPerStep: 7
         )
+    }
+}
+
+/// Shared by Quick Play and Puzzle Maker so exact table selection behaves identically.
+struct TimesTablePicker: View {
+    @Binding var selection: Set<Int>
+    var compact = false
+
+    private var columns: [GridItem] {
+        Array(
+            repeating: GridItem(.flexible(minimum: 44, maximum: 58), spacing: 6),
+            count: compact ? 4 : 6
+        )
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: compact ? 5 : 8) {
+            Text("Times tables")
+                .font(.system(size: compact ? 12 : 14, weight: .medium))
+                .foregroundColor(.white)
+
+            LazyVGrid(columns: columns, spacing: 6) {
+                ForEach(1...12, id: \.self) { table in
+                    let isSelected = selection.contains(table)
+                    Button {
+                        if isSelected {
+                            selection.remove(table)
+                        } else {
+                            selection.insert(table)
+                        }
+                        FeedbackManager.shared.haptic(.selection)
+                    } label: {
+                        Text("\(table)")
+                            .font(.system(size: compact ? 13 : 15, weight: .bold, design: .rounded))
+                            .foregroundColor(isSelected ? AppTheme.backgroundDark : .white)
+                            .frame(maxWidth: .infinity, minHeight: 44)
+                            .background(
+                                RoundedRectangle(cornerRadius: 9)
+                                    .fill(isSelected ? AppTheme.accentPrimary : AppTheme.backgroundDark)
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 9)
+                                    .stroke(
+                                        isSelected ? AppTheme.accentPrimary : Color.white.opacity(0.20),
+                                        lineWidth: 1
+                                    )
+                            )
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("times-table-\(table)")
+                    .accessibilityLabel("\(table) times table")
+                    .accessibilityAddTraits(isSelected ? .isSelected : [])
+                }
+            }
+
+            Text(selectionSummary)
+                .font(.system(size: compact ? 10 : 12, weight: .medium))
+                .foregroundColor(selection.isEmpty ? AppTheme.error : AppTheme.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private var selectionSummary: String {
+        guard !selection.isEmpty else { return "Choose at least one table" }
+        return selection.sorted().map(String.init).joined(separator: ", ") + " selected"
     }
 }
 

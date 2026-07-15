@@ -43,6 +43,14 @@ struct AppTheme {
     static let textSecondary = Color(hex: "a1a1aa")
     static let error = Color(hex: "ef4444")
 
+    // MARK: Comet Writer
+    static let cometCyan = Color(hex: "67e8f9")
+    static let cometPurple = Color(hex: "a78bfa")
+    static let cometGold = Color(hex: "fbbf24")
+    static let cometGuide = Color(hex: "dbeafe")
+    static let cometPaperTop = Color(hex: "202548")
+    static let cometPaperBottom = Color(hex: "151832")
+
     // MARK: Circuit Challenge Grid
     static let gridBackgroundTop = Color(hex: "0a0a12")
     static let gridBackgroundBottom = Color(hex: "0d0d18")

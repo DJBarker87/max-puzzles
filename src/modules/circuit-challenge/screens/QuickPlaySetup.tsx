@@ -38,7 +38,7 @@ export default function QuickPlaySetup() {
     playMusic('hub', true)
   }, [playMusic])
 
-  const [selectedPreset, setSelectedPreset] = useState(4) // Default to Level 5
+  const [selectedPreset, setSelectedPreset] = useState(0) // Start new players at Level 1
   const [isCustomMode, setIsCustomMode] = useState(false)
   const [hiddenMode, setHiddenMode] = useState(false)
 

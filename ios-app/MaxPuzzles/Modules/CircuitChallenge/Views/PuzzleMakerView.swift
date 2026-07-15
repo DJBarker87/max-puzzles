@@ -217,16 +217,14 @@ struct PuzzleMakerView: View {
                             .onChange(of: viewModel.addSubRange) { _ in viewModel.clearPuzzles() }
                     }
 
-                    // Mult/Div Range (if enabled)
+                    // Exact multiplication/division facts (if enabled)
                     if viewModel.multiplicationEnabled || viewModel.divisionEnabled {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("×/÷ Number Range: \(Int(viewModel.multDivRange))")
-                                .font(.system(size: 14))
-                                .foregroundColor(.white)
-                            Slider(value: $viewModel.multDivRange, in: 2...12, step: 1)
-                                .tint(AppTheme.accentPrimary)
-                                .onChange(of: viewModel.multDivRange) { _ in viewModel.clearPuzzles() }
-                        }
+                        TimesTablePicker(
+                            selection: Binding(
+                                get: { viewModel.selectedTimesTables },
+                                set: { viewModel.setTimesTables($0) }
+                            )
+                        )
                     }
 
                     // Grid Size
@@ -259,7 +257,12 @@ struct PuzzleMakerView: View {
             }
 
             if !viewModel.hasValidOperations {
-                Text("At least one operation must be enabled")
+                Text(
+                    (viewModel.multiplicationEnabled || viewModel.divisionEnabled) &&
+                        viewModel.selectedTimesTables.isEmpty
+                        ? "Choose at least one times table"
+                        : "At least one operation must be enabled"
+                )
                     .font(.system(size: 12))
                     .foregroundColor(AppTheme.error)
             }
@@ -317,7 +320,7 @@ struct PuzzleMakerView: View {
         Button(action: action) {
             Text("\(value)")
                 .font(.system(size: 14, weight: .medium))
-                .frame(width: 36, height: 36)
+                .frame(width: 44, height: 44)
                 .background(selected ? AppTheme.accentPrimary : AppTheme.backgroundDark)
                 .foregroundColor(.white)
                 .cornerRadius(8)
@@ -549,8 +552,18 @@ struct PuzzleMakerView: View {
                     .tint(AppTheme.accentPrimary)
             }
 
+            if viewModel.multiplicationEnabled || viewModel.divisionEnabled {
+                TimesTablePicker(
+                    selection: Binding(
+                        get: { viewModel.selectedTimesTables },
+                        set: { viewModel.setTimesTables($0) }
+                    ),
+                    compact: true
+                )
+            }
+
             // Grid size
-            HStack(spacing: 16) {
+            VStack(alignment: .leading, spacing: 8) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Rows")
                         .font(.system(size: 11))
@@ -586,7 +599,7 @@ struct PuzzleMakerView: View {
         Button(action: { viewModel.toggleOperation(symbol) }) {
             Text(symbol)
                 .font(.system(size: 16, weight: .bold))
-                .frame(width: 36, height: 36)
+                .frame(width: 44, height: 44)
                 .background(isOn ? AppTheme.accentPrimary : AppTheme.backgroundDark)
                 .foregroundColor(.white)
                 .cornerRadius(8)
@@ -597,7 +610,7 @@ struct PuzzleMakerView: View {
         Button(action: action) {
             Text("\(value)")
                 .font(.system(size: 12, weight: .medium))
-                .frame(width: 28, height: 28)
+                .frame(width: 44, height: 44)
                 .background(selected ? AppTheme.accentPrimary : AppTheme.backgroundDark)
                 .foregroundColor(.white)
                 .cornerRadius(6)

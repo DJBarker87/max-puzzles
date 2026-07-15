@@ -51,14 +51,14 @@ export function useGame(initialDifficulty?: DifficultySettings): UseGameReturn {
           const elapsed = Date.now() - startTimeRef.current
           dispatch({ type: 'TICK_TIMER', payload: elapsed })
         }
-        timerRef.current = requestAnimationFrame(tick)
       }
 
-      timerRef.current = requestAnimationFrame(tick)
+      tick()
+      timerRef.current = window.setInterval(tick, 1000)
 
       return () => {
         if (timerRef.current) {
-          cancelAnimationFrame(timerRef.current)
+          clearInterval(timerRef.current)
         }
       }
     }
@@ -72,7 +72,7 @@ export function useGame(initialDifficulty?: DifficultySettings): UseGameReturn {
       state.status === 'revealing'
     ) {
       if (timerRef.current) {
-        cancelAnimationFrame(timerRef.current)
+        clearInterval(timerRef.current)
         timerRef.current = null
       }
     }

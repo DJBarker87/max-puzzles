@@ -66,7 +66,7 @@ export function checkMoveCorrectness(
 export function createInitialGameState(
   difficulty?: DifficultySettings
 ): GameState {
-  const difficultySettings = difficulty || DIFFICULTY_PRESETS[4] // Default to Level 5
+  const difficultySettings = difficulty || DIFFICULTY_PRESETS[0] // Start new players at Level 1
 
   return {
     status: 'setup',
@@ -317,7 +317,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         showingSolution: false,
       }
 
-    case 'REVEAL_HIDDEN_RESULTS':
+    case 'REVEAL_HIDDEN_RESULTS': {
       // Calculate final coins for hidden mode
       if (!state.hiddenModeResults) return state
       const { correctCount, mistakeCount } = state.hiddenModeResults
@@ -330,6 +330,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         status: 'won',
         puzzleCoins: finalCoins,
       }
+    }
 
     case 'CLEAR_COIN_ANIMATION':
       return {

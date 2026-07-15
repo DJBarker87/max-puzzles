@@ -1,4 +1,4 @@
-import { forwardRef, InputHTMLAttributes } from 'react'
+import { forwardRef, InputHTMLAttributes, useId } from 'react'
 
 export interface ToggleProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'type' | 'onChange'> {
   /** Whether the toggle is checked */
@@ -14,42 +14,34 @@ export interface ToggleProps extends Omit<InputHTMLAttributes<HTMLInputElement>,
  */
 const Toggle = forwardRef<HTMLInputElement, ToggleProps>(
   ({ checked, onChange, label, disabled, className = '', id, ...props }, ref) => {
-    const toggleId = id || `toggle-${Math.random().toString(36).slice(2, 9)}`
+    const generatedId = useId()
+    const toggleId = id || generatedId
 
     return (
-      <div className={`flex items-center gap-3 ${className}`}>
+      <label
+        htmlFor={toggleId}
+        className={`flex min-h-11 items-center gap-3 ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'} ${className}`}
+      >
         {label && (
-          <label
-            htmlFor={toggleId}
-            className={`
-              font-display font-medium text-text-primary
-              ${disabled ? 'opacity-50' : 'cursor-pointer'}
-            `}
-          >
+          <span className="font-display font-medium text-text-primary">
             {label}
-          </label>
+          </span>
         )}
 
-        <button
-          type="button"
-          role="switch"
-          aria-checked={checked}
-          disabled={disabled}
-          onClick={() => !disabled && onChange(!checked)}
+        <span
           className={`
             relative
             w-14 h-8
             rounded-full
-            transition-colors duration-200
-            focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background-dark
-            ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
+            transition-colors duration-200 motion-reduce:transition-none
+            has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-accent-primary has-[:focus-visible]:ring-offset-2 has-[:focus-visible]:ring-offset-background-dark
             ${checked ? 'bg-accent-primary' : 'bg-background-light'}
           `}
         >
-          {/* Hidden input for form compatibility */}
           <input
             ref={ref}
             type="checkbox"
+            role="switch"
             id={toggleId}
             checked={checked}
             onChange={(e) => onChange(e.target.checked)}
@@ -66,12 +58,12 @@ const Toggle = forwardRef<HTMLInputElement, ToggleProps>(
               bg-white
               rounded-full
               shadow-md
-              transition-transform duration-200
+              transition-transform duration-200 motion-reduce:transition-none
               ${checked ? 'translate-x-6' : 'translate-x-0'}
             `}
           />
-        </button>
-      </div>
+        </span>
+      </label>
     )
   }
 )

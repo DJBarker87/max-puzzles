@@ -7,8 +7,7 @@ struct MainHubView: View {
     @StateObject private var router = AppRouter()
 
     @State private var showCircuitChallenge = false
-
-    private var storage: StorageService { StorageService.shared }
+    @State private var showCometWriter = false
 
     var body: some View {
         NavigationStack(path: $router.path) {
@@ -27,24 +26,23 @@ struct MainHubView: View {
                         HStack(spacing: AppSpacing.xl) {
                             // Header on left
                             VStack {
-                                Text("Maxi's Mindgames")
+                                Text("Maxi's Mighty Mindgames")
                                     .font(AppTypography.titleMedium)
                                     .foregroundColor(AppTheme.textPrimary)
+                                    .lineLimit(2)
+                                    .minimumScaleFactor(0.75)
 
                                 Spacer()
 
-                                HStack(spacing: 12) {
-                                    CoinDisplay(storage.totalCoinsEarned, size: .medium)
-                                    IconButton("gear") {
-                                        router.navigate(to: .settings)
-                                    }
+                                IconButton("gear") {
+                                    router.navigate(to: .settings)
                                 }
                             }
                             .frame(width: 140)
                             .padding(.vertical, AppSpacing.lg)
 
                             // Module cards centered
-                            moduleSelectionView
+                            moduleSelectionView(isLandscape: true)
                                 .frame(maxWidth: .infinity)
                         }
                         .padding(.horizontal, AppSpacing.lg)
@@ -53,7 +51,8 @@ struct MainHubView: View {
                         VStack(spacing: AppSpacing.xl) {
                             headerView
                             Spacer()
-                            moduleSelectionView
+                            moduleSelectionView(isLandscape: false)
+                                .padding(.horizontal, AppSpacing.md)
                             Spacer()
                         }
                         .padding(.top, AppSpacing.lg)
@@ -65,6 +64,11 @@ struct MainHubView: View {
             }
             .fullScreenCover(isPresented: $showCircuitChallenge) {
                 ModuleMenuView()
+                    .environmentObject(appState)
+                    .environmentObject(musicService)
+            }
+            .fullScreenCover(isPresented: $showCometWriter) {
+                CometWriterMenuView()
                     .environmentObject(appState)
                     .environmentObject(musicService)
             }
@@ -82,14 +86,13 @@ struct MainHubView: View {
 
     private var headerView: some View {
         HStack {
-            Text("Maxi's Mindgames")
+            Text("Maxi's Mighty Mindgames")
                 .font(AppTypography.titleMedium)
                 .foregroundColor(AppTheme.textPrimary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
 
             Spacer()
-
-            // Coins (V3 stub - shows guest total or 0)
-            CoinDisplay(storage.totalCoinsEarned, size: .medium)
 
             IconButton("gear") {
                 router.navigate(to: .settings)
@@ -100,24 +103,39 @@ struct MainHubView: View {
 
     // MARK: - Module Selection
 
-    private var moduleSelectionView: some View {
-        VStack(spacing: AppSpacing.lg) {
+    private func moduleSelectionView(isLandscape: Bool) -> some View {
+        VStack(spacing: isLandscape ? AppSpacing.md : AppSpacing.lg) {
             Text("Choose a Puzzle")
                 .font(AppTypography.titleSmall)
                 .foregroundColor(AppTheme.textSecondary)
 
-            ModuleCardView(
-                title: "Circuit Challenge",
-                description: "Path-finding puzzle with arithmetic",
-                iconName: "bolt.fill",
-                imageName: "circuit_challenge_icon",
-                isLocked: false
-            ) {
-                showCircuitChallenge = true
+            HStack(alignment: .top, spacing: isLandscape ? AppSpacing.lg : AppSpacing.md) {
+                ModuleCardView(
+                    title: "Circuit Challenge",
+                    description: "Build paths and practise arithmetic",
+                    iconName: "bolt.fill",
+                    imageName: "circuit_challenge_icon",
+                    isLocked: false
+                ) {
+                    showCircuitChallenge = true
+                }
+
+                ModuleCardView(
+                    title: "Comet Writer",
+                    description: "Write letters and numbers",
+                    iconName: "pencil",
+                    imageName: "comet_writer_icon",
+                    iconGlowColor: AppTheme.cometCyan,
+                    isLocked: false
+                ) {
+                    showCometWriter = true
+                }
             }
+            .accessibilityElement(children: .contain)
         }
-        .padding(.vertical, 40)
-        .padding(.horizontal, 32)
+        .padding(.vertical, isLandscape ? AppSpacing.md : AppSpacing.xl)
+        .padding(.horizontal, isLandscape ? AppSpacing.lg : AppSpacing.md)
+        .frame(maxWidth: 720)
         .background(
             ZStack {
                 // Outer glow

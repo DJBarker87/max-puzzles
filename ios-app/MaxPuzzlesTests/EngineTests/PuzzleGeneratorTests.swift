@@ -95,6 +95,19 @@ final class PuzzleGeneratorTests: XCTestCase {
         XCTAssertEqual(failures, 0, "\(failures) puzzles failed out of 50")
     }
 
+    func testMassLevelOneGeneration() {
+        let difficulty = DifficultyPresets.byLevel(1)
+        var failures = 0
+
+        for _ in 0..<50 {
+            if case .failure = PuzzleGenerator.generatePuzzle(difficulty: difficulty) {
+                failures += 1
+            }
+        }
+
+        XCTAssertEqual(failures, 0, "Level 1 generation must not fail intermittently")
+    }
+
     func testPuzzleSolutionPathIsValid() {
         let difficulty = DifficultyPresets.byLevel(5)
 

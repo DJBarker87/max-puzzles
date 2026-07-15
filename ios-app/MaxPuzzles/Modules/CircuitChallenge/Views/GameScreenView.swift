@@ -6,16 +6,21 @@ import SwiftUI
 /// Brings together the puzzle grid, status displays, and action buttons
 struct GameScreenView: View {
     @StateObject private var viewModel: GameViewModel
-    private var feedback: FeedbackManager { FeedbackManager.shared }
+    @ObservedObject private var feedback = FeedbackManager.shared
     @EnvironmentObject var appState: AppState
     @EnvironmentObject var musicService: MusicService
     @Environment(\.dismiss) private var dismiss
     @Environment(\.verticalSizeClass) private var verticalSizeClass
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    @AppStorage("maxpuzzles.tutorial.circuitChallenge.completed")
+    private var hasCompletedCircuitTutorial = false
 
     @State private var showExitConfirm = false
     @State private var navigateToSummary = false
     @State private var summaryData: SummaryData?
     @State private var coinsPersisted = false
+    @State private var showCircuitTutorial = false
 
     // Current level state (can change for "Next Level" / "Next Chapter")
     @State private var currentChapter: Int?
@@ -115,7 +120,11 @@ struct GameScreenView: View {
     var body: some View {
         ZStack {
             // Starry background for gameplay
-            StarryBackground()
+            StarryBackground(
+                starCount: reduceMotion ? 24 : 40,
+                enableShootingStars: false,
+                enableParallax: false
+            )
 
             if isLandscape {
                 landscapeLayout
@@ -133,6 +142,10 @@ struct GameScreenView: View {
                 exitConfirmationOverlay
             }
 
+            if showCircuitTutorial, viewModel.state.puzzle != nil {
+                circuitTutorialOverlay
+            }
+
             // Level intro overlay (for "Next Level" transitions in story mode)
             if showLevelIntro, let alien = currentAlien, let level = currentLevel {
                 levelIntroOverlay(alien: alien, level: level)
@@ -143,10 +156,10 @@ struct GameScreenView: View {
                     }
             }
         }
-        .shake(isShaking: feedback.isShaking)
         .navigationBarHidden(true)
         .landscapeOnly()
         .onAppear {
+            appState.enterGame()
             if viewModel.state.puzzle == nil && viewModel.state.status == .setup {
                 viewModel.generateNewPuzzle()
             }
@@ -154,14 +167,30 @@ struct GameScreenView: View {
             musicService.play(track: .game)
         }
         .onDisappear {
+            viewModel.pauseTimer()
+            appState.exitGame()
             // Stop game music when leaving
             musicService.stop()
+        }
+        .onChange(of: appState.shouldPauseTimer) { shouldPause in
+            if shouldPause {
+                viewModel.pauseTimer()
+            } else {
+                viewModel.resumeTimer()
+            }
+        }
+        .onChange(of: viewModel.state.puzzle?.id) { puzzleID in
+            if puzzleID != nil &&
+                !hasCompletedCircuitTutorial &&
+                viewModel.state.moveHistory.isEmpty {
+                showCircuitTutorial = true
+            }
         }
         .onChange(of: viewModel.state.moveHistory.count) { newCount in
             // Watch for wrong moves and trigger shake
             if let lastMove = viewModel.state.moveHistory.last,
                !lastMove.correct && !viewModel.state.isHiddenMode {
-                feedback.triggerShake()
+                feedback.triggerShake(enabled: !reduceMotion)
             }
         }
         .onChange(of: viewModel.state.status) { newStatus in
@@ -294,7 +323,7 @@ struct GameScreenView: View {
                     Image(systemName: "chevron.left")
                         .font(.system(size: 16, weight: .semibold))
                         .foregroundColor(.white)
-                        .frame(width: 40, height: 40)
+                        .frame(width: 44, height: 44)
                         .background(AppTheme.backgroundMid)
                         .cornerRadius(8)
                 }
@@ -318,7 +347,7 @@ struct GameScreenView: View {
             }
             .padding(.horizontal, 8)
             .padding(.vertical, 8)
-            .frame(width: 60)
+            .frame(width: 68)
             .background(AppTheme.backgroundDark.opacity(0.95))
 
             // Center: Grid (maximize space)
@@ -393,6 +422,7 @@ struct GameScreenView: View {
                     viewModel.makeMove(to: coord)
                 } : nil
             )
+            .shake(isShaking: !reduceMotion && feedback.isShaking)
         } else if let error = viewModel.state.error {
             errorContent(error)
         } else {
@@ -438,6 +468,68 @@ struct GameScreenView: View {
     }
 
     // MARK: - Overlays
+
+    private var circuitTutorialOverlay: some View {
+        Color.black.opacity(0.72)
+            .ignoresSafeArea()
+            .overlay {
+                VStack(spacing: 18) {
+                    Image(systemName: "bolt.horizontal.fill")
+                        .font(.system(size: 36, weight: .bold))
+                        .foregroundColor(AppTheme.connectorGlow)
+                        .accessibilityHidden(true)
+
+                    Text("How to play")
+                        .font(.system(size: 24, weight: .bold, design: .rounded))
+                        .foregroundColor(.white)
+
+                    VStack(spacing: 10) {
+                        Text("1. Solve the glowing hex: \(tutorialExpression)")
+                        Text("2. Find the connector marked \(tutorialAnswer)")
+                        Text("3. Tap the hex at the other end")
+                    }
+                    .font(.system(size: 17, weight: .semibold, design: .rounded))
+                    .foregroundColor(.white)
+                    .multilineTextAlignment(.center)
+
+                    Text("Keep matching answers until you reach FINISH.")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(AppTheme.textSecondary)
+                        .multilineTextAlignment(.center)
+
+                    Button("Let me try") {
+                        hasCompletedCircuitTutorial = true
+                        showCircuitTutorial = false
+                    }
+                    .font(.system(size: 17, weight: .bold, design: .rounded))
+                    .foregroundColor(.white)
+                    .frame(minWidth: 180, minHeight: 48)
+                    .background(AppTheme.accentPrimary)
+                    .cornerRadius(12)
+                }
+                .padding(28)
+                .frame(maxWidth: 480)
+                .background(AppTheme.backgroundMid)
+                .cornerRadius(20)
+                .padding(24)
+            }
+            .accessibilityElement(children: .contain)
+    }
+
+    private var tutorialExpression: String {
+        viewModel.state.puzzle?
+            .cell(at: viewModel.state.currentPosition)?
+            .expression ?? "the sum"
+    }
+
+    private var tutorialAnswer: String {
+        guard let answer = viewModel.state.puzzle?
+            .cell(at: viewModel.state.currentPosition)?
+            .answer else {
+            return "the answer"
+        }
+        return "\(answer)"
+    }
 
     private var gameOverOverlay: some View {
         Color.black.opacity(0.5)
@@ -504,7 +596,11 @@ struct GameScreenView: View {
     private func levelIntroOverlay(alien: ChapterAlien, level: Int) -> some View {
         ZStack {
             // Fully opaque backdrop with starry background (hides grid sizing behind it)
-            StarryBackground()
+            StarryBackground(
+                starCount: reduceMotion ? 24 : 40,
+                enableShootingStars: false,
+                enableParallax: false
+            )
 
             VStack(spacing: 24) {
                 Spacer()

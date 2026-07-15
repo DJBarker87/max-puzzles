@@ -92,6 +92,77 @@ final class ExpressionGeneratorTests: XCTestCase {
         }
     }
 
+    func testMultiplicationUsesOnlySelectedTimesTables() throws {
+        for target in stride(from: 7, through: 84, by: 7) {
+            let expression = try XCTUnwrap(
+                ExpressionGenerator.generateMultiplication(
+                    target: target,
+                    maxFactor: 12,
+                    selectedTables: [7]
+                )
+            )
+            XCTAssertTrue(expression.operandA == 7 || expression.operandB == 7)
+            XCTAssertEqual(expression.result, target)
+        }
+
+        XCTAssertNil(
+            ExpressionGenerator.generateMultiplication(
+                target: 20,
+                maxFactor: 12,
+                selectedTables: [7]
+            )
+        )
+    }
+
+    func testDivisionUsesASelectedTableAsTheDivisor() throws {
+        for _ in 0..<20 {
+            let expression = try XCTUnwrap(
+                ExpressionGenerator.generateDivision(
+                    target: 6,
+                    maxDivisor: 12,
+                    selectedTables: [7, 9]
+                )
+            )
+            XCTAssertTrue([7, 9].contains(expression.operandB))
+            XCTAssertEqual(expression.result, 6)
+        }
+    }
+
+    func testMultiplicationOnlyPuzzleHonoursExactTableSelection() throws {
+        let settings = DifficultySettings(
+            name: "Exact 7s",
+            additionEnabled: false,
+            subtractionEnabled: false,
+            multiplicationEnabled: true,
+            divisionEnabled: false,
+            addSubRange: 20,
+            multDivRange: 12,
+            selectedTimesTables: [7],
+            connectorMin: 1,
+            connectorMax: 84,
+            gridRows: 3,
+            gridCols: 4,
+            minPathLength: 6,
+            maxPathLength: 10,
+            weights: OperationWeights(multiplication: 100),
+            hiddenMode: false,
+            secondsPerStep: 7
+        )
+
+        let result = PuzzleGenerator.generatePuzzle(difficulty: settings)
+        guard case let .success(puzzle) = result else {
+            return XCTFail("An exact-table puzzle should generate successfully")
+        }
+
+        for cell in puzzle.grid.flatMap({ $0 }) where !cell.expression.isEmpty {
+            let operands = cell.expression
+                .components(separatedBy: "×")
+                .compactMap { Int($0.trimmingCharacters(in: .whitespaces)) }
+            XCTAssertEqual(operands.count, 2, "Unexpected expression: \(cell.expression)")
+            XCTAssertTrue(operands.contains(7), "Non-7-times-table expression: \(cell.expression)")
+        }
+    }
+
     func testDivisionProducesWholeNumber() {
         for _ in 0..<20 {
             if let expr = ExpressionGenerator.generateDivision(target: 5, maxDivisor: 12) {

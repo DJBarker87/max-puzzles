@@ -84,6 +84,21 @@
 		QQ0001031111111111111111 /* AlienIdleAnimation.swift in Sources */ = {isa = PBXBuildFile; fileRef = QQ0001021111111111111111 /* AlienIdleAnimation.swift */; };
 		RR0001011111111111111111 /* FirstRunView.swift in Sources */ = {isa = PBXBuildFile; fileRef = RR0001001111111111111111 /* FirstRunView.swift */; };
 		SS0001011111111111111111 /* SoundEffectsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = SS0001001111111111111111 /* SoundEffectsService.swift */; };
+		CW0001011111111111111111 /* LetterGlyph.swift in Sources */ = {isa = PBXBuildFile; fileRef = CW0001001111111111111111 /* LetterGlyph.swift */; };
+		CW0001031111111111111111 /* LetterLibrary.swift in Sources */ = {isa = PBXBuildFile; fileRef = CW0001021111111111111111 /* LetterLibrary.swift */; };
+		CW0001051111111111111111 /* LetterPathValidator.swift in Sources */ = {isa = PBXBuildFile; fileRef = CW0001041111111111111111 /* LetterPathValidator.swift */; };
+		CW0001071111111111111111 /* CometWriterViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = CW0001061111111111111111 /* CometWriterViewModel.swift */; };
+		CW0001091111111111111111 /* LetterSpeechService.swift in Sources */ = {isa = PBXBuildFile; fileRef = CW0001081111111111111111 /* LetterSpeechService.swift */; };
+		CW0001111111111111111111 /* LetterTracePad.swift in Sources */ = {isa = PBXBuildFile; fileRef = CW0001101111111111111111 /* LetterTracePad.swift */; };
+		CW0001131111111111111111 /* CometWriterMenuView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CW0001121111111111111111 /* CometWriterMenuView.swift */; };
+		CW0001151111111111111111 /* CometWriterGameView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CW0001141111111111111111 /* CometWriterGameView.swift */; };
+		CW0001171111111111111111 /* LetterPathValidatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CW0001161111111111111111 /* LetterPathValidatorTests.swift */; };
+		CW0001191111111111111111 /* LetterFormationStandard.swift in Sources */ = {isa = PBXBuildFile; fileRef = CW0001181111111111111111 /* LetterFormationStandard.swift */; };
+		CW0001211111111111111111 /* CometLearningStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = CW0001201111111111111111 /* CometLearningStore.swift */; };
+		CW0001231111111111111111 /* CustomPromptAudioService.swift in Sources */ = {isa = PBXBuildFile; fileRef = CW0001221111111111111111 /* CustomPromptAudioService.swift */; };
+		CW0001251111111111111111 /* CometWriterParentViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = CW0001241111111111111111 /* CometWriterParentViews.swift */; };
+		CW0001271111111111111111 /* CometWriterAcademyViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = CW0001261111111111111111 /* CometWriterAcademyViews.swift */; };
+		PV0001011111111111111111 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = PV0001001111111111111111 /* PrivacyInfo.xcprivacy */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -184,6 +199,21 @@
 		QQ0001021111111111111111 /* AlienIdleAnimation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlienIdleAnimation.swift; sourceTree = "<group>"; };
 		RR0001001111111111111111 /* FirstRunView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FirstRunView.swift; sourceTree = "<group>"; };
 		SS0001001111111111111111 /* SoundEffectsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SoundEffectsService.swift; sourceTree = "<group>"; };
+		CW0001001111111111111111 /* LetterGlyph.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LetterGlyph.swift; sourceTree = "<group>"; };
+		CW0001021111111111111111 /* LetterLibrary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LetterLibrary.swift; sourceTree = "<group>"; };
+		CW0001041111111111111111 /* LetterPathValidator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LetterPathValidator.swift; sourceTree = "<group>"; };
+		CW0001061111111111111111 /* CometWriterViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CometWriterViewModel.swift; sourceTree = "<group>"; };
+		CW0001081111111111111111 /* LetterSpeechService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LetterSpeechService.swift; sourceTree = "<group>"; };
+		CW0001101111111111111111 /* LetterTracePad.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LetterTracePad.swift; sourceTree = "<group>"; };
+		CW0001121111111111111111 /* CometWriterMenuView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CometWriterMenuView.swift; sourceTree = "<group>"; };
+		CW0001141111111111111111 /* CometWriterGameView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CometWriterGameView.swift; sourceTree = "<group>"; };
+		CW0001161111111111111111 /* LetterPathValidatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LetterPathValidatorTests.swift; sourceTree = "<group>"; };
+		CW0001181111111111111111 /* LetterFormationStandard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LetterFormationStandard.swift; sourceTree = "<group>"; };
+		CW0001201111111111111111 /* CometLearningStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CometLearningStore.swift; sourceTree = "<group>"; };
+		CW0001221111111111111111 /* CustomPromptAudioService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomPromptAudioService.swift; sourceTree = "<group>"; };
+		CW0001241111111111111111 /* CometWriterParentViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CometWriterParentViews.swift; sourceTree = "<group>"; };
+		CW0001261111111111111111 /* CometWriterAcademyViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CometWriterAcademyViews.swift; sourceTree = "<group>"; };
+		PV0001001111111111111111 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -240,6 +270,7 @@
 				AA0000511111111111111111 /* Modules */,
 				AA0000611111111111111111 /* Shared */,
 				AA0000711111111111111111 /* Resources */,
+				PV0001001111111111111111 /* PrivacyInfo.xcprivacy */,
 			);
 			path = MaxPuzzles;
 			sourceTree = "<group>";
@@ -342,6 +373,7 @@
 			isa = PBXGroup;
 			children = (
 				AA0000521111111111111111 /* CircuitChallenge */,
+				CW0000001111111111111111 /* CometWriter */,
 			);
 			path = Modules;
 			sourceTree = "<group>";
@@ -515,6 +547,7 @@
 				CC0001021111111111111111 /* ConnectorBuilderTests.swift */,
 				CC0001041111111111111111 /* ExpressionGeneratorTests.swift */,
 				CC0001061111111111111111 /* PuzzleGeneratorTests.swift */,
+				CW0001161111111111111111 /* LetterPathValidatorTests.swift */,
 			);
 			path = EngineTests;
 			sourceTree = "<group>";
@@ -535,6 +568,74 @@
 				GG0001001111111111111111 /* FeedbackManager.swift */,
 			);
 			path = Services;
+			sourceTree = "<group>";
+		};
+		CW0000001111111111111111 /* CometWriter */ = {
+			isa = PBXGroup;
+			children = (
+				CW0000011111111111111111 /* Models */,
+				CW0000021111111111111111 /* Engine */,
+				CW0000031111111111111111 /* ViewModels */,
+				CW0000041111111111111111 /* Services */,
+				CW0000051111111111111111 /* Components */,
+				CW0000061111111111111111 /* Views */,
+			);
+			path = CometWriter;
+			sourceTree = "<group>";
+		};
+		CW0000011111111111111111 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				CW0001001111111111111111 /* LetterGlyph.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		CW0000021111111111111111 /* Engine */ = {
+			isa = PBXGroup;
+			children = (
+				CW0001181111111111111111 /* LetterFormationStandard.swift */,
+				CW0001021111111111111111 /* LetterLibrary.swift */,
+				CW0001041111111111111111 /* LetterPathValidator.swift */,
+			);
+			path = Engine;
+			sourceTree = "<group>";
+		};
+		CW0000031111111111111111 /* ViewModels */ = {
+			isa = PBXGroup;
+			children = (
+				CW0001061111111111111111 /* CometWriterViewModel.swift */,
+			);
+			path = ViewModels;
+			sourceTree = "<group>";
+		};
+		CW0000041111111111111111 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				CW0001081111111111111111 /* LetterSpeechService.swift */,
+				CW0001201111111111111111 /* CometLearningStore.swift */,
+				CW0001221111111111111111 /* CustomPromptAudioService.swift */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
+		CW0000051111111111111111 /* Components */ = {
+			isa = PBXGroup;
+			children = (
+				CW0001101111111111111111 /* LetterTracePad.swift */,
+			);
+			path = Components;
+			sourceTree = "<group>";
+		};
+		CW0000061111111111111111 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				CW0001121111111111111111 /* CometWriterMenuView.swift */,
+				CW0001141111111111111111 /* CometWriterGameView.swift */,
+				CW0001241111111111111111 /* CometWriterParentViews.swift */,
+				CW0001261111111111111111 /* CometWriterAcademyViews.swift */,
+			);
+			path = Views;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -646,6 +747,7 @@
 				MM0001031111111111111111 /* hub_music.m4a in Resources */,
 				MM0001051111111111111111 /* victory_music.m4a in Resources */,
 				MM0001071111111111111111 /* lose_music.wav in Resources */,
+				PV0001011111111111111111 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -735,6 +837,19 @@
 				OO0001091111111111111111 /* LevelSelectView.swift in Sources */,
 				OO0001111111111111111111 /* StarRevealView.swift in Sources */,
 				PP0001011111111111111111 /* MusicToggleButton.swift in Sources */,
+				CW0001011111111111111111 /* LetterGlyph.swift in Sources */,
+				CW0001191111111111111111 /* LetterFormationStandard.swift in Sources */,
+				CW0001031111111111111111 /* LetterLibrary.swift in Sources */,
+				CW0001051111111111111111 /* LetterPathValidator.swift in Sources */,
+				CW0001071111111111111111 /* CometWriterViewModel.swift in Sources */,
+				CW0001091111111111111111 /* LetterSpeechService.swift in Sources */,
+				CW0001111111111111111111 /* LetterTracePad.swift in Sources */,
+				CW0001131111111111111111 /* CometWriterMenuView.swift in Sources */,
+				CW0001151111111111111111 /* CometWriterGameView.swift in Sources */,
+				CW0001211111111111111111 /* CometLearningStore.swift in Sources */,
+				CW0001231111111111111111 /* CustomPromptAudioService.swift in Sources */,
+				CW0001251111111111111111 /* CometWriterParentViews.swift in Sources */,
+				CW0001271111111111111111 /* CometWriterAcademyViews.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -747,6 +862,7 @@
 				CC0001031111111111111111 /* ConnectorBuilderTests.swift in Sources */,
 				CC0001051111111111111111 /* ExpressionGeneratorTests.swift in Sources */,
 				CC0001071111111111111111 /* PuzzleGeneratorTests.swift in Sources */,
+				CW0001171111111111111111 /* LetterPathValidatorTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -901,13 +1017,15 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 4;
 				DEVELOPMENT_ASSET_PATHS = "";
 				DEVELOPMENT_TEAM = XAB7FWS6XP;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "Maxi's Mighty Mindgames";
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.education";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "A grown-up can optionally record a local pronunciation for a child’s custom practice word.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -917,7 +1035,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.1;
+				MARKETING_VERSION = 1.2;
 				PRODUCT_BUNDLE_IDENTIFIER = com.maxpuzzles.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTS_MACCATALYST = YES;
@@ -935,13 +1053,15 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 4;
 				DEVELOPMENT_ASSET_PATHS = "";
 				DEVELOPMENT_TEAM = XAB7FWS6XP;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "Maxi's Mighty Mindgames";
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.education";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "A grown-up can optionally record a local pronunciation for a child’s custom practice word.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -951,7 +1071,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.1;
+				MARKETING_VERSION = 1.2;
 				PRODUCT_BUNDLE_IDENTIFIER = com.maxpuzzles.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTS_MACCATALYST = YES;
@@ -968,11 +1088,11 @@
 				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 4;
 				DEVELOPMENT_TEAM = "";
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
-				MARKETING_VERSION = 1.1;
+				MARKETING_VERSION = 1.2;
 				PRODUCT_BUNDLE_IDENTIFIER = com.maxpuzzles.app.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = NO;
@@ -988,11 +1108,11 @@
 				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 4;
 				DEVELOPMENT_TEAM = "";
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
-				MARKETING_VERSION = 1.1;
+				MARKETING_VERSION = 1.2;
 				PRODUCT_BUNDLE_IDENTIFIER = com.maxpuzzles.app.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = NO;
@@ -1007,10 +1127,10 @@
 			buildSettings = {
 				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 4;
 				DEVELOPMENT_TEAM = "";
 				GENERATE_INFOPLIST_FILE = YES;
-				MARKETING_VERSION = 1.1;
+				MARKETING_VERSION = 1.2;
 				PRODUCT_BUNDLE_IDENTIFIER = com.maxpuzzles.app.uitests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = NO;
@@ -1025,10 +1145,10 @@
 			buildSettings = {
 				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 4;
 				DEVELOPMENT_TEAM = "";
 				GENERATE_INFOPLIST_FILE = YES;
-				MARKETING_VERSION = 1.1;
+				MARKETING_VERSION = 1.2;
 				PRODUCT_BUNDLE_IDENTIFIER = com.maxpuzzles.app.uitests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = NO;

@@ -26,31 +26,34 @@ class MusicService: ObservableObject {
     private var player: AVAudioPlayer?
     private let storage = StorageService.shared
     private var currentTrack: MusicTrack?
+    private var hasConfiguredAudioSession = false
 
     // MARK: - Initialization
 
     private init() {
         // Load saved volume
         volume = storage.musicVolume
-        print("🎵 MusicService init - volume: \(volume), musicEnabled: \(storage.isMusicEnabled)")
-
-        // Configure audio session for background music
-        configureAudioSession()
+        // Audio setup is deliberately deferred until playback is requested.
     }
 
     // MARK: - Audio Session
 
-    private func configureAudioSession() {
+    @discardableResult
+    private func configureAudioSessionIfNeeded() -> Bool {
         #if os(iOS)
+        if hasConfiguredAudioSession { return true }
         do {
-            // Use playback category for reliable audio on simulator
-            // On device, this ignores silent switch - consider .ambient for production if needed
-            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default, options: [.mixWithOthers])
+            // Music is optional enrichment, so it follows the silent switch and mixes politely
+            // with audio already playing on the device.
+            try AVAudioSession.sharedInstance().setCategory(.ambient, mode: .default, options: [.mixWithOthers])
             try AVAudioSession.sharedInstance().setActive(true)
-            print("🔊 Audio session configured successfully")
+            hasConfiguredAudioSession = true
+            return true
         } catch {
-            print("❌ Failed to configure audio session: \(error)")
+            return false
         }
+        #else
+        return true
         #endif
     }
 
@@ -64,9 +67,10 @@ class MusicService: ObservableObject {
     func play(filename: String, fileExtension: String = "m4a", loop: Bool = true) {
         // Don't play if music is disabled
         guard storage.isMusicEnabled else {
-            print("🎵 Music skipped - disabled in settings")
             return
         }
+
+        guard configureAudioSessionIfNeeded() else { return }
 
         // Stop any current playback
         stop()
@@ -81,11 +85,9 @@ class MusicService: ObservableObject {
             player?.volume = volume
             player?.numberOfLoops = loop ? -1 : 0 // -1 = infinite loop
             player?.prepareToPlay()
-            let success = player?.play() ?? false
-            isPlaying = success
-            print("🎵 Music playback started: \(filename) - success: \(success), volume: \(volume), enabled: \(storage.isMusicEnabled)")
+            isPlaying = player?.play() ?? false
         } catch {
-            print("❌ Failed to play music: \(error)")
+            isPlaying = false
         }
     }
 

@@ -81,7 +81,7 @@ function createPrintDocument(
   layout: typeof A4_PORTRAIT
 ): string {
   // Add answer key separator if there are answer pages
-  let pagesWithSeparator = [...questionPages]
+  const pagesWithSeparator = [...questionPages]
   if (answerPages.length > 0) {
     // Add a separator page
     const separatorSVG = createSeparatorPage(config, layout)

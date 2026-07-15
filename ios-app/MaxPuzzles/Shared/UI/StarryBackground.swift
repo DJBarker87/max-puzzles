@@ -7,17 +7,21 @@ struct StarryBackground: View {
     let useHubImage: Bool
     let enableShootingStars: Bool
     let enableParallax: Bool
+    let animateStars: Bool
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     init(
-        starCount: Int = 80,
+        starCount: Int = 40,
         useHubImage: Bool = false,
-        enableShootingStars: Bool = true,
-        enableParallax: Bool = true
+        enableShootingStars: Bool = false,
+        enableParallax: Bool = false,
+        animateStars: Bool = true
     ) {
         self.starCount = starCount
         self.useHubImage = useHubImage
         self.enableShootingStars = enableShootingStars
         self.enableParallax = enableParallax
+        self.animateStars = animateStars
     }
 
     var body: some View {
@@ -28,11 +32,11 @@ struct StarryBackground: View {
                     ParallaxBackground(
                         imageName: "HubBackground",
                         size: geometry.size,
-                        enableParallax: enableParallax
+                        enableParallax: enableParallax && !reduceMotion
                     )
 
                     // Shooting stars overlay
-                    if enableShootingStars {
+                    if enableShootingStars && !reduceMotion {
                         ShootingStarsLayer(bounds: geometry.size)
                     }
                 } else {
@@ -43,12 +47,13 @@ struct StarryBackground: View {
                     ForEach(0..<starCount, id: \.self) { index in
                         StarView(
                             seed: index,
-                            bounds: geometry.size
+                            bounds: geometry.size,
+                            animate: animateStars && !reduceMotion
                         )
                     }
 
                     // Shooting stars
-                    if enableShootingStars {
+                    if enableShootingStars && !reduceMotion {
                         ShootingStarsLayer(bounds: geometry.size)
                     }
 
@@ -90,6 +95,14 @@ struct ParallaxBackground: View {
             .overlay(Color.black.opacity(0.3)) // Slight darkening for text readability
             .animation(.easeOut(duration: 0.1), value: motionManager.roll)
             .animation(.easeOut(duration: 0.1), value: motionManager.pitch)
+            .onAppear {
+                if enableParallax {
+                    motionManager.start()
+                }
+            }
+            .onDisappear {
+                motionManager.stop()
+            }
     }
 }
 
@@ -102,16 +115,11 @@ class MotionManager: ObservableObject {
     @Published var pitch: CGFloat = 0  // Forward/backward tilt
     @Published var roll: CGFloat = 0   // Left/right tilt
 
-    init() {
+    func start() {
         #if os(iOS)
-        setupMotionManager()
-        #endif
-    }
-
-    private func setupMotionManager() {
-        #if os(iOS)
+        guard motionManager == nil else { return }
         motionManager = CMMotionManager()
-        motionManager?.deviceMotionUpdateInterval = 1.0 / 60.0
+        motionManager?.deviceMotionUpdateInterval = 1.0 / 30.0
 
         guard let manager = motionManager, manager.isDeviceMotionAvailable else { return }
 
@@ -122,11 +130,16 @@ class MotionManager: ObservableObject {
             let newPitch = max(-1, min(1, motion.attitude.pitch))
             let newRoll = max(-1, min(1, motion.attitude.roll))
 
-            DispatchQueue.main.async {
-                self?.pitch = newPitch
-                self?.roll = newRoll
-            }
+            self?.pitch = newPitch
+            self?.roll = newRoll
         }
+        #endif
+    }
+
+    func stop() {
+        #if os(iOS)
+        motionManager?.stopDeviceMotionUpdates()
+        motionManager = nil
         #endif
     }
 
@@ -164,13 +177,14 @@ struct ShootingStarsLayer: View {
         // Spawn a shooting star every 3-8 seconds
         spawnStar()
 
-        timer = Timer.scheduledTimer(withTimeInterval: Double.random(in: 3...8), repeats: true) { _ in
+        scheduleNextSpawn()
+    }
+
+    private func scheduleNextSpawn() {
+        timer?.invalidate()
+        timer = Timer.scheduledTimer(withTimeInterval: Double.random(in: 3...8), repeats: false) { _ in
             spawnStar()
-            // Randomize next interval
-            timer?.invalidate()
-            timer = Timer.scheduledTimer(withTimeInterval: Double.random(in: 3...8), repeats: true) { _ in
-                spawnStar()
-            }
+            scheduleNextSpawn()
         }
     }
 
@@ -299,6 +313,7 @@ struct ShootingStarView: View {
 struct StarView: View {
     let seed: Int
     let bounds: CGSize
+    let animate: Bool
 
     @State private var opacity: Double = 0.3
 
@@ -324,12 +339,16 @@ struct StarView: View {
             .position(position)
             .opacity(opacity)
             .onAppear {
-                withAnimation(
-                    .easeInOut(duration: animationDuration)
-                    .repeatForever(autoreverses: true)
-                    .delay(Double(seed % 50) * 0.1)
-                ) {
-                    opacity = 0.8
+                if animate {
+                    withAnimation(
+                        .easeInOut(duration: animationDuration)
+                        .repeatForever(autoreverses: true)
+                        .delay(Double(seed % 50) * 0.1)
+                    ) {
+                        opacity = 0.8
+                    }
+                } else {
+                    opacity = 0.55
                 }
             }
     }

@@ -5,6 +5,8 @@ import SwiftUI
 /// Connector line between two cells with electric flow animation
 /// Matches web app exactly with 5 animation layers
 struct ConnectorView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     let startPoint: CGPoint
     let endPoint: CGPoint
     let value: Int
@@ -106,12 +108,21 @@ struct ConnectorView: View {
             }
         }
         .onAppear {
-            if isTraversed && !animationsStarted {
+            if isTraversed && !animationsStarted && !reduceMotion {
                 startAnimations()
             }
         }
         .onChange(of: isTraversed) { newValue in
-            if newValue && !animationsStarted {
+            if newValue && !animationsStarted && !reduceMotion {
+                startAnimations()
+            }
+        }
+        .onChange(of: reduceMotion) { shouldReduceMotion in
+            if shouldReduceMotion {
+                flowPhase1 = 0
+                flowPhase2 = 0
+                glowOpacity = 0.5
+            } else if isTraversed && !animationsStarted {
                 startAnimations()
             }
         }

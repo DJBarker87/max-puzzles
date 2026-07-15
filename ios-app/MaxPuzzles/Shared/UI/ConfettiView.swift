@@ -4,6 +4,8 @@ import SwiftUI
 
 /// Premium confetti celebration with burst effect, varied shapes, and gold sparkles
 struct ConfettiView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     var intensity: ConfettiIntensity = .normal
     var burstFromCenter: Bool = true
 
@@ -55,9 +57,11 @@ struct ConfettiView: View {
                 }
             }
             .onAppear {
-                createParticles(in: geometry.size)
-                createSparkles(in: geometry.size)
-                isAnimating = true
+                if !reduceMotion {
+                    createParticles(in: geometry.size)
+                    createSparkles(in: geometry.size)
+                    isAnimating = true
+                }
 
                 // Haptic only (sounds removed)
                 FeedbackManager.shared.haptic(.levelComplete)
@@ -209,7 +213,6 @@ struct ConfettiPiece: View {
             withAnimation(
                 .linear(duration: particle.duration)
                 .delay(particle.delay)
-                .repeatForever(autoreverses: false)
             ) {
                 currentRotation = particle.rotation + 720
             }

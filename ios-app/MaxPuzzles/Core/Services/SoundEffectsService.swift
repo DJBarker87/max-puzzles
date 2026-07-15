@@ -1,185 +1,187 @@
-import SwiftUI
 import AVFoundation
-import AudioToolbox
-
-// MARK: - Sound Effect Types
+import SwiftUI
 
 enum SoundEffect: String, CaseIterable {
-    // UI Interactions
     case buttonTap = "button_tap"
     case buttonPress = "button_press"
     case cardTap = "card_tap"
     case swipe = "swipe"
-
-    // Game Events
     case cellTap = "cell_tap"
     case correctMove = "correct_move"
     case wrongMove = "wrong_move"
     case levelComplete = "level_complete"
     case levelFail = "level_fail"
-
-    // Rewards
     case starReveal = "star_reveal"
     case coinCollect = "coin_collect"
     case coinBonus = "coin_bonus"
-
-    // Special
     case countdown = "countdown"
     case timerWarning = "timer_warning"
     case unlock = "unlock"
 }
 
-// MARK: - Sound Effects Service
-
-/// Manages UI sound effects for premium feel
-/// Uses system sounds and synthesized audio for responsive feedback
+/// Small, locally-synthesised effects that respect the app's audio controls and the silent switch.
+/// The audio engine is created only after the first enabled effect, avoiding launch-time work.
 @MainActor
-class SoundEffectsService: ObservableObject {
-
-    // MARK: - Singleton
-
+final class SoundEffectsService {
     static let shared = SoundEffectsService()
 
-    // MARK: - Published State
-
-    @Published var isEnabled: Bool {
-        didSet {
-            UserDefaults.standard.set(isEnabled, forKey: "soundEffectsEnabled")
-        }
-    }
-
-    @Published var volume: Float = 0.7 {
-        didSet {
-            UserDefaults.standard.set(volume, forKey: "soundEffectsVolume")
-        }
-    }
-
-    // MARK: - Private Properties
-
+    private let storage = StorageService.shared
     private var audioEngine: AVAudioEngine?
-    private var playerNodes: [SoundEffect: AVAudioPlayerNode] = [:]
+    private var playerNode: AVAudioPlayerNode?
     private var audioBuffers: [SoundEffect: AVAudioPCMBuffer] = [:]
 
-    // Pre-loaded audio players for custom sounds
-    private var audioPlayers: [SoundEffect: AVAudioPlayer] = [:]
-
-    // MARK: - Initialization
-
-    private init() {
-        isEnabled = UserDefaults.standard.object(forKey: "soundEffectsEnabled") as? Bool ?? true
-        volume = UserDefaults.standard.object(forKey: "soundEffectsVolume") as? Float ?? 0.7
-
-        setupAudioSession()
-        generateSynthesizedSounds()
-    }
-
-    // MARK: - Audio Session Setup
-
-    private func setupAudioSession() {
-        do {
-            let session = AVAudioSession.sharedInstance()
-            // Use playback to ensure audio works, mix with others for flexibility
-            try session.setCategory(.playback, mode: .default, options: [.mixWithOthers])
-            try session.setActive(true)
-            print("🔊 SoundEffects audio session configured")
-        } catch {
-            print("❌ Failed to setup audio session: \(error)")
+    var isEnabled: Bool {
+        get { storage.isSoundEnabled }
+        set {
+            storage.setSoundEnabled(newValue)
+            if !newValue { playerNode?.stop() }
         }
     }
 
-    // MARK: - Play Sound
+    var volume: Float {
+        get { storage.soundEffectsVolume }
+        set {
+            storage.setSoundEffectsVolume(newValue)
+            audioEngine?.mainMixerNode.outputVolume = outputVolume
+        }
+    }
 
-    /// Play a sound effect
+    private var outputVolume: Float {
+        min(max(storage.soundEffectsVolume, 0), 1) * 0.42
+    }
+
+    private init() {}
+
     func play(_ effect: SoundEffect) {
-        guard isEnabled else { return }
-
-        // Use system sounds for immediate feedback
-        switch effect {
-        case .buttonTap, .buttonPress:
-            playSystemSound(.tap)
-        case .cellTap:
-            playSystemSound(.peek)
-        case .correctMove:
-            playSystemSound(.success)
-        case .wrongMove:
-            playSystemSound(.error)
-        case .starReveal:
-            playSystemSound(.pop)
-        case .coinCollect:
-            playSystemSound(.coin)
-        case .levelComplete:
-            playSystemSound(.fanfare)
-        case .levelFail:
-            playSystemSound(.fail)
-        case .swipe:
-            playSystemSound(.swipe)
-        case .cardTap:
-            playSystemSound(.tap)
-        case .countdown:
-            playSystemSound(.tick)
-        case .timerWarning:
-            playSystemSound(.warning)
-        case .unlock:
-            playSystemSound(.unlock)
-        case .coinBonus:
-            playSystemSound(.bonus)
+        guard isEnabled, ensureAudioEngine(),
+              let node = playerNode,
+              let buffer = audioBuffers[effect] else {
+            return
         }
+
+        node.stop()
+        node.scheduleBuffer(buffer, at: nil, options: .interrupts)
+        node.play()
     }
 
-    /// Play with delay (for sequential effects like star reveals)
     func play(_ effect: SoundEffect, delay: TimeInterval) {
         guard isEnabled else { return }
-
         DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
             self?.play(effect)
         }
     }
 
-    /// Play star reveal sequence (3 stars with delays)
     func playStarSequence(count: Int, baseDelay: TimeInterval = 0.3) {
         guard isEnabled else { return }
-
-        for i in 0..<min(count, 3) {
-            play(.starReveal, delay: baseDelay + Double(i) * 0.25)
+        for index in 0..<min(count, 3) {
+            play(.starReveal, delay: baseDelay + Double(index) * 0.25)
         }
     }
 
-    // MARK: - System Sounds
+    private func ensureAudioEngine() -> Bool {
+        if let engine = audioEngine, engine.isRunning { return true }
 
-    private enum SystemSound: UInt32 {
-        case tap = 1104       // Light tap
-        case peek = 1519      // Peek
-        case pop = 1520       // Pop
-        case success = 1057   // Mail sent (cheerful)
-        case error = 1073     // Alert buzz
-        case coin = 1054      // Payment success
-        case fanfare = 1025   // SMS received (can use as fanfare)
-        case fail = 1074      // Alert (different from error)
-        case swipe = 1105     // Swipe
-        case tick = 1103      // Tick
-        case warning = 1071   // Warning
-        case unlock = 1111    // Lock
-        case bonus = 1117     // Begin recording (shimmer)
+        if audioEngine == nil {
+            guard configureAudioSession() else { return false }
+
+            let engine = AVAudioEngine()
+            let node = AVAudioPlayerNode()
+            guard let format = AVAudioFormat(
+                standardFormatWithSampleRate: 44_100,
+                channels: 1
+            ) else {
+                return false
+            }
+
+            engine.attach(node)
+            engine.connect(node, to: engine.mainMixerNode, format: format)
+            engine.mainMixerNode.outputVolume = outputVolume
+            audioBuffers = Dictionary(
+                uniqueKeysWithValues: SoundEffect.allCases.compactMap { effect in
+                    makeBuffer(for: effect, format: format).map { (effect, $0) }
+                }
+            )
+            engine.prepare()
+            audioEngine = engine
+            playerNode = node
+        }
+
+        do {
+            try audioEngine?.start()
+            return audioEngine?.isRunning == true
+        } catch {
+            return false
+        }
     }
 
-    private func playSystemSound(_ sound: SystemSound) {
-        AudioServicesPlaySystemSound(sound.rawValue)
+    private func configureAudioSession() -> Bool {
+        do {
+            let session = AVAudioSession.sharedInstance()
+            try session.setCategory(.ambient, mode: .default, options: [.mixWithOthers])
+            try session.setActive(true)
+            return true
+        } catch {
+            return false
+        }
     }
 
-    // MARK: - Synthesized Sounds
+    private struct Tone {
+        let duration: TimeInterval
+        let startFrequency: Double
+        let endFrequency: Double
+        let amplitude: Double
+    }
 
-    private func generateSynthesizedSounds() {
-        // Future: Generate custom synthesized sounds using AVAudioEngine
-        // For now, system sounds provide immediate feedback
+    private func tone(for effect: SoundEffect) -> Tone {
+        switch effect {
+        case .buttonTap: return Tone(duration: 0.045, startFrequency: 570, endFrequency: 520, amplitude: 0.12)
+        case .buttonPress: return Tone(duration: 0.055, startFrequency: 520, endFrequency: 470, amplitude: 0.13)
+        case .cardTap: return Tone(duration: 0.075, startFrequency: 480, endFrequency: 620, amplitude: 0.13)
+        case .swipe: return Tone(duration: 0.09, startFrequency: 620, endFrequency: 430, amplitude: 0.10)
+        case .cellTap: return Tone(duration: 0.055, startFrequency: 430, endFrequency: 470, amplitude: 0.12)
+        case .correctMove: return Tone(duration: 0.13, startFrequency: 620, endFrequency: 880, amplitude: 0.16)
+        case .wrongMove: return Tone(duration: 0.14, startFrequency: 330, endFrequency: 270, amplitude: 0.13)
+        case .levelComplete: return Tone(duration: 0.32, startFrequency: 520, endFrequency: 1_040, amplitude: 0.18)
+        case .levelFail: return Tone(duration: 0.22, startFrequency: 280, endFrequency: 220, amplitude: 0.13)
+        case .starReveal: return Tone(duration: 0.14, startFrequency: 740, endFrequency: 1_100, amplitude: 0.16)
+        case .coinCollect: return Tone(duration: 0.10, startFrequency: 900, endFrequency: 1_280, amplitude: 0.15)
+        case .coinBonus: return Tone(duration: 0.20, startFrequency: 760, endFrequency: 1_360, amplitude: 0.17)
+        case .countdown: return Tone(duration: 0.07, startFrequency: 460, endFrequency: 460, amplitude: 0.11)
+        case .timerWarning: return Tone(duration: 0.11, startFrequency: 380, endFrequency: 320, amplitude: 0.12)
+        case .unlock: return Tone(duration: 0.18, startFrequency: 640, endFrequency: 960, amplitude: 0.15)
+        }
+    }
+
+    private func makeBuffer(for effect: SoundEffect, format: AVAudioFormat) -> AVAudioPCMBuffer? {
+        let tone = tone(for: effect)
+        let frameCount = AVAudioFrameCount(format.sampleRate * tone.duration)
+        guard frameCount > 0,
+              let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: frameCount),
+              let samples = buffer.floatChannelData?[0] else {
+            return nil
+        }
+
+        var phase = 0.0
+        for frame in 0..<Int(frameCount) {
+            let progress = Double(frame) / Double(max(Int(frameCount) - 1, 1))
+            let frequency = tone.startFrequency + (tone.endFrequency - tone.startFrequency) * progress
+            phase += 2 * Double.pi * frequency / format.sampleRate
+
+            let attack = min(1, progress / 0.08)
+            let release = pow(max(0, 1 - progress), 2.4)
+            let envelope = attack * release
+            let roundedTone = sin(phase) + 0.10 * sin(phase * 2)
+            samples[frame] = Float(tone.amplitude * envelope * roundedTone)
+        }
+
+        buffer.frameLength = frameCount
+        return buffer
     }
 }
 
-// MARK: - View Extension
-
 extension View {
-    /// Play sound on tap
     func soundOnTap(_ effect: SoundEffect) -> some View {
-        self.simultaneousGesture(
+        simultaneousGesture(
             TapGesture().onEnded { _ in
                 Task { @MainActor in
                     SoundEffectsService.shared.play(effect)

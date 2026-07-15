@@ -222,6 +222,8 @@ struct DifficultySettings: Codable, Hashable {
     // Ranges
     var addSubRange: Int      // Max operand for +/-
     var multDivRange: Int     // Max operand for ×/÷
+    /// Nil/empty keeps legacy "up to N" behaviour. Custom games store exact tables here.
+    var selectedTimesTables: Set<Int>? = nil
 
     // Connector values
     var connectorMin: Int
@@ -273,6 +275,11 @@ struct ValidationResult {
 // MARK: - Device-Specific Grid Caps
 
 extension DifficultySettings {
+    /// Sanitized exact tables used by custom multiplication and division questions.
+    var timesTables: Set<Int> {
+        Set((selectedTimesTables ?? []).filter { (1...12).contains($0) })
+    }
+
     /// Maximum grid dimensions for iPhone
     /// Quick Play: 5 rows x 6 cols
     /// Story Mode: 4 rows x 6 cols (ALL levels)

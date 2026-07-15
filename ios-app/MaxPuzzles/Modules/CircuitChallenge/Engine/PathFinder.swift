@@ -58,7 +58,9 @@ enum PathFinder {
             var current = start
 
             while current != finish {
-                if path.count > maxLength {
+                // Appending another cell when already at the limit would allow
+                // a successful path containing maxLength + 1 cells.
+                if path.count >= maxLength {
                     break
                 }
 
@@ -128,7 +130,10 @@ enum PathFinder {
                 current = next
             }
 
-            if current == finish && path.count >= minLength && isInterestingPath(path) {
+            if current == finish &&
+                path.count >= minLength &&
+                path.count <= maxLength &&
+                isInterestingPath(path) {
                 return .success(path: path, commitments: diagonalCommitments)
             }
         }

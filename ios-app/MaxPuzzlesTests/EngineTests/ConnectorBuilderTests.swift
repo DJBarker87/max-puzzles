@@ -84,6 +84,39 @@ final class ConnectorBuilderTests: XCTestCase {
         }
     }
 
+    func testTightLevelOnePaletteDoesNotRandomlyDeadEndWhenGraphIsFeasible() throws {
+        let diagonalGrid: DiagonalGrid = [
+            [.DR, .DR, .DR],
+            [.DR, .DR, .DR]
+        ]
+        let unvalued = ConnectorBuilder.buildConnectorGraph(rows: 3, cols: 4, diagonalGrid: diagonalGrid)
+
+        for _ in 0..<30 {
+            let result = ConnectorBuilder.assignConnectorValues(
+                unvaluedConnectors: unvalued,
+                minValue: 5,
+                maxValue: 10
+            )
+            XCTAssertTrue(result.success, result.error ?? "Value assignment failed")
+        }
+    }
+
+    func testImpossiblePaletteFailsFast() {
+        let diagonalGrid: DiagonalGrid = [
+            [.DR, .DR, .DR],
+            [.DR, .DR, .DR]
+        ]
+        let unvalued = ConnectorBuilder.buildConnectorGraph(rows: 3, cols: 4, diagonalGrid: diagonalGrid)
+        let result = ConnectorBuilder.assignConnectorValues(
+            unvaluedConnectors: unvalued,
+            minValue: 1,
+            maxValue: 2
+        )
+
+        XCTAssertFalse(result.success)
+        XCTAssertTrue(result.error?.contains("unique values") == true)
+    }
+
     func testDivisionConnectorsReserved() {
         // Generate a path first
         let pathResult = PathFinder.generatePath(rows: 4, cols: 5, minLength: 8, maxLength: 15)
@@ -136,11 +169,12 @@ final class ConnectorBuilderTests: XCTestCase {
 
         XCTAssertTrue(result.success)
 
-        // Middle cell should have 8 connectors (or close to it depending on diagonals)
+        // The middle cell always has four orthogonal neighbours plus whichever diagonals point
+        // towards it; the random diagonal layout can validly leave it with only four.
         let middleConnectors = ConnectorBuilder.getConnectors(
             for: Coordinate(row: 1, col: 1),
             in: result.connectors
         )
-        XCTAssertGreaterThanOrEqual(middleConnectors.count, 6)
+        XCTAssertGreaterThanOrEqual(middleConnectors.count, 4)
     }
 }
