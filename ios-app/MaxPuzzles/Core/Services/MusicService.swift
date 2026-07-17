@@ -27,6 +27,11 @@ class MusicService: ObservableObject {
     private let storage = StorageService.shared
     private var currentTrack: MusicTrack?
     private var hasConfiguredAudioSession = false
+    private var requiredAudioSessions: Set<UUID> = []
+
+    private var isSuppressedForRequiredAudio: Bool {
+        !requiredAudioSessions.isEmpty
+    }
 
     // MARK: - Initialization
 
@@ -66,7 +71,7 @@ class MusicService: ObservableObject {
     ///   - loop: Whether to loop the music (default: true)
     func play(filename: String, fileExtension: String = "m4a", loop: Bool = true) {
         // Don't play if music is disabled
-        guard storage.isMusicEnabled else {
+        guard storage.isMusicEnabled, !isSuppressedForRequiredAudio else {
             return
         }
 
@@ -107,7 +112,7 @@ class MusicService: ObservableObject {
     /// Resumes paused music
     /// If no player exists but we have a current track, starts playing it
     func resume() {
-        guard storage.isMusicEnabled else { return }
+        guard storage.isMusicEnabled, !isSuppressedForRequiredAudio else { return }
 
         if let player = player {
             // Resume existing player
@@ -175,7 +180,7 @@ class MusicService: ObservableObject {
     ///   - filename: The name of the audio file
     ///   - duration: Fade duration in seconds
     func fadeIn(filename: String, fileExtension: String = "m4a", duration: TimeInterval = 1.0) {
-        guard storage.isMusicEnabled else { return }
+        guard storage.isMusicEnabled, !isSuppressedForRequiredAudio else { return }
 
         let targetVolume = volume
 
@@ -195,6 +200,28 @@ class MusicService: ObservableObject {
             }
             volume = targetVolume
         }
+    }
+
+    // MARK: - Required Audio Focus
+
+    /// Prevents background music from playing while a game depends on speech or recorded prompts.
+    /// Tokens make nested flows (for example spelling followed by handwriting) safe to overlap.
+    @discardableResult
+    func beginRequiredAudioSession() -> UUID {
+        let token = UUID()
+        requiredAudioSessions.insert(token)
+        stop()
+        return token
+    }
+
+    /// Releases required-audio focus and restores menu music only after the final nested session.
+    func endRequiredAudioSession(
+        _ token: UUID,
+        resume track: MusicTrack? = .hub
+    ) {
+        guard requiredAudioSessions.remove(token) != nil else { return }
+        guard requiredAudioSessions.isEmpty, let track else { return }
+        play(track: track)
     }
 }
 
@@ -224,12 +251,15 @@ enum MusicTrack: String {
 extension MusicService {
     /// Plays a predefined music track
     func play(track: MusicTrack, loop: Bool = true) {
+        guard !isSuppressedForRequiredAudio else { return }
         currentTrack = track
         play(filename: track.filename, fileExtension: track.fileExtension, loop: loop)
     }
 
     /// Fades in a predefined music track
     func fadeIn(track: MusicTrack, duration: TimeInterval = 1.0) {
+        guard !isSuppressedForRequiredAudio else { return }
+        currentTrack = track
         fadeIn(filename: track.filename, fileExtension: track.fileExtension, duration: duration)
     }
 }

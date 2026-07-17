@@ -73,6 +73,17 @@ struct CometCustomWord: Codable, Hashable, Identifiable, Sendable {
     }
 }
 
+struct CometCustomWordImportResult: Equatable, Sendable {
+    let addedWords: [String]
+    let invalidCount: Int
+    let duplicateCount: Int
+    let overflowCount: Int
+
+    var skippedCount: Int {
+        invalidCount + duplicateCount + overflowCount
+    }
+}
+
 struct StoredLetterPoint: Codable, Hashable, Sendable {
     let x: Double
     let y: Double
@@ -127,6 +138,8 @@ enum CometMasteryLevel: Int, Comparable, Sendable {
 @MainActor
 final class CometLearningStore: ObservableObject {
     static let shared = CometLearningStore()
+    static let maximumCustomWords = 100
+    static let maximumCustomWordLength = 10
 
     @Published private(set) var profiles: [CometChildProfile]
     @Published private(set) var activeProfileID: UUID
@@ -276,9 +289,9 @@ final class CometLearningStore: ObservableObject {
 
     @discardableResult
     func addCustomWord(_ word: String) -> CometCustomWord? {
-        let cleaned = Self.cleanWord(word)
-        guard (1...10).contains(cleaned.count),
-              activeCustomWords.count < 20,
+        let cleaned = Self.normalizedCustomWord(word)
+        guard (1...Self.maximumCustomWordLength).contains(cleaned.count),
+              activeCustomWords.count < Self.maximumCustomWords,
               !activeCustomWords.contains(where: { $0.text == cleaned }) else {
             return nil
         }
@@ -287,6 +300,61 @@ final class CometLearningStore: ObservableObject {
         customWords.append(customWord)
         persistCustomWords()
         return customWord
+    }
+
+    /// Imports a plain-text or CSV-style list in one pass. Words remain local to the active
+    /// child profile and use the same constraints as words entered individually.
+    @discardableResult
+    func importCustomWords(from rawList: String) -> CometCustomWordImportResult {
+        let separators = CharacterSet.whitespacesAndNewlines
+            .union(CharacterSet(charactersIn: ",;|"))
+        var candidates = rawList
+            .components(separatedBy: separators)
+            .filter { !$0.isEmpty }
+
+        if let first = candidates.first,
+           ["word", "words"].contains(Self.normalizedCustomWord(first)) {
+            candidates.removeFirst()
+        }
+
+        let existingWordCount = activeCustomWords.count
+        var seen = Set(activeCustomWords.map(\.text))
+        var addedWords: [String] = []
+        var invalidCount = 0
+        var duplicateCount = 0
+        var overflowCount = 0
+
+        for candidate in candidates {
+            let cleaned = Self.normalizedCustomWord(candidate)
+            guard (1...Self.maximumCustomWordLength).contains(cleaned.count) else {
+                invalidCount += 1
+                continue
+            }
+            guard seen.insert(cleaned).inserted else {
+                duplicateCount += 1
+                continue
+            }
+            guard existingWordCount + addedWords.count < Self.maximumCustomWords else {
+                overflowCount += 1
+                continue
+            }
+
+            customWords.append(
+                CometCustomWord(profileID: activeProfileID, text: cleaned)
+            )
+            addedWords.append(cleaned)
+        }
+
+        if !addedWords.isEmpty {
+            persistCustomWords()
+        }
+
+        return CometCustomWordImportResult(
+            addedWords: addedWords,
+            invalidCount: invalidCount,
+            duplicateCount: duplicateCount,
+            overflowCount: overflowCount
+        )
     }
 
     func setRecordingFilename(_ filename: String?, for wordID: UUID) {
@@ -425,7 +493,7 @@ final class CometLearningStore: ObservableObject {
         String(name.trimmingCharacters(in: .whitespacesAndNewlines).prefix(24))
     }
 
-    private static func cleanWord(_ word: String) -> String {
+    static func normalizedCustomWord(_ word: String) -> String {
         String(
             word.lowercased().unicodeScalars.filter { scalar in
                 (97...122).contains(Int(scalar.value))

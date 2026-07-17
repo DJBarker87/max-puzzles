@@ -29,6 +29,9 @@ class StorageService: ObservableObject {
     @Published private(set) var cometWriterCompletedLetters: Set<String>
     @Published private(set) var cometWriterBestScores: [String: Int]
     @Published private(set) var lastCometWriterLetter: String?
+    @Published private(set) var dotToDotCompletedPuzzles: Set<String>
+    @Published private(set) var dotToDotInteractionMode: DotInteractionMode
+    @Published private(set) var dotToDotColoredRegions: [String: Set<Int>]
 
     // MARK: - Keys
 
@@ -53,6 +56,9 @@ class StorageService: ObservableObject {
         static let cometWriterCompletedLetters = "maxpuzzles.cometWriter.completedLetters"
         static let cometWriterBestScores = "maxpuzzles.cometWriter.bestScores"
         static let lastCometWriterLetter = "maxpuzzles.cometWriter.lastLetter"
+        static let dotToDotCompletedPuzzles = "maxpuzzles.dotToDot.completedPuzzles"
+        static let dotToDotInteractionMode = "maxpuzzles.dotToDot.interactionMode"
+        static let dotToDotColoredRegions = "maxpuzzles.dotToDot.coloredRegions"
     }
 
     // MARK: - UserDefaults
@@ -96,6 +102,15 @@ class StorageService: ObservableObject {
                 }
             }
         self.lastCometWriterLetter = defaults.string(forKey: Keys.lastCometWriterLetter)
+        self.dotToDotCompletedPuzzles = Set(
+            defaults.stringArray(forKey: Keys.dotToDotCompletedPuzzles) ?? []
+        )
+        self.dotToDotInteractionMode = DotInteractionMode(
+            rawValue: defaults.string(forKey: Keys.dotToDotInteractionMode) ?? ""
+        ) ?? .tap
+        self.dotToDotColoredRegions = Self.decodeColoredRegions(
+            defaults.data(forKey: Keys.dotToDotColoredRegions)
+        )
 
         // Load or create guest session
         if let sessionIdString = defaults.string(forKey: Keys.guestSessionId),
@@ -307,6 +322,67 @@ class StorageService: ObservableObject {
         return cometWriterBestScores[normalized]
     }
 
+    // MARK: - Dot-to-Dot Progress
+
+    /// Returns true only for the first completion of this picture. Replays remain fun but do not
+    /// inflate milestones or make handwriting breaks occur too often.
+    @discardableResult
+    func markDotToDotPuzzleCompleted(_ puzzleID: String) -> Bool {
+        guard DotPuzzleCatalog.all.contains(where: { $0.id == puzzleID }) else { return false }
+        let insertion = dotToDotCompletedPuzzles.insert(puzzleID)
+        guard insertion.inserted else { return false }
+
+        defaults.set(dotToDotCompletedPuzzles.sorted(), forKey: Keys.dotToDotCompletedPuzzles)
+        return true
+    }
+
+    func setDotToDotInteractionMode(_ mode: DotInteractionMode) {
+        dotToDotInteractionMode = mode
+        defaults.set(mode.rawValue, forKey: Keys.dotToDotInteractionMode)
+    }
+
+    func coloredDotToDotRegions(for puzzleID: String) -> Set<Int> {
+        dotToDotColoredRegions[puzzleID] ?? []
+    }
+
+    func colorDotToDotRegion(_ region: Int, for puzzleID: String) {
+        guard let puzzle = DotPuzzleCatalog.all.first(where: { $0.id == puzzleID }) else { return }
+        let semanticRegionCount: Int? = {
+            guard let sourceSheet = puzzle.sourceSheet,
+                  let referenceArt = puzzle.referenceArt else { return nil }
+            let slot = referenceArt.row * referenceArt.columns + referenceArt.column + 1
+            return DownloadedDotPuzzleColourArtwork.plan(
+                sheet: sourceSheet,
+                slot: slot
+            )?.swatches.count
+        }()
+        let validRegions = 1...(semanticRegionCount ?? DotPaintingPlan.regionCount(for: puzzle))
+        guard validRegions.contains(region) else { return }
+
+        var regions = dotToDotColoredRegions[puzzleID] ?? []
+        guard regions.insert(region).inserted else { return }
+        dotToDotColoredRegions[puzzleID] = regions
+        persistDotToDotColoredRegions()
+    }
+
+    func resetDotToDotColoring(for puzzleID: String) {
+        guard dotToDotColoredRegions.removeValue(forKey: puzzleID) != nil else { return }
+        persistDotToDotColoredRegions()
+    }
+
+    private func persistDotToDotColoredRegions() {
+        let value = dotToDotColoredRegions.mapValues { Array($0).sorted() }
+        defaults.set(try? JSONEncoder().encode(value), forKey: Keys.dotToDotColoredRegions)
+    }
+
+    private static func decodeColoredRegions(_ data: Data?) -> [String: Set<Int>] {
+        guard let data,
+              let value = try? JSONDecoder().decode([String: [Int]].self, from: data) else {
+            return [:]
+        }
+        return value.mapValues { Set($0) }
+    }
+
     private func normalizedWritingSymbol(_ value: String) -> String? {
         guard value.count == 1, let scalar = value.unicodeScalars.first else { return nil }
         let codePoint = Int(scalar.value)
@@ -349,6 +425,9 @@ class StorageService: ObservableObject {
         cometWriterCompletedLetters = []
         cometWriterBestScores = [:]
         lastCometWriterLetter = nil
+        dotToDotCompletedPuzzles = []
+        dotToDotInteractionMode = .tap
+        dotToDotColoredRegions = [:]
     }
 }
 

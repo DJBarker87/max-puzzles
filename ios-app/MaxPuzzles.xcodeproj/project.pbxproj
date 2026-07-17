@@ -98,6 +98,14 @@
 		CW0001231111111111111111 /* CustomPromptAudioService.swift in Sources */ = {isa = PBXBuildFile; fileRef = CW0001221111111111111111 /* CustomPromptAudioService.swift */; };
 		CW0001251111111111111111 /* CometWriterParentViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = CW0001241111111111111111 /* CometWriterParentViews.swift */; };
 		CW0001271111111111111111 /* CometWriterAcademyViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = CW0001261111111111111111 /* CometWriterAcademyViews.swift */; };
+		DT0000031111111111111111 /* DotToDotModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = DT0000011111111111111111 /* DotToDotModels.swift */; };
+		DT0000041111111111111111 /* DotToDotViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = DT0000021111111111111111 /* DotToDotViews.swift */; };
+		DT0000061111111111111111 /* DownloadedDotPuzzles.swift in Sources */ = {isa = PBXBuildFile; fileRef = DT0000051111111111111111 /* DownloadedDotPuzzles.swift */; };
+		DT0000081111111111111111 /* DownloadedDotPuzzleArtwork.swift in Sources */ = {isa = PBXBuildFile; fileRef = DT0000071111111111111111 /* DownloadedDotPuzzleArtwork.swift */; };
+		DT00000A1111111111111111 /* DotToDotColouringViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = DT0000091111111111111111 /* DotToDotColouringViews.swift */; };
+		DT00000C1111111111111111 /* DownloadedDotPuzzleColourArtwork.generated.swift in Sources */ = {isa = PBXBuildFile; fileRef = DT00000B1111111111111111 /* DownloadedDotPuzzleColourArtwork.generated.swift */; };
+		SP0000021111111111111111 /* StarSpellerViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = SP0000011111111111111111 /* StarSpellerViews.swift */; };
+		SP0000041111111111111111 /* SpellingWordImportTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = SP0000031111111111111111 /* SpellingWordImportTests.swift */; };
 		PV0001011111111111111111 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = PV0001001111111111111111 /* PrivacyInfo.xcprivacy */; };
 /* End PBXBuildFile section */
 
@@ -213,6 +221,14 @@
 		CW0001221111111111111111 /* CustomPromptAudioService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomPromptAudioService.swift; sourceTree = "<group>"; };
 		CW0001241111111111111111 /* CometWriterParentViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CometWriterParentViews.swift; sourceTree = "<group>"; };
 		CW0001261111111111111111 /* CometWriterAcademyViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CometWriterAcademyViews.swift; sourceTree = "<group>"; };
+		DT0000011111111111111111 /* DotToDotModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DotToDotModels.swift; sourceTree = "<group>"; };
+		DT0000021111111111111111 /* DotToDotViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DotToDotViews.swift; sourceTree = "<group>"; };
+		DT0000051111111111111111 /* DownloadedDotPuzzles.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownloadedDotPuzzles.swift; sourceTree = "<group>"; };
+		DT0000071111111111111111 /* DownloadedDotPuzzleArtwork.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownloadedDotPuzzleArtwork.swift; sourceTree = "<group>"; };
+		DT0000091111111111111111 /* DotToDotColouringViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DotToDotColouringViews.swift; sourceTree = "<group>"; };
+		DT00000B1111111111111111 /* DownloadedDotPuzzleColourArtwork.generated.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownloadedDotPuzzleColourArtwork.generated.swift; sourceTree = "<group>"; };
+		SP0000011111111111111111 /* StarSpellerViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StarSpellerViews.swift; sourceTree = "<group>"; };
+		SP0000031111111111111111 /* SpellingWordImportTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpellingWordImportTests.swift; sourceTree = "<group>"; };
 		PV0001001111111111111111 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -374,6 +390,8 @@
 			children = (
 				AA0000521111111111111111 /* CircuitChallenge */,
 				CW0000001111111111111111 /* CometWriter */,
+				SP0000001111111111111111 /* StarSpeller */,
+				DT0000001111111111111111 /* DotToDot */,
 			);
 			path = Modules;
 			sourceTree = "<group>";
@@ -548,6 +566,7 @@
 				CC0001041111111111111111 /* ExpressionGeneratorTests.swift */,
 				CC0001061111111111111111 /* PuzzleGeneratorTests.swift */,
 				CW0001161111111111111111 /* LetterPathValidatorTests.swift */,
+				SP0000031111111111111111 /* SpellingWordImportTests.swift */,
 			);
 			path = EngineTests;
 			sourceTree = "<group>";
@@ -636,6 +655,27 @@
 				CW0001261111111111111111 /* CometWriterAcademyViews.swift */,
 			);
 			path = Views;
+			sourceTree = "<group>";
+		};
+		DT0000001111111111111111 /* DotToDot */ = {
+			isa = PBXGroup;
+			children = (
+				DT0000011111111111111111 /* DotToDotModels.swift */,
+				DT0000021111111111111111 /* DotToDotViews.swift */,
+				DT0000051111111111111111 /* DownloadedDotPuzzles.swift */,
+				DT0000071111111111111111 /* DownloadedDotPuzzleArtwork.swift */,
+				DT0000091111111111111111 /* DotToDotColouringViews.swift */,
+				DT00000B1111111111111111 /* DownloadedDotPuzzleColourArtwork.generated.swift */,
+			);
+			path = DotToDot;
+			sourceTree = "<group>";
+		};
+		SP0000001111111111111111 /* StarSpeller */ = {
+			isa = PBXGroup;
+			children = (
+				SP0000011111111111111111 /* StarSpellerViews.swift */,
+			);
+			path = StarSpeller;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -850,6 +890,13 @@
 				CW0001231111111111111111 /* CustomPromptAudioService.swift in Sources */,
 				CW0001251111111111111111 /* CometWriterParentViews.swift in Sources */,
 				CW0001271111111111111111 /* CometWriterAcademyViews.swift in Sources */,
+				DT0000031111111111111111 /* DotToDotModels.swift in Sources */,
+				DT0000041111111111111111 /* DotToDotViews.swift in Sources */,
+				DT0000061111111111111111 /* DownloadedDotPuzzles.swift in Sources */,
+				DT0000081111111111111111 /* DownloadedDotPuzzleArtwork.swift in Sources */,
+				DT00000A1111111111111111 /* DotToDotColouringViews.swift in Sources */,
+				DT00000C1111111111111111 /* DownloadedDotPuzzleColourArtwork.generated.swift in Sources */,
+				SP0000021111111111111111 /* StarSpellerViews.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -863,6 +910,7 @@
 				CC0001051111111111111111 /* ExpressionGeneratorTests.swift in Sources */,
 				CC0001071111111111111111 /* PuzzleGeneratorTests.swift in Sources */,
 				CW0001171111111111111111 /* LetterPathValidatorTests.swift in Sources */,
+				SP0000041111111111111111 /* SpellingWordImportTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

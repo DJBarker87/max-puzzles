@@ -3,6 +3,7 @@ import SwiftUI
 struct CometWriterGameView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @EnvironmentObject private var musicService: MusicService
     @StateObject private var viewModel: CometWriterViewModel
     @ObservedObject private var learningStore = CometLearningStore.shared
     @AppStorage("maxpuzzles.cometWriter.pencilOnly") private var pencilOnly = false
@@ -13,6 +14,7 @@ struct CometWriterGameView: View {
     @AppStorage("maxpuzzles.cometWriter.bestAccuracyStreak") private var bestAccuracyStreak = 0
     @State private var showsWritingTools = false
     @State private var latestReward: CometReward?
+    @State private var requiredAudioToken: UUID?
 
     private let speech = LetterSpeechService.shared
 
@@ -78,6 +80,9 @@ struct CometWriterGameView: View {
             .presentationDragIndicator(.visible)
         }
         .onAppear {
+            if requiredAudioToken == nil {
+                requiredAudioToken = musicService.beginRequiredAudioSession()
+            }
             if UIDevice.current.userInterfaceIdiom != .pad {
                 pencilOnly = false
             }
@@ -89,6 +94,10 @@ struct CometWriterGameView: View {
         .onDisappear {
             viewModel.stopHint()
             speech.stop()
+            if let requiredAudioToken {
+                musicService.endRequiredAudioSession(requiredAudioToken)
+                self.requiredAudioToken = nil
+            }
         }
         .onChange(of: viewModel.isLetterComplete) { isComplete in
             guard isComplete else { return }
@@ -546,11 +555,14 @@ private enum RecallCueStyle: String, CaseIterable {
 struct AdvancedWritingGameView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @EnvironmentObject private var musicService: MusicService
 
     let mission: AdvancedWritingMission
     private let recallCharacters: [String]
     private let missionWords: [String]
     private let sessionTarget: Int
+    private let completionButtonTitle: String?
+    private let onSessionComplete: (() -> Void)?
     @StateObject private var viewModel: CometWriterViewModel
     @ObservedObject private var learningStore = CometLearningStore.shared
 
@@ -572,15 +584,21 @@ struct AdvancedWritingGameView: View {
     @State private var sessionItemsCompleted = 0
     @State private var sessionRewards: [CometReward] = []
     @State private var isSessionComplete = false
+    @State private var requiredAudioToken: UUID?
 
     private let speech = LetterSpeechService.shared
     init(
         mission: AdvancedWritingMission,
         recallCharacters: [String] = LetterRecallCatalog.teachingOrder,
         words: [String] = [],
-        sessionLength: Int = 5
+        sessionLength: Int = 5,
+        allowsShortWords: Bool = false,
+        completionButtonTitle: String? = nil,
+        onSessionComplete: (() -> Void)? = nil
     ) {
         self.mission = mission
+        self.completionButtonTitle = completionButtonTitle
+        self.onSessionComplete = onSessionComplete
         let resolvedSessionLength = min(max(sessionLength, 1), 8)
         sessionTarget = resolvedSessionLength
         let requestedRecallLetters = LetterRecallCatalog.orderedSelection(Set(recallCharacters))
@@ -595,7 +613,7 @@ struct AdvancedWritingGameView: View {
         self.recallCharacters = finalRecallCharacters
 
         let validWords = words
-            .map { $0.lowercased() }
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty && $0.allSatisfy { LetterLibrary.glyph(for: String($0)) != nil } }
         let resolvedWords = validWords.isEmpty ? CometLearningStore.shared.availableWords : validWords
         // A whole-word mission must actually require several letters. Starting with "a" or "I"
@@ -605,7 +623,7 @@ struct AdvancedWritingGameView: View {
         let multiLetterWords = resolvedWords.filter { $0.count >= 3 }
         let fallbackMultiLetterWords = CometLearningStore.shared.availableWords.filter { $0.count >= 3 }
         let wordsForMission: [String]
-        if requiresWholeWord {
+        if requiresWholeWord && !allowsShortWords {
             wordsForMission = multiLetterWords.isEmpty ? fallbackMultiLetterWords : multiLetterWords
         } else {
             wordsForMission = resolvedWords
@@ -685,6 +703,9 @@ struct AdvancedWritingGameView: View {
             .presentationDragIndicator(.visible)
         }
         .onAppear {
+            if requiredAudioToken == nil {
+                requiredAudioToken = musicService.beginRequiredAudioSession()
+            }
             if UIDevice.current.userInterfaceIdiom != .pad {
                 pencilOnly = false
             }
@@ -696,6 +717,10 @@ struct AdvancedWritingGameView: View {
             autoAdvanceTask?.cancel()
             speech.stop()
             CustomPromptAudioService.shared.stopPlayback()
+            if let requiredAudioToken {
+                musicService.endRequiredAudioSession(requiredAudioToken)
+                self.requiredAudioToken = nil
+            }
         }
         .onChange(of: viewModel.isLetterComplete) { complete in
             guard complete else { return }
@@ -1131,7 +1156,9 @@ struct AdvancedWritingGameView: View {
     }
 
     private var nextButtonTitle: String {
-        if sessionItemsCompleted + 1 >= sessionTarget { return "Finish mission" }
+        if sessionItemsCompleted + 1 >= sessionTarget {
+            return completionButtonTitle ?? "Finish mission"
+        }
         return isRecallMission ? "Next letter" : "Next word"
     }
 
@@ -1236,6 +1263,11 @@ struct AdvancedWritingGameView: View {
             sessionItemsCompleted += 1
             if sessionItemsCompleted >= sessionTarget {
                 latestReward = nil
+                if let onSessionComplete {
+                    onSessionComplete()
+                    dismiss()
+                    return
+                }
                 isSessionComplete = true
                 return
             }
@@ -1560,4 +1592,5 @@ struct CometWriterToolsSheet: View {
     NavigationStack {
         CometWriterGameView(startingGlyph: LetterLibrary.glyph(for: "c")!)
     }
+    .environmentObject(MusicService.shared)
 }

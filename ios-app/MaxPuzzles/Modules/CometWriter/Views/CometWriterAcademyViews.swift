@@ -509,6 +509,7 @@ struct CometFlightSchoolView: View {
 
 struct CometPaperTransferView: View {
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var musicService: MusicService
     @ObservedObject private var store = CometLearningStore.shared
     @AppStorage("maxpuzzles.cometWriter.cometPoints") private var cometPoints = 0
 
@@ -517,6 +518,7 @@ struct CometPaperTransferView: View {
     @State private var showsExample = true
     @State private var rewards: [CometReward] = []
     @State private var isComplete = false
+    @State private var requiredAudioToken: UUID?
 
     init() {
         let recommended = CometLearningStore.shared.recommendedCharacters(
@@ -551,8 +553,19 @@ struct CometPaperTransferView: View {
         }
         .toolbar(.hidden, for: .navigationBar)
         .navigationBarBackButtonHidden(true)
-        .onAppear { LetterSpeechService.shared.speak(glyph) }
-        .onDisappear { LetterSpeechService.shared.stop() }
+        .onAppear {
+            if requiredAudioToken == nil {
+                requiredAudioToken = musicService.beginRequiredAudioSession()
+            }
+            LetterSpeechService.shared.speak(glyph)
+        }
+        .onDisappear {
+            LetterSpeechService.shared.stop()
+            if let requiredAudioToken {
+                musicService.endRequiredAudioSession(requiredAudioToken)
+                self.requiredAudioToken = nil
+            }
+        }
         .accessibilityIdentifier("comet-paper-transfer")
     }
 

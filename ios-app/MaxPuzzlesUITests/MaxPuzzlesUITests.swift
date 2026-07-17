@@ -38,7 +38,7 @@ final class MaxPuzzlesUITests: XCTestCase {
         XCTAssertTrue(hubTitle.waitForExistence(timeout: 3))
 
         let moduleCard = app.buttons["Circuit Challenge"]
-        XCTAssertTrue(moduleCard.waitForExistence(timeout: 2))
+        revealModule(moduleCard, in: app)
         moduleCard.tap()
 
         XCTAssertTrue(app.buttons["Start Adventure"].waitForExistence(timeout: 2))
@@ -46,7 +46,7 @@ final class MaxPuzzlesUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Grown-ups"].exists)
     }
 
-    func testHubShowsBothGamesEqually() throws {
+    func testHubShowsEveryGameEqually() throws {
         XCUIDevice.shared.orientation = .portrait
 
         let app = XCUIApplication()
@@ -55,32 +55,166 @@ final class MaxPuzzlesUITests: XCTestCase {
 
         let circuit = app.buttons["Circuit Challenge"]
         let cometWriter = app.buttons["Comet Writer"]
+        let starSpeller = app.buttons["Star Speller"]
+        let dotToDot = app.buttons["Dot-to-Dot Discovery"]
         XCTAssertTrue(circuit.waitForExistence(timeout: 3))
         XCTAssertTrue(cometWriter.waitForExistence(timeout: 3))
+        XCTAssertTrue(starSpeller.waitForExistence(timeout: 3))
+        XCTAssertTrue(dotToDot.waitForExistence(timeout: 3))
         XCTAssertTrue(circuit.isHittable)
-        XCTAssertTrue(cometWriter.isHittable)
 
         let circuitFrame = circuit.frame
         let cometFrame = cometWriter.frame
-        let screenFrame = app.frame
-
         XCTAssertEqual(circuitFrame.width, cometFrame.width, accuracy: 1)
         XCTAssertEqual(circuitFrame.height, cometFrame.height, accuracy: 1)
-        XCTAssertEqual(circuitFrame.midY, cometFrame.midY, accuracy: 1)
         XCTAssertGreaterThanOrEqual(circuitFrame.width, 140)
-        XCTAssertGreaterThanOrEqual(cometFrame.maxX - circuitFrame.maxX, 12)
-        XCTAssertGreaterThanOrEqual(circuitFrame.minX, screenFrame.minX)
-        XCTAssertLessThanOrEqual(cometFrame.maxX, screenFrame.maxX)
-        XCTAssertEqual(
-            circuitFrame.minX - screenFrame.minX,
-            screenFrame.maxX - cometFrame.maxX,
-            accuracy: 2
-        )
+
+        let gameCarousel = app.scrollViews["puzzle-game-carousel"]
+        for _ in 0..<3 where !dotToDot.isHittable {
+            gameCarousel.swipeLeft()
+        }
+        XCTAssertTrue(dotToDot.isHittable)
+        XCTAssertEqual(starSpeller.frame.width, circuitFrame.width, accuracy: 1)
+        XCTAssertEqual(starSpeller.frame.height, circuitFrame.height, accuracy: 1)
+        XCTAssertEqual(dotToDot.frame.width, circuitFrame.width, accuracy: 1)
+        XCTAssertEqual(dotToDot.frame.height, circuitFrame.height, accuracy: 1)
 
         let screenshot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
-        screenshot.name = "Two equally prominent puzzle cards"
+        screenshot.name = "Equally prominent puzzle cards"
         screenshot.lifetime = .keepAlways
         add(screenshot)
+    }
+
+    func testDotToDotOffersTapAndTracePlayStyles() throws {
+        XCUIDevice.shared.orientation = .portrait
+
+        let app = XCUIApplication()
+        app.launchArguments = ["-ui-testing-reset", "-ui-testing-skip-onboarding"]
+        app.launch()
+
+        let dotToDot = app.buttons["Dot-to-Dot Discovery"]
+        XCTAssertTrue(dotToDot.waitForExistence(timeout: 4))
+        for _ in 0..<3 where !dotToDot.isHittable {
+            app.scrollViews["puzzle-game-carousel"].swipeLeft()
+        }
+        dotToDot.tap()
+
+        XCTAssertTrue(app.otherElements["dot-to-dot-menu"].waitForExistence(timeout: 3))
+        let tapMode = app.buttons["dot-mode-tap"]
+        XCTAssertTrue(tapMode.exists)
+        tapMode.tap()
+        XCTAssertTrue(tapMode.isSelected)
+        let traceMode = app.buttons["dot-mode-trace"]
+        XCTAssertTrue(traceMode.exists)
+
+        let rocket = app.buttons["dot-puzzle-rocket"]
+        for _ in 0..<4 where !rocket.isHittable { app.swipeUp() }
+        XCTAssertTrue(rocket.isHittable)
+        rocket.tap()
+
+        XCTAssertTrue(app.otherElements["dot-to-dot-game"].waitForExistence(timeout: 3))
+        var first = app.buttons["dot-real-1"]
+        var second = app.buttons["dot-real-2"]
+        XCTAssertTrue(first.waitForExistence(timeout: 2))
+        first.tap()
+        second.tap()
+        XCTAssertTrue(app.staticTexts["Find numeral 3"].waitForExistence(timeout: 2))
+
+        app.buttons["Back to picture gallery"].tap()
+        XCTAssertTrue(app.otherElements["dot-to-dot-menu"].waitForExistence(timeout: 3))
+        traceMode.tap()
+        XCTAssertTrue(traceMode.isSelected)
+        XCTAssertTrue(rocket.isHittable)
+        rocket.tap()
+
+        XCTAssertTrue(app.otherElements["dot-to-dot-game"].waitForExistence(timeout: 3))
+        first = app.buttons["dot-real-1"]
+        second = app.buttons["dot-real-2"]
+        XCTAssertTrue(first.waitForExistence(timeout: 2))
+        first.tap()
+        XCTAssertTrue(app.staticTexts["Trace to numeral 2"].waitForExistence(timeout: 2))
+
+        second.tap()
+        XCTAssertTrue(app.staticTexts["Start at 1, then draw to 2."].waitForExistence(timeout: 2))
+
+        first.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+            .press(
+                forDuration: 0.12,
+                thenDragTo: second.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+            )
+        XCTAssertTrue(app.staticTexts["Trace to numeral 3"].waitForExistence(timeout: 2))
+    }
+
+    func testCompletedDotPictureUsesSubitisingColourPotsAndAwardsMarks() throws {
+        XCUIDevice.shared.orientation = .portrait
+
+        let app = XCUIApplication()
+        app.launchArguments = ["-ui-testing-reset", "-app-store-screen", "dot-paint"]
+        app.launch()
+
+        XCTAssertTrue(app.otherElements["dot-to-dot-complete"].waitForExistence(timeout: 4))
+        let paintActivity = app.otherElements["dot-paint-by-numbers"]
+        XCTAssertTrue(paintActivity.waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["paint-colour-1"].exists)
+        XCTAssertTrue(app.buttons["paint-colour-5"].exists)
+
+        let firstRegion = app.buttons["paint-region-1"]
+        for _ in 0..<3 where !firstRegion.isHittable { app.swipeUp() }
+        XCTAssertTrue(firstRegion.isHittable)
+        firstRegion.tap()
+
+        XCTAssertTrue(app.staticTexts["paint-score"].waitForExistence(timeout: 2))
+        XCTAssertEqual(app.staticTexts["paint-score"].label, "1/5 marks")
+        XCTAssertFalse(firstRegion.exists, "A correctly matched region should become coloured")
+
+        let screenshot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        screenshot.name = "Subitising colour-by-number marks"
+        screenshot.lifetime = .keepAlways
+        add(screenshot)
+    }
+
+    func testSemanticColouringFinishesThenReturnsToMorePictures() throws {
+        XCUIDevice.shared.orientation = .portrait
+
+        let app = XCUIApplication()
+        app.launchArguments = ["-ui-testing-reset", "-dot-preview-index", "0"]
+        app.launch()
+
+        let previewButton = app.buttons["dot-preview-open-colouring"]
+        XCTAssertTrue(previewButton.waitForExistence(timeout: 4))
+        previewButton.tap()
+
+        XCTAssertTrue(app.otherElements["dot-colouring-stage"].waitForExistence(timeout: 6))
+        for region in 1...4 {
+            let pot = app.buttons["dot-colouring-pot-\(region)"]
+            XCTAssertTrue(pot.waitForExistence(timeout: 2), "Missing semantic colour pot \(region)")
+            pot.tap()
+
+            let target = app.buttons["dot-colouring-region-\(region)-0"]
+            XCTAssertTrue(target.waitForExistence(timeout: 2), "Missing semantic region \(region)")
+            target.tap()
+        }
+
+        let finish = app.buttons["dot-colouring-finish"]
+        XCTAssertTrue(finish.isEnabled)
+        finish.tap()
+
+        let morePictures = app.buttons["More pictures"]
+        XCTAssertTrue(morePictures.waitForExistence(timeout: 4))
+        morePictures.tap()
+        XCTAssertTrue(app.buttons["dot-preview-open-colouring"].waitForExistence(timeout: 3))
+    }
+
+    private func revealModule(_ module: XCUIElement, in app: XCUIApplication) {
+        XCTAssertTrue(module.waitForExistence(timeout: 3))
+        guard !module.isHittable else { return }
+
+        let carousel = app.scrollViews["puzzle-game-carousel"]
+        XCTAssertTrue(carousel.waitForExistence(timeout: 2))
+        for _ in 0..<4 where !module.isHittable {
+            carousel.swipeLeft()
+        }
+        XCTAssertTrue(module.isHittable)
     }
 
     func testQuickPlayStartsAtLevelOne() throws {
@@ -88,8 +222,9 @@ final class MaxPuzzlesUITests: XCTestCase {
         app.launchArguments = ["-ui-testing-reset", "-ui-testing-skip-onboarding"]
         app.launch()
 
-        XCTAssertTrue(app.buttons["Circuit Challenge"].waitForExistence(timeout: 3))
-        app.buttons["Circuit Challenge"].tap()
+        let circuit = app.buttons["Circuit Challenge"]
+        revealModule(circuit, in: app)
+        circuit.tap()
 
         XCTAssertTrue(app.buttons["Quick Play"].waitForExistence(timeout: 2))
         app.buttons["Quick Play"].tap()
@@ -102,8 +237,9 @@ final class MaxPuzzlesUITests: XCTestCase {
         app.launchArguments = ["-ui-testing-reset", "-ui-testing-skip-onboarding"]
         app.launch()
 
-        XCTAssertTrue(app.buttons["Circuit Challenge"].waitForExistence(timeout: 3))
-        app.buttons["Circuit Challenge"].tap()
+        let circuit = app.buttons["Circuit Challenge"]
+        revealModule(circuit, in: app)
+        circuit.tap()
         XCTAssertTrue(app.buttons["Quick Play"].waitForExistence(timeout: 2))
         app.buttons["Quick Play"].tap()
 
@@ -123,8 +259,9 @@ final class MaxPuzzlesUITests: XCTestCase {
         app.launchArguments = ["-ui-testing-reset", "-ui-testing-skip-onboarding"]
         app.launch()
 
-        XCTAssertTrue(app.buttons["Circuit Challenge"].waitForExistence(timeout: 3))
-        app.buttons["Circuit Challenge"].tap()
+        let circuit = app.buttons["Circuit Challenge"]
+        revealModule(circuit, in: app)
+        circuit.tap()
         XCTAssertTrue(app.buttons["Quick Play"].waitForExistence(timeout: 2))
         app.buttons["Quick Play"].tap()
 
@@ -154,6 +291,7 @@ final class MaxPuzzlesUITests: XCTestCase {
         moduleCard.tap()
 
         XCTAssertTrue(app.otherElements["comet-writer-menu"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts["Comet Writer is best played with a capacitive stylus."].exists)
         XCTAssertTrue(app.staticTexts["Letter and number missions"].exists)
 
         let continueButton = app.buttons["Start with c"]

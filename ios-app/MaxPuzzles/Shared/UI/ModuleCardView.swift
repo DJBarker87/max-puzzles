@@ -13,7 +13,6 @@ struct ModuleCardView: View {
     let action: () -> Void
 
     @State private var isHovered = false
-    @State private var isPressed = false
     @State private var iconBounce = false
     @State private var glowPulse: CGFloat = 0
 
@@ -173,7 +172,7 @@ struct ModuleCardView: View {
             .shadow(
                 color: isHovered && !isLocked ? AppTheme.accentPrimary.opacity(0.3) : .black.opacity(0.3),
                 radius: isHovered ? 20 : 12,
-                y: isPressed ? 2 : 6
+                y: 6
             )
             .shadow(
                 color: Color.black.opacity(0.2),
@@ -181,11 +180,10 @@ struct ModuleCardView: View {
                 y: 2
             )
             // Micro-interactions
-            .scaleEffect(isPressed ? 0.97 : (isHovered && !isLocked ? 1.03 : 1.0))
-            .offset(y: isPressed ? 2 : 0)
+            .scaleEffect(isHovered && !isLocked ? 1.03 : 1.0)
             .opacity(isLocked ? 0.6 : 1.0)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(ScrollFriendlyPressStyle(scale: 0.97, yOffset: 2))
         .accessibilityLabel(title)
         .accessibilityHint(isLocked ? "This module is locked" : "\(description). Double tap to play")
         .accessibilityAddTraits(.isButton)
@@ -205,22 +203,6 @@ struct ModuleCardView: View {
                 }
             }
         }
-        .simultaneousGesture(
-            DragGesture(minimumDistance: 0)
-                .onChanged { _ in
-                    if !isPressed && !isLocked {
-                        withAnimation(.easeOut(duration: 0.1)) {
-                            isPressed = true
-                        }
-                        FeedbackManager.shared.haptic(.light)
-                    }
-                }
-                .onEnded { _ in
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
-                        isPressed = false
-                    }
-                }
-        )
         .onAppear {
             // Subtle continuous glow pulse
             withAnimation(.easeInOut(duration: 2).repeatForever(autoreverses: true)) {
@@ -247,8 +229,6 @@ struct MenuOptionCard: View {
     let iconName: String
     let color: Color
     let action: () -> Void
-
-    @State private var isPressed = false
 
     init(
         title: String,
@@ -323,36 +303,32 @@ struct MenuOptionCard: View {
             )
             .shadow(
                 color: Color.black.opacity(0.2),
-                radius: isPressed ? 4 : 8,
-                y: isPressed ? 2 : 4
+                radius: 8,
+                y: 4
             )
-            .scaleEffect(isPressed ? 0.98 : 1.0)
-            .offset(y: isPressed ? 1 : 0)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(ScrollFriendlyPressStyle(scale: 0.98, yOffset: 1))
         .accessibilityLabel(subtitle != nil ? "\(title). \(subtitle!)" : title)
         .accessibilityAddTraits(.isButton)
-        .simultaneousGesture(
-            DragGesture(minimumDistance: 0)
-                .onChanged { _ in
-                    if !isPressed {
-                        withAnimation(.easeOut(duration: 0.1)) {
-                            isPressed = true
-                        }
-                        FeedbackManager.shared.haptic(.light)
-                    }
-                }
-                .onEnded { _ in
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
-                        isPressed = false
-                    }
-                }
-        )
     }
 
     private func handleTap() {
         SoundEffectsService.shared.play(.buttonTap)
         action()
+    }
+}
+
+/// Uses `ButtonStyle.Configuration.isPressed` instead of a zero-distance drag gesture. The old
+/// gesture looked good but intercepted the parent carousel's pan recognizer on iPhone.
+private struct ScrollFriendlyPressStyle: ButtonStyle {
+    let scale: CGFloat
+    let yOffset: CGFloat
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? scale : 1)
+            .offset(y: configuration.isPressed ? yOffset : 0)
+            .animation(.easeOut(duration: 0.1), value: configuration.isPressed)
     }
 }
 

@@ -361,31 +361,35 @@ struct StarView: View {
 struct SplashBackground: View {
     var overlayOpacity: Double = 0.6
 
-    // Calculate offset once based on screen bounds (stable, no animation)
-    private var backgroundOffset: CGFloat {
-        let screen = UIScreen.main.bounds
-        let isPortrait = screen.height > screen.width
-        let isPhone = UIDevice.current.userInterfaceIdiom == .phone
-        return (isPortrait && isPhone) ? -80 : 0
-    }
-
     var body: some View {
-        ZStack {
-            // Fallback solid color (always visible immediately)
-            AppTheme.backgroundDark
+        GeometryReader { geometry in
+            let isPortraitPhone = geometry.size.height > geometry.size.width
+                && UIDevice.current.userInterfaceIdiom == .phone
 
-            // Fallback gradient
-            AppTheme.gridBackground
+            ZStack {
+                // Fallback solid color (always visible immediately)
+                AppTheme.backgroundDark
 
-            // Background image
-            Image("splash_background")
-                .resizable()
-                .scaledToFill()
-                .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
-                .offset(x: backgroundOffset)
-                .clipped()
+                // Fallback gradient
+                AppTheme.gridBackground
 
-            Color.black.opacity(overlayOpacity)
+                // Give the artwork a fixed viewport. Card micro-animations elsewhere in the
+                // hierarchy must never be able to renegotiate the background image's size.
+                Image("splash_background")
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: geometry.size.width, height: geometry.size.height)
+                    .offset(x: isPortraitPhone ? -80 : 0)
+
+                Color.black.opacity(overlayOpacity)
+            }
+            .frame(width: geometry.size.width, height: geometry.size.height)
+            .clipped()
+            .transaction { transaction in
+                // Splash artwork is a stable scene, even when a descendant starts a repeating
+                // glow or hover animation.
+                transaction.animation = nil
+            }
         }
         .ignoresSafeArea()
     }

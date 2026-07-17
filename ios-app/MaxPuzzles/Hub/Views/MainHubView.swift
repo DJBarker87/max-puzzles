@@ -5,9 +5,10 @@ struct MainHubView: View {
     @EnvironmentObject var appState: AppState
     @EnvironmentObject var musicService: MusicService
     @StateObject private var router = AppRouter()
-
     @State private var showCircuitChallenge = false
     @State private var showCometWriter = false
+    @State private var showDotToDot = false
+    @State private var showStarSpeller = false
 
     var body: some View {
         NavigationStack(path: $router.path) {
@@ -42,7 +43,10 @@ struct MainHubView: View {
                             .padding(.vertical, AppSpacing.lg)
 
                             // Module cards centered
-                            moduleSelectionView(isLandscape: true)
+                            moduleSelectionView(
+                                isLandscape: true,
+                                usePortraitGrid: false
+                            )
                                 .frame(maxWidth: .infinity)
                         }
                         .padding(.horizontal, AppSpacing.lg)
@@ -51,7 +55,10 @@ struct MainHubView: View {
                         VStack(spacing: AppSpacing.xl) {
                             headerView
                             Spacer()
-                            moduleSelectionView(isLandscape: false)
+                            moduleSelectionView(
+                                isLandscape: false,
+                                usePortraitGrid: geometry.size.width >= 700
+                            )
                                 .padding(.horizontal, AppSpacing.md)
                             Spacer()
                         }
@@ -69,6 +76,16 @@ struct MainHubView: View {
             }
             .fullScreenCover(isPresented: $showCometWriter) {
                 CometWriterMenuView()
+                    .environmentObject(appState)
+                    .environmentObject(musicService)
+            }
+            .fullScreenCover(isPresented: $showDotToDot) {
+                DotToDotMenuView()
+                    .environmentObject(appState)
+                    .environmentObject(musicService)
+            }
+            .fullScreenCover(isPresented: $showStarSpeller) {
+                StarSpellerMenuView()
                     .environmentObject(appState)
                     .environmentObject(musicService)
             }
@@ -103,35 +120,49 @@ struct MainHubView: View {
 
     // MARK: - Module Selection
 
-    private func moduleSelectionView(isLandscape: Bool) -> some View {
+    private func moduleSelectionView(
+        isLandscape: Bool,
+        usePortraitGrid: Bool
+    ) -> some View {
         VStack(spacing: isLandscape ? AppSpacing.md : AppSpacing.lg) {
             Text("Choose a Puzzle")
                 .font(AppTypography.titleSmall)
                 .foregroundColor(AppTheme.textSecondary)
 
-            HStack(alignment: .top, spacing: isLandscape ? AppSpacing.lg : AppSpacing.md) {
-                ModuleCardView(
-                    title: "Circuit Challenge",
-                    description: "Build paths and practise arithmetic",
-                    iconName: "bolt.fill",
-                    imageName: "circuit_challenge_icon",
-                    isLocked: false
-                ) {
-                    showCircuitChallenge = true
+            if isLandscape {
+                HStack(alignment: .top, spacing: AppSpacing.md) {
+                    dotToDotCard
+                    cometWriterCard
+                    circuitCard
+                    starSpellerCard
                 }
-
-                ModuleCardView(
-                    title: "Comet Writer",
-                    description: "Write letters and numbers",
-                    iconName: "pencil",
-                    imageName: "comet_writer_icon",
-                    iconGlowColor: AppTheme.cometCyan,
-                    isLocked: false
+            } else if usePortraitGrid {
+                LazyVGrid(
+                    columns: [
+                        GridItem(.flexible(), spacing: AppSpacing.md),
+                        GridItem(.flexible(), spacing: AppSpacing.md)
+                    ],
+                    spacing: AppSpacing.md
                 ) {
-                    showCometWriter = true
+                    dotToDotCard
+                    cometWriterCard
+                    circuitCard
+                    starSpellerCard
                 }
+            } else {
+                ScrollView(.horizontal) {
+                    HStack(alignment: .top, spacing: AppSpacing.md) {
+                        dotToDotCard.frame(width: 225)
+                        cometWriterCard.frame(width: 225)
+                        circuitCard.frame(width: 225)
+                        starSpellerCard.frame(width: 225)
+                    }
+                    .padding(.horizontal, 2)
+                }
+                .scrollIndicators(.hidden)
+                .accessibilityLabel("Puzzle games")
+                .accessibilityIdentifier("puzzle-game-carousel")
             }
-            .accessibilityElement(children: .contain)
         }
         .padding(.vertical, isLandscape ? AppSpacing.md : AppSpacing.xl)
         .padding(.horizontal, isLandscape ? AppSpacing.lg : AppSpacing.md)
@@ -173,6 +204,57 @@ struct MainHubView: View {
             }
         )
         .shadow(color: AppTheme.accentPrimary.opacity(0.15), radius: 30, y: 10)
+    }
+
+    private var circuitCard: some View {
+        ModuleCardView(
+            title: "Circuit Challenge",
+            description: "Build paths and practise arithmetic",
+            iconName: "bolt.fill",
+            imageName: "circuit_challenge_icon",
+            isLocked: false
+        ) {
+            showCircuitChallenge = true
+        }
+    }
+
+    private var cometWriterCard: some View {
+        ModuleCardView(
+            title: "Comet Writer",
+            description: "Write letters and numbers",
+            iconName: "pencil",
+            imageName: "comet_writer_icon",
+            iconGlowColor: AppTheme.cometCyan,
+            isLocked: false
+        ) {
+            showCometWriter = true
+        }
+    }
+
+    private var dotToDotCard: some View {
+        ModuleCardView(
+            title: "Dot-to-Dot Discovery",
+            description: "Recognise numerals and reveal 184 pictures",
+            iconName: "point.3.connected.trianglepath.dotted",
+            imageName: "dot_to_dot_icon",
+            iconGlowColor: Color(hex: "5eead4"),
+            isLocked: false
+        ) {
+            showDotToDot = true
+        }
+    }
+
+    private var starSpellerCard: some View {
+        ModuleCardView(
+            title: "Star Speller",
+            description: "Listen, type, then handwrite each word",
+            iconName: "character.book.closed.fill",
+            imageName: "star_speller_icon",
+            iconGlowColor: AppTheme.cometPurple,
+            isLocked: false
+        ) {
+            showStarSpeller = true
+        }
     }
 
     // MARK: - Navigation Destinations

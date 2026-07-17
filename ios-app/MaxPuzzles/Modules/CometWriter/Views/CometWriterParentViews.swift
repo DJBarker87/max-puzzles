@@ -1,5 +1,6 @@
 import SwiftUI
 import UIKit
+import UniformTypeIdentifiers
 
 struct CometAdultGateView: View {
     let title: String
@@ -628,6 +629,7 @@ struct CometCustomWordsView: View {
     @State private var isUnlocked = false
     @State private var newWord = ""
     @State private var message: String?
+    @State private var showsWordImporter = false
 
     var body: some View {
         ZStack {
@@ -639,7 +641,7 @@ struct CometCustomWordsView: View {
             } else {
                 CometAdultGateView(
                     title: "My Words",
-                    detail: "A grown-up can add names, classroom words and an optional voice prompt.",
+                    detail: "A grown-up can add or import spelling words and record an optional voice prompt.",
                     onCancel: { dismiss() },
                     onUnlock: { isUnlocked = true }
                 )
@@ -648,6 +650,12 @@ struct CometCustomWordsView: View {
         .toolbar(.hidden, for: .navigationBar)
         .navigationBarBackButtonHidden(true)
         .onDisappear { finishRecordingIfNeeded() }
+        .fileImporter(
+            isPresented: $showsWordImporter,
+            allowedContentTypes: [.plainText, .commaSeparatedText]
+        ) { result in
+            importWordList(result)
+        }
         .accessibilityIdentifier("comet-custom-words")
     }
 
@@ -665,7 +673,7 @@ struct CometCustomWordsView: View {
                         Text("My Words")
                             .font(AppTypography.titleMedium)
                             .foregroundColor(AppTheme.textPrimary)
-                        Text("For \(store.activeProfile.name) · used in Word Mission and Alien Mail")
+                        Text("For \(store.activeProfile.name) · used in Comet Writer and Star Speller")
                             .font(AppTypography.bodySmall)
                             .foregroundColor(AppTheme.textSecondary)
                     }
@@ -692,6 +700,40 @@ struct CometCustomWordsView: View {
                 .font(AppTypography.bodySmall)
                 .foregroundColor(AppTheme.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
+
+            Button {
+                showsWordImporter = true
+            } label: {
+                Label("Import TXT or CSV list", systemImage: "doc.badge.plus")
+                    .font(AppTypography.buttonLarge)
+                    .foregroundColor(AppTheme.backgroundDark)
+                    .frame(maxWidth: .infinity, minHeight: 50)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(AppTheme.cometCyan)
+                    )
+            }
+            .buttonStyle(.plain)
+            .disabled(store.activeCustomWords.count >= CometLearningStore.maximumCustomWords)
+            .opacity(
+                store.activeCustomWords.count >= CometLearningStore.maximumCustomWords ? 0.45 : 1
+            )
+            .accessibilityHint("Choose a file containing words separated by spaces, lines, or commas")
+            .accessibilityIdentifier("comet-import-word-list")
+
+            HStack(spacing: AppSpacing.sm) {
+                Rectangle()
+                    .fill(Color.white.opacity(0.12))
+                    .frame(height: 1)
+                Text("or add one word")
+                    .font(AppTypography.caption)
+                    .foregroundColor(AppTheme.textSecondary)
+                    .fixedSize()
+                Rectangle()
+                    .fill(Color.white.opacity(0.12))
+                    .frame(height: 1)
+            }
+
             HStack(spacing: 10) {
                 TextField("e.g. max", text: $newWord)
                     .textInputAutocapitalization(.never)
@@ -712,13 +754,14 @@ struct CometCustomWordsView: View {
                         .background(Circle().fill(AppTheme.accentPrimary))
                 }
                 .buttonStyle(.plain)
-                .disabled(store.activeCustomWords.count >= 20)
+                .disabled(store.activeCustomWords.count >= CometLearningStore.maximumCustomWords)
                 .accessibilityLabel("Add practice word")
             }
             if let message {
                 Text(message)
                     .font(AppTypography.bodySmall)
-                    .foregroundColor(message.hasPrefix("Added") ? AppTheme.accentPrimary : AppTheme.cometGold)
+                    .foregroundColor(messageColor)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
         .padding(AppSpacing.md)
@@ -732,13 +775,13 @@ struct CometCustomWordsView: View {
                     .font(AppTypography.titleSmall)
                     .foregroundColor(AppTheme.textPrimary)
                 Spacer()
-                Text("\(store.activeCustomWords.count)/20")
+                Text("\(store.activeCustomWords.count)/\(CometLearningStore.maximumCustomWords)")
                     .font(AppTypography.buttonSmall)
                     .foregroundColor(AppTheme.cometCyan)
             }
 
             if store.activeCustomWords.isEmpty {
-                Text("No custom words yet. The built-in common-word list is still available.")
+                Text("No custom words yet. Star Speller will use its England Year 1 starter list, and Comet Writer’s built-in list is still available.")
                     .font(AppTypography.bodySmall)
                     .foregroundColor(AppTheme.textSecondary)
                     .padding(.vertical, AppSpacing.md)
@@ -830,14 +873,65 @@ struct CometCustomWordsView: View {
 
     private func addWord() {
         guard let word = store.addCustomWord(newWord) else {
-            message = store.activeCustomWords.count >= 20
-                ? "This profile already has 20 custom words."
+            message = store.activeCustomWords.count >= CometLearningStore.maximumCustomWords
+                ? "This profile already has \(CometLearningStore.maximumCustomWords) custom words."
                 : "Use a new word containing 1–10 letters."
             return
         }
         newWord = ""
         message = "Added \(word.text)."
         FeedbackManager.shared.haptic(.success)
+    }
+
+    private var messageColor: Color {
+        guard let message else { return AppTheme.textSecondary }
+        return message.hasPrefix("Added") || message.hasPrefix("Imported")
+            ? AppTheme.accentPrimary
+            : AppTheme.cometGold
+    }
+
+    private func importWordList(_ result: Result<URL, Error>) {
+        switch result {
+        case let .success(url):
+            let hasAccess = url.startAccessingSecurityScopedResource()
+            defer {
+                if hasAccess { url.stopAccessingSecurityScopedResource() }
+            }
+
+            do {
+                let data = try Data(contentsOf: url)
+                guard data.count <= 1_000_000 else {
+                    message = "That file is too large. Choose a word list smaller than 1 MB."
+                    return
+                }
+                guard let text = String(data: data, encoding: .utf8)
+                    ?? String(data: data, encoding: .utf16) else {
+                    message = "That file could not be read. Save it as UTF-8 TXT or CSV and try again."
+                    return
+                }
+
+                let importResult = store.importCustomWords(from: text)
+                guard !importResult.addedWords.isEmpty else {
+                    message = importResult.overflowCount > 0
+                        ? "This profile’s word list is full."
+                        : "No new words found. Use unique words containing 1–10 letters."
+                    return
+                }
+
+                let noun = importResult.addedWords.count == 1 ? "word" : "words"
+                var importMessage = "Imported \(importResult.addedWords.count) \(noun)."
+                if importResult.skippedCount > 0 {
+                    importMessage += " Skipped \(importResult.skippedCount) duplicate or unusable entries."
+                }
+                message = importMessage
+                FeedbackManager.shared.haptic(.success)
+            } catch {
+                message = "That file could not be opened. Choose it again or try another TXT or CSV file."
+            }
+
+        case .failure:
+            message = "The word list was not imported. Please choose the file again."
+        }
     }
 
     private func toggleRecording(_ word: CometCustomWord) {
