@@ -1,9 +1,11 @@
-Meet Comet Writer, a complete handwriting adventure:
+Meet Dot-to-Dot Discovery:
 
-• Practise lowercase letters, capitals and numbers with guided stroke direction
-• Pick any symbol in the new Quick Practice launchpad
-• Write whole words on one screen, recall selected letters and match phonics sounds
-• Earn formation scores and Comet Points, then review progress in grown-up Mission Control
-• Warm up in Flight School or transfer practice to real paper
-• Choose individual times tables in Circuit Challenge
-• Enjoy gentler mistake feedback and extensive iPhone and iPad polish
+• Reveal 84 independently reviewed illustrated pictures
+• Choose to press the next dot or trace each line
+• Recognise numerals across 1–10, 1–15 and 1–20 trails, plus selected 1–25 challenges
+• Follow authentic trails with no fake dots and no impossible unnumbered exterior corners
+• Colour picture-specific regions by tapping or by shading directly with a finger or Apple Pencil
+• Build subitising confidence with standard 1–5 dot patterns and quick star patterns
+• Occasionally practise writing a numeral in Comet Writer between pictures
+
+This update also adds Star Speller, private iCloud progress sync for family profiles, spoken letter-name practice and a reminder that Comet Writer is best played with a capacitive stylus.

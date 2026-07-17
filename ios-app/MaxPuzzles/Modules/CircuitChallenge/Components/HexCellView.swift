@@ -270,12 +270,10 @@ struct HexCellView: View {
 
 /// Electric energy flow effect for current/start cells matching web connector style exactly
 struct ElectricGlowOverlay: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     let size: CGFloat
     var compact: Bool = false  // Reduced glow for phones with 4 rows
-
-    @State private var flowPhase1: CGFloat = 0
-    @State private var flowPhase2: CGFloat = 0
-    @State private var glowOpacity: CGFloat = 0.5
 
     private var cellWidth: CGFloat { size * sqrt(3) }
     private var cellHeight: CGFloat { size * 2 }
@@ -300,6 +298,30 @@ struct ElectricGlowOverlay: View {
     private var dashFast: [CGFloat] { [4 * sizeScale, 20 * sizeScale] }
 
     var body: some View {
+        TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: reduceMotion)) { context in
+            let time = reduceMotion ? 0 : context.date.timeIntervalSinceReferenceDate
+            let fastProgress = time.truncatingRemainder(dividingBy: 0.8) / 0.8
+            let slowProgress = time.truncatingRemainder(dividingBy: 1.2) / 1.2
+            let glowProgress = (sin(time * 2 * .pi / 1.5) + 1) / 2
+            let flowPhase1 = CGFloat(-36 * fastProgress) * sizeScale
+            let flowPhase2 = CGFloat(-36 * slowProgress) * sizeScale
+            let glowOpacity = reduceMotion
+                ? CGFloat(0.55)
+                : CGFloat(0.5 + (Double(maxGlowOpacity) - 0.5) * glowProgress)
+
+            electricLayers(
+                flowPhase1: flowPhase1,
+                flowPhase2: flowPhase2,
+                glowOpacity: glowOpacity
+            )
+        }
+    }
+
+    private func electricLayers(
+        flowPhase1: CGFloat,
+        flowPhase2: CGFloat,
+        glowOpacity: CGFloat
+    ) -> some View {
         ZStack {
             // Layer 1: Glow (blur effect) - scales with cell size
             HexagonShape()
@@ -345,20 +367,6 @@ struct ElectricGlowOverlay: View {
                 .stroke(Color(hex: "aaffcc"), lineWidth: coreWidth)
                 .frame(width: cellWidth, height: cellHeight)
         }
-        .onAppear {
-            // Energy flow animations - scale phase with size
-            let phaseAmount = -36 * sizeScale
-            withAnimation(.linear(duration: 0.8).repeatForever(autoreverses: false)) {
-                flowPhase1 = phaseAmount
-            }
-            withAnimation(.linear(duration: 1.2).repeatForever(autoreverses: false)) {
-                flowPhase2 = phaseAmount
-            }
-            // Glow pulse - reduced range in compact mode
-            withAnimation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true)) {
-                glowOpacity = maxGlowOpacity
-            }
-        }
     }
 }
 
@@ -366,10 +374,11 @@ struct ElectricGlowOverlay: View {
 
 /// Pulsing glow effect for current cells matching web animation exactly
 struct CellPulseModifier: ViewModifier {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     let isPulsing: Bool
     let size: CGFloat  // Cell radius for scaling
     var compact: Bool = false  // Reduced glow for phones with small grids
-    @State private var glowAmount: CGFloat = 0.4
 
     // Scale factor based on cell size (baseline is ~42px radius on phones)
     private var sizeScale: CGFloat { size / 42.0 }
@@ -381,13 +390,15 @@ struct CellPulseModifier: ViewModifier {
 
     func body(content: Content) -> some View {
         if isPulsing {
-            content
-                .shadow(color: Color(hex: "00ffc8").opacity(glowAmount), radius: innerRadius)
-                .shadow(color: Color(hex: "00ffc8").opacity(glowAmount * 0.5), radius: outerRadius)
-                .onAppear {
-                    withAnimation(.easeInOut(duration: 1.0).repeatForever(autoreverses: true)) {
-                        glowAmount = maxGlow
-                    }
+            TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: reduceMotion)) { context in
+                let time = reduceMotion ? 0 : context.date.timeIntervalSinceReferenceDate
+                let pulse = (sin(time * 2 * .pi) + 1) / 2
+                let glowAmount = reduceMotion
+                    ? CGFloat(0.45)
+                    : CGFloat(0.4 + (Double(maxGlow) - 0.4) * pulse)
+                content
+                    .shadow(color: Color(hex: "00ffc8").opacity(glowAmount), radius: innerRadius)
+                    .shadow(color: Color(hex: "00ffc8").opacity(glowAmount * 0.5), radius: outerRadius)
                 }
         } else {
             content

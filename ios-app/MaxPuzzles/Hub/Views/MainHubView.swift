@@ -4,11 +4,15 @@ import SwiftUI
 struct MainHubView: View {
     @EnvironmentObject var appState: AppState
     @EnvironmentObject var musicService: MusicService
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @StateObject private var router = AppRouter()
+    @ObservedObject private var profileStore = CometLearningStore.shared
+
     @State private var showCircuitChallenge = false
     @State private var showCometWriter = false
     @State private var showDotToDot = false
     @State private var showStarSpeller = false
+    @State private var selectedModulePage = 0
 
     var body: some View {
         NavigationStack(path: $router.path) {
@@ -32,6 +36,8 @@ struct MainHubView: View {
                                     .foregroundColor(AppTheme.textPrimary)
                                     .lineLimit(2)
                                     .minimumScaleFactor(0.75)
+
+                                profileButton(showsName: true)
 
                                 Spacer()
 
@@ -103,19 +109,54 @@ struct MainHubView: View {
 
     private var headerView: some View {
         HStack {
-            Text("Maxi's Mighty Mindgames")
-                .font(AppTypography.titleMedium)
-                .foregroundColor(AppTheme.textPrimary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Maxi's Mighty Mindgames")
+                    .font(AppTypography.titleMedium)
+                    .foregroundColor(AppTheme.textPrimary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+
+                Text("Playing as \(profileStore.activeProfile.name)")
+                    .font(AppTypography.caption)
+                    .foregroundColor(AppTheme.textSecondary)
+                    .lineLimit(1)
+            }
 
             Spacer()
+
+            profileButton(showsName: false)
 
             IconButton("gear") {
                 router.navigate(to: .settings)
             }
         }
         .padding(.horizontal, AppSpacing.lg)
+    }
+
+    private func profileButton(showsName: Bool) -> some View {
+        Button {
+            appState.requestProfileSelection()
+        } label: {
+            if showsName {
+                VStack(spacing: AppSpacing.xs) {
+                    PlayerProfileAvatar(profile: profileStore.activeProfile, size: 52)
+                    Text(profileStore.activeProfile.name)
+                        .font(AppTypography.buttonSmall)
+                        .foregroundColor(AppTheme.textPrimary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.75)
+                }
+                .frame(maxWidth: .infinity, minHeight: 76)
+            } else {
+                PlayerProfileAvatar(profile: profileStore.activeProfile, size: 44)
+                    .frame(width: 48, height: 48)
+            }
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Switch player")
+        .accessibilityValue("Current player \(profileStore.activeProfile.name)")
+        .accessibilityHint("Opens the profile picker")
+        .accessibilityIdentifier("switch-player")
     }
 
     // MARK: - Module Selection
@@ -131,10 +172,10 @@ struct MainHubView: View {
 
             if isLandscape {
                 HStack(alignment: .top, spacing: AppSpacing.md) {
-                    dotToDotCard
-                    cometWriterCard
                     circuitCard
+                    dotToDotCard
                     starSpellerCard
+                    cometWriterCard
                 }
             } else if usePortraitGrid {
                 LazyVGrid(
@@ -144,24 +185,57 @@ struct MainHubView: View {
                     ],
                     spacing: AppSpacing.md
                 ) {
-                    dotToDotCard
-                    cometWriterCard
                     circuitCard
+                    dotToDotCard
                     starSpellerCard
+                    cometWriterCard
                 }
             } else {
-                ScrollView(.horizontal) {
-                    HStack(alignment: .top, spacing: AppSpacing.md) {
-                        dotToDotCard.frame(width: 225)
-                        cometWriterCard.frame(width: 225)
-                        circuitCard.frame(width: 225)
-                        starSpellerCard.frame(width: 225)
+                VStack(spacing: AppSpacing.sm) {
+                    TabView(selection: $selectedModulePage) {
+                        circuitCard
+                            .frame(width: 235)
+                            .tag(0)
+                        dotToDotCard
+                            .frame(width: 235)
+                            .tag(1)
+                        starSpellerCard
+                            .frame(width: 235)
+                            .tag(2)
+                        cometWriterCard
+                            .frame(width: 235)
+                            .tag(3)
                     }
-                    .padding(.horizontal, 2)
+                    .tabViewStyle(.page(indexDisplayMode: .never))
+                    .frame(height: 370)
+                    .accessibilityLabel("Puzzle games")
+                    .accessibilityValue("Page \(selectedModulePage + 1) of 4")
+                    .accessibilityIdentifier("puzzle-game-carousel")
+
+                    HStack(spacing: 10) {
+                        ForEach(0..<4, id: \.self) { page in
+                            Button {
+                                withAnimation(reduceMotion ? nil : .easeOut(duration: 0.2)) {
+                                    selectedModulePage = page
+                                }
+                            } label: {
+                                Circle()
+                                    .fill(
+                                        page == selectedModulePage
+                                            ? AppTheme.cometCyan
+                                            : AppTheme.textSecondary.opacity(0.55)
+                                    )
+                                    .frame(width: 10, height: 10)
+                                    .frame(width: 44, height: 44)
+                                    .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel(modulePageName(page))
+                            .accessibilityValue(page == selectedModulePage ? "Selected" : "")
+                        }
+                    }
+                    .accessibilityElement(children: .contain)
                 }
-                .scrollIndicators(.hidden)
-                .accessibilityLabel("Puzzle games")
-                .accessibilityIdentifier("puzzle-game-carousel")
             }
         }
         .padding(.vertical, isLandscape ? AppSpacing.md : AppSpacing.xl)
@@ -234,13 +308,22 @@ struct MainHubView: View {
     private var dotToDotCard: some View {
         ModuleCardView(
             title: "Dot-to-Dot Discovery",
-            description: "Recognise numerals and reveal 184 pictures",
+            description: "Recognise numerals, then colour 84 real pictures",
             iconName: "point.3.connected.trianglepath.dotted",
             imageName: "dot_to_dot_icon",
             iconGlowColor: Color(hex: "5eead4"),
             isLocked: false
         ) {
             showDotToDot = true
+        }
+    }
+
+    private func modulePageName(_ page: Int) -> String {
+        switch page {
+        case 0: return "Show Circuit Challenge"
+        case 1: return "Show Dot-to-Dot Discovery"
+        case 2: return "Show Star Speller"
+        default: return "Show Comet Writer"
         }
     }
 

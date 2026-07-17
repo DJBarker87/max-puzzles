@@ -57,6 +57,8 @@ DerivedData/
 *.dSYM
 *.dSYM.zip
 Pods/
+__pycache__/
+*.py[cod]
 
 # App Store screenshots (large binaries, regenerate locally)
 ios-app/AppStore/Screenshots/**

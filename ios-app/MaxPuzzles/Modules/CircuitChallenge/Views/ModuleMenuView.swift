@@ -76,7 +76,7 @@ struct ModuleMenuView: View {
                     quickPlayCard
 
                     Text("Grown-ups")
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(.scaledSystem(size: 13, weight: .semibold))
                         .foregroundColor(.white.opacity(0.8))
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.top, 8)
@@ -114,12 +114,12 @@ struct ModuleMenuView: View {
                 }
 
                 Text("Circuit Challenge")
-                    .font(.system(size: 20, weight: .heavy, design: .rounded))
+                    .font(.scaledSystem(size: 20, weight: .heavy, design: .rounded))
                     .foregroundColor(.white)
                     .shadow(color: AppTheme.connectorGlow.opacity(0.8), radius: 6)
 
                 Text("Solve the glowing hex, then follow the connector with its answer.")
-                    .font(.system(size: 12))
+                    .font(.scaledSystem(size: 12))
                     .foregroundColor(AppTheme.textSecondary)
                     .multilineTextAlignment(.center)
             }
@@ -132,7 +132,7 @@ struct ModuleMenuView: View {
                     quickPlayCard
 
                     Text("Grown-ups")
-                        .font(.system(size: 12, weight: .semibold))
+                        .font(.scaledSystem(size: 12, weight: .semibold))
                         .foregroundColor(.white.opacity(0.8))
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.top, 4)
@@ -158,13 +158,13 @@ struct ModuleMenuView: View {
                 .shadow(color: AppTheme.connectorGlow.opacity(0.5), radius: 15)
 
             Text("Circuit Challenge")
-                .font(.system(size: 30, weight: .heavy, design: .rounded))
+                .font(.scaledSystem(size: 30, weight: .heavy, design: .rounded))
                 .foregroundColor(.white)
                 .shadow(color: AppTheme.connectorGlow.opacity(0.8), radius: 8)
                 .shadow(color: AppTheme.accentPrimary.opacity(0.5), radius: 4)
 
             Text("Solve the glowing hex, then follow the connector with its answer.")
-                .font(.system(size: 15, weight: .medium, design: .rounded))
+                .font(.scaledSystem(size: 15, weight: .medium, design: .rounded))
                 .foregroundColor(.white.opacity(0.9))
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 32)
@@ -184,19 +184,19 @@ struct ModuleMenuView: View {
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Quick Play")
-                        .font(.system(size: 18, weight: .heavy, design: .rounded))
+                        .font(.scaledSystem(size: 18, weight: .heavy, design: .rounded))
                         .foregroundColor(.white)
                         .shadow(color: AppTheme.connectorGlow.opacity(0.6), radius: 4)
 
                     Text("Choose a level or make your own")
-                        .font(.system(size: 14))
+                        .font(.scaledSystem(size: 14))
                         .foregroundColor(.white.opacity(0.8))
                 }
 
                 Spacer()
 
                 Image(systemName: "chevron.right")
-                    .font(.system(size: 16, weight: .semibold))
+                    .font(.scaledSystem(size: 16, weight: .semibold))
                     .foregroundColor(.white.opacity(0.7))
             }
             .padding(16)
@@ -224,19 +224,19 @@ struct ModuleMenuView: View {
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Start Adventure")
-                        .font(.system(size: 18, weight: .heavy, design: .rounded))
+                        .font(.scaledSystem(size: 18, weight: .heavy, design: .rounded))
                         .foregroundColor(.white)
                         .shadow(color: AppTheme.connectorGlow.opacity(0.6), radius: 4)
 
                     Text("Begin with gentle Level 1 puzzles")
-                        .font(.system(size: 14))
+                        .font(.scaledSystem(size: 14))
                         .foregroundColor(.white.opacity(0.8))
                 }
 
                 Spacer()
 
                 Image(systemName: "chevron.right")
-                    .font(.system(size: 16, weight: .semibold))
+                    .font(.scaledSystem(size: 16, weight: .semibold))
                     .foregroundColor(.white.opacity(0.7))
             }
             .padding(16)
@@ -273,19 +273,19 @@ struct ModuleMenuView: View {
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Puzzle Maker")
-                        .font(.system(size: 18, weight: .heavy, design: .rounded))
+                        .font(.scaledSystem(size: 18, weight: .heavy, design: .rounded))
                         .foregroundColor(.white)
                         .shadow(color: AppTheme.connectorGlow.opacity(0.6), radius: 4)
 
                     Text("Print worksheets for offline play")
-                        .font(.system(size: 14))
+                        .font(.scaledSystem(size: 14))
                         .foregroundColor(.white.opacity(0.8))
                 }
 
                 Spacer()
 
                 Image(systemName: "chevron.right")
-                    .font(.system(size: 16, weight: .semibold))
+                    .font(.scaledSystem(size: 16, weight: .semibold))
                     .foregroundColor(.white.opacity(0.7))
             }
             .padding(16)

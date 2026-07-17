@@ -2,6 +2,8 @@ import SwiftUI
 
 /// Secondary action button with outline styling
 struct SecondaryButton: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     let title: String
     let icon: String?
     let action: () -> Void
@@ -37,7 +39,7 @@ struct SecondaryButton: View {
             .foregroundColor(AppTheme.textPrimary)
             .padding(.horizontal, AppSpacing.lg)
             .padding(.vertical, AppSpacing.md)
-            .frame(minWidth: 120)
+            .frame(minWidth: 120, minHeight: 44)
             .background(
                 RoundedRectangle(cornerRadius: 12)
                     .fill(AppTheme.backgroundMid)
@@ -46,13 +48,15 @@ struct SecondaryButton: View {
                 RoundedRectangle(cornerRadius: 12)
                     .stroke(AppTheme.textSecondary.opacity(0.3), lineWidth: 1)
             )
-            .scaleEffect(isPressed ? 0.97 : 1.0)
+            .scaleEffect(isPressed && !reduceMotion ? 0.97 : 1.0)
             .opacity(isDisabled ? 0.5 : 1.0)
             .brightness(isHovered ? 0.1 : 0)
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(title)
+        .accessibilityHint(isDisabled ? "Disabled" : "Double tap to activate")
         .onHover { hovering in
-            withAnimation(.easeInOut(duration: AppAnimation.fast)) {
+            withAnimation(reduceMotion ? nil : .easeInOut(duration: AppAnimation.fast)) {
                 isHovered = hovering
             }
         }

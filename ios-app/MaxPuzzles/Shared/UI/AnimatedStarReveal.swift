@@ -13,6 +13,9 @@ struct AnimatedStarReveal: View {
     @State private var revealedStars: [Bool] = []
     @State private var starScales: [CGFloat] = []
     @State private var sparkleOpacities: [Double] = []
+    @State private var revealTask: Task<Void, Never>?
+
+    private var earnedCount: Int { min(max(starsEarned, 0), totalStars) }
 
     init(starsEarned: Int, totalStars: Int = 3, starSize: CGFloat = 36, delay: Double = 0.3) {
         self.starsEarned = starsEarned
@@ -58,13 +61,15 @@ struct AnimatedStarReveal: View {
             }
         }
         .onAppear {
-            setupInitialState()
-            if reduceMotion {
-                revealStarsWithoutAnimation()
-            } else {
-                animateStars()
-            }
+            restartReveal()
         }
+        .onChange(of: reduceMotion) { _ in restartReveal() }
+        .onDisappear {
+            revealTask?.cancel()
+            revealTask = nil
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(earnedCount) of \(totalStars) stars earned")
     }
 
     // MARK: - State Helpers
@@ -89,23 +94,35 @@ struct AnimatedStarReveal: View {
     private func setupInitialState() {
         revealedStars = Array(repeating: false, count: totalStars)
         starScales = (0..<totalStars).map { index in
-            index < starsEarned ? 0.0 : 1.0
+            index < earnedCount ? 0.0 : 1.0
         }
         sparkleOpacities = Array(repeating: 0.0, count: totalStars)
 
         // Show empty stars immediately
-        for i in starsEarned..<totalStars {
+        for i in earnedCount..<totalStars {
             revealedStars[i] = true
         }
     }
 
-    private func animateStars() {
-        // Animate each earned star with staggered delay
-        for starIndex in 0..<starsEarned {
-            let starDelay = delay + Double(starIndex) * 0.4
+    private func restartReveal() {
+        revealTask?.cancel()
+        revealTask = nil
+        setupInitialState()
+        if reduceMotion {
+            revealStarsWithoutAnimation()
+            announceResult()
+        } else {
+            animateStars()
+        }
+    }
 
-            // Pop in animation
-            DispatchQueue.main.asyncAfter(deadline: .now() + starDelay) {
+    private func animateStars() {
+        revealTask = Task { @MainActor in
+            if delay > 0 {
+                try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+            }
+            for starIndex in 0..<earnedCount {
+                guard !Task.isCancelled else { return }
                 // Show sparkle burst
                 withAnimation(.easeOut(duration: 0.2)) {
                     sparkleOpacities[starIndex] = 1.0
@@ -118,29 +135,39 @@ struct AnimatedStarReveal: View {
                 }
 
                 // Settle to normal size
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
-                        starScales[starIndex] = 1.0
-                    }
+                try? await Task.sleep(nanoseconds: 200_000_000)
+                guard !Task.isCancelled else { return }
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                    starScales[starIndex] = 1.0
+                }
 
-                    // Fade sparkles
-                    withAnimation(.easeOut(duration: 0.5)) {
-                        sparkleOpacities[starIndex] = 0
-                    }
+                withAnimation(.easeOut(duration: 0.5)) {
+                    sparkleOpacities[starIndex] = 0
                 }
 
                 // Trigger haptic
                 let generator = UIImpactFeedbackGenerator(style: .medium)
                 generator.impactOccurred()
+                try? await Task.sleep(nanoseconds: 200_000_000)
             }
+            guard !Task.isCancelled else { return }
+            announceResult()
+            revealTask = nil
         }
     }
 
     private func revealStarsWithoutAnimation() {
-        for starIndex in 0..<min(starsEarned, totalStars) {
+        for starIndex in 0..<earnedCount {
             revealedStars[starIndex] = true
             starScales[starIndex] = 1
         }
+    }
+
+    private func announceResult() {
+        UIAccessibility.post(
+            notification: .announcement,
+            argument: "\(earnedCount) of \(totalStars) stars earned"
+        )
     }
 }
 

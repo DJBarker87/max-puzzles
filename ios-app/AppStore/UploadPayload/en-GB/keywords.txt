@@ -1,1 +1,1 @@
-alphabet,phonics,spelling,numbers,arithmetic,times tables,penmanship,reading,pencil,school
+alphabet,phonics,spelling,numerals,dot to dot,handwriting,subitising,maths,children,stylus

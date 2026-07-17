@@ -37,7 +37,7 @@ class ReleaseAudit
     audit_build(version.fetch("id"))
     audit_screenshots(localization.fetch("id"))
 
-    puts "READ-ONLY AUDIT PASSED: version 1.2 build 4 is complete and remains unsubmitted."
+    puts "READ-ONLY AUDIT PASSED: version #{@payload.fetch("version")} build #{@payload.fetch("build")} is complete and remains unsubmitted."
   end
 
   private
@@ -206,7 +206,7 @@ class ReleaseAudit
     assert_equal("build number", attributes["version"], @payload.fetch("build"))
     assert_equal("build state", attributes["processingState"], "VALID")
     assert_equal("non-exempt encryption", attributes["usesNonExemptEncryption"], false)
-    puts "Build 4 is valid, attached, and declares no non-exempt encryption."
+    puts "Build #{@payload.fetch("build")} is valid, attached, and declares no non-exempt encryption."
   end
 
   def audit_screenshots(localization_id)

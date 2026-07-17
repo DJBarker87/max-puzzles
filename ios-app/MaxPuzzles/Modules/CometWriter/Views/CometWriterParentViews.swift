@@ -96,7 +96,7 @@ struct CometAdultGateView: View {
                     .stroke(AppTheme.cometCyan.opacity(0.28), lineWidth: 1)
             )
 
-            Text("No account is needed. Learning records stay on this device.")
+            Text("Compact profile, mastery and progress data may sync privately with Apple iCloud. Detailed attempts, traces, custom words and recordings stay on this device.")
                 .font(AppTypography.caption)
                 .foregroundColor(AppTheme.textSecondary)
                 .multilineTextAlignment(.center)
@@ -193,6 +193,7 @@ struct CometMissionControlView: View {
                 nextStepCard
                 masterySection
                 correctionSection
+                spellingSection
                 recentSection
                 reportSection
             }
@@ -234,7 +235,9 @@ struct CometMissionControlView: View {
                 Text(store.activeProfile.name)
                     .font(AppTypography.titleSmall)
                     .foregroundColor(AppTheme.textPrimary)
-                Text("\(store.activeWritingHand.title)-handed · \(store.activeAttempts.count) saved attempts")
+                Text(
+                    "\(store.activeWritingHand.title)-handed · \(store.activeAttempts.count) writing · \(store.activeSpellingAttempts.count) spelling attempts"
+                )
                     .font(AppTypography.bodySmall)
                     .foregroundColor(AppTheme.textSecondary)
             }
@@ -344,10 +347,10 @@ struct CometMissionControlView: View {
                     let mastery = store.mastery(for: glyph.character)
                     VStack(spacing: 1) {
                         Text(glyph.character)
-                            .font(.system(size: 18, weight: .heavy, design: .rounded))
+                        .font(.system(.headline, design: .rounded, weight: .heavy))
                         if let best = store.bestScore(for: glyph.character) {
                             Text("\(best)")
-                                .font(.system(size: 9, weight: .bold, design: .rounded))
+                            .font(.system(.caption2, design: .rounded, weight: .bold))
                         }
                     }
                     .foregroundColor(mastery == .mastered ? AppTheme.backgroundDark : AppTheme.textPrimary)
@@ -423,6 +426,132 @@ struct CometMissionControlView: View {
         .accessibilityElement(children: .combine)
     }
 
+    private var spellingSection: some View {
+        let summary = store.activeSpellingSummary
+        let words = store.spellingProgress(limit: 12)
+
+        return VStack(alignment: .leading, spacing: AppSpacing.md) {
+            sectionTitle(
+                "Spelling progress",
+                detail: "Star Speller records attempts, successful spellings, corrections and hint use."
+            )
+
+            if summary.totalAttempts == 0 {
+                HStack(alignment: .top, spacing: 12) {
+                    Image(systemName: "textformat.abc")
+                        .font(.system(size: 24, weight: .semibold))
+                        .foregroundColor(AppTheme.cometCyan)
+                        .accessibilityHidden(true)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("No spelling evidence yet")
+                            .font(AppTypography.buttonLarge)
+                            .foregroundColor(AppTheme.textPrimary)
+                        Text("Complete a Star Speller word and its result will appear here.")
+                            .font(AppTypography.bodySmall)
+                            .foregroundColor(AppTheme.textSecondary)
+                    }
+                }
+                .frame(maxWidth: .infinity, minHeight: 64, alignment: .leading)
+            } else {
+                LazyVGrid(
+                    columns: [GridItem(.adaptive(minimum: 135), spacing: AppSpacing.sm)],
+                    spacing: AppSpacing.sm
+                ) {
+                    spellingMetric(
+                        title: "Attempts",
+                        value: "\(summary.totalAttempts)",
+                        icon: "keyboard.fill"
+                    )
+                    spellingMetric(
+                        title: "First try",
+                        value: "\(summary.firstTryPercentage)%",
+                        icon: "sparkles"
+                    )
+                    spellingMetric(
+                        title: "Hints",
+                        value: "\(summary.totalHints)",
+                        icon: "lightbulb.fill"
+                    )
+                    spellingMetric(
+                        title: "Mastered",
+                        value: "\(summary.masteredWords)",
+                        icon: "star.fill"
+                    )
+                }
+
+                VStack(spacing: AppSpacing.sm) {
+                    ForEach(words) { word in
+                        HStack(spacing: 12) {
+                            Text(StarSpellerWordLibrary.displayForm(for: word.word))
+                                .font(AppTypography.buttonLarge)
+                                .foregroundColor(AppTheme.textPrimary)
+                                .frame(width: 105, alignment: .leading)
+
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(word.mastery.title)
+                                    .font(AppTypography.buttonSmall)
+                                    .foregroundColor(masteryTextColor(word.mastery))
+                                Text(
+                                    "\(word.attempts) attempt\(word.attempts == 1 ? "" : "s") · \(word.errors) error\(word.errors == 1 ? "" : "s") · \(word.hints) hint\(word.hints == 1 ? "" : "s")"
+                                )
+                                .font(AppTypography.caption)
+                                .foregroundColor(AppTheme.textSecondary)
+                            }
+
+                            Spacer(minLength: 0)
+
+                            Circle()
+                                .fill(masteryColor(word.mastery))
+                                .frame(width: 16, height: 16)
+                                .accessibilityHidden(true)
+                        }
+                        .frame(maxWidth: .infinity, minHeight: 52)
+                        .accessibilityElement(children: .combine)
+                        .accessibilityLabel(
+                            "\(word.word), \(word.mastery.title), \(word.attempts) attempts, \(word.successes) successful, \(word.errors) errors, \(word.hints) hints"
+                        )
+                    }
+                }
+            }
+        }
+        .padding(AppSpacing.md)
+        .cometPanel()
+        .accessibilityIdentifier("comet-spelling-summary")
+    }
+
+    private func spellingMetric(title: String, value: String, icon: String) -> some View {
+        HStack(spacing: 9) {
+            Image(systemName: icon)
+                .foregroundColor(AppTheme.cometGold)
+                .frame(width: 24)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(value)
+                    .font(AppTypography.titleSmall)
+                    .foregroundColor(AppTheme.textPrimary)
+                Text(title)
+                    .font(AppTypography.caption)
+                    .foregroundColor(AppTheme.textSecondary)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(12)
+        .frame(minHeight: 64)
+        .background(
+            RoundedRectangle(cornerRadius: 14)
+                .fill(AppTheme.backgroundDark.opacity(0.58))
+        )
+        .accessibilityElement(children: .combine)
+    }
+
+    private func masteryTextColor(_ level: CometMasteryLevel) -> Color {
+        switch level {
+        case .new: return AppTheme.textSecondary
+        case .practising: return AppTheme.cometPurple
+        case .secure: return AppTheme.cometCyan
+        case .mastered: return AppTheme.accentPrimary
+        }
+    }
+
     private var recentSection: some View {
         VStack(alignment: .leading, spacing: AppSpacing.md) {
             sectionTitle("Recent flights", detail: "Open a Ghost Trail to replay exactly what was written.")
@@ -437,7 +566,7 @@ struct CometMissionControlView: View {
                     Button { selectedAttempt = attempt } label: {
                         HStack(spacing: 12) {
                             Text(attempt.character)
-                                .font(.system(size: 25, weight: .heavy, design: .rounded))
+                    .font(.system(.title2, design: .rounded, weight: .heavy))
                                 .foregroundColor(AppTheme.cometCyan)
                                 .frame(width: 42, height: 42)
                                 .background(Circle().fill(AppTheme.cometPurple.opacity(0.18)))
@@ -529,6 +658,7 @@ private struct CometProfileManagerView: View {
 
     @State private var name = ""
     @State private var hand: WritingHand = .right
+    @State private var profilePendingDeletion: CometChildProfile?
 
     var body: some View {
         NavigationStack {
@@ -577,6 +707,24 @@ private struct CometProfileManagerView: View {
                 }
             }
         }
+        .alert(
+            "Delete \(profilePendingDeletion?.name ?? "this profile")?",
+            isPresented: Binding(
+                get: { profilePendingDeletion != nil },
+                set: { isPresented in
+                    if !isPresented { profilePendingDeletion = nil }
+                }
+            )
+        ) {
+            Button("Delete profile", role: .destructive) {
+                deletePendingProfile()
+            }
+            Button("Keep profile", role: .cancel) {
+                profilePendingDeletion = nil
+            }
+        } message: {
+            Text("Writing progress, spelling progress, custom words and voice recordings for this child will be permanently deleted.")
+        }
         .preferredColorScheme(.dark)
     }
 
@@ -604,10 +752,7 @@ private struct CometProfileManagerView: View {
             .buttonStyle(.plain)
 
             Button(role: .destructive) {
-                for filename in store.recordingFilenames(for: profile.id) {
-                    CustomPromptAudioService.shared.delete(filename: filename)
-                }
-                store.deleteProfile(profile.id)
+                profilePendingDeletion = profile
             } label: {
                 Image(systemName: "trash")
                     .foregroundColor(store.profiles.count > 1 ? AppTheme.error : AppTheme.textSecondary.opacity(0.35))
@@ -619,17 +764,30 @@ private struct CometProfileManagerView: View {
         .padding(AppSpacing.md)
         .cometPanel()
     }
+
+    private func deletePendingProfile() {
+        guard let profile = profilePendingDeletion else { return }
+        for filename in store.recordingFilenames(for: profile.id) {
+            CustomPromptAudioService.shared.delete(filename: filename)
+        }
+        store.deleteProfile(profile.id)
+        profilePendingDeletion = nil
+    }
 }
 
 struct CometCustomWordsView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.scenePhase) private var scenePhase
     @ObservedObject private var store = CometLearningStore.shared
     @ObservedObject private var audio = CustomPromptAudioService.shared
 
     @State private var isUnlocked = false
     @State private var newWord = ""
+    @State private var newContextSentence = ""
     @State private var message: String?
     @State private var showsWordImporter = false
+    @State private var editingContextWord: CometCustomWord?
+    @State private var recordingStartTask: Task<Void, Never>?
 
     var body: some View {
         ZStack {
@@ -641,7 +799,7 @@ struct CometCustomWordsView: View {
             } else {
                 CometAdultGateView(
                     title: "My Words",
-                    detail: "A grown-up can add or import spelling words and record an optional voice prompt.",
+                    detail: "A grown-up can add or import spelling words, example sentences and optional voice prompts.",
                     onCancel: { dismiss() },
                     onUnlock: { isUnlocked = true }
                 )
@@ -649,12 +807,22 @@ struct CometCustomWordsView: View {
         }
         .toolbar(.hidden, for: .navigationBar)
         .navigationBarBackButtonHidden(true)
-        .onDisappear { finishRecordingIfNeeded() }
+        .onDisappear { endAudioSession() }
+        .onChange(of: scenePhase) { phase in
+            if phase == .background {
+                endAudioSession()
+            }
+        }
         .fileImporter(
             isPresented: $showsWordImporter,
             allowedContentTypes: [.plainText, .commaSeparatedText]
         ) { result in
             importWordList(result)
+        }
+        .sheet(item: $editingContextWord) { word in
+            CometWordContextEditor(word: word)
+                .presentationDetents([.medium])
+                .presentationDragIndicator(.visible)
         }
         .accessibilityIdentifier("comet-custom-words")
     }
@@ -696,7 +864,7 @@ struct CometCustomWordsView: View {
             Text("Add a practice word")
                 .font(AppTypography.titleSmall)
                 .foregroundColor(AppTheme.textPrimary)
-            Text("Use 1–10 letters. Spaces, punctuation and emoji are removed so every word fits the writing line.")
+            Text("Use 1–10 letters. Add an optional example sentence so sound-alike words are clear.")
                 .font(AppTypography.bodySmall)
                 .foregroundColor(AppTheme.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -718,7 +886,7 @@ struct CometCustomWordsView: View {
             .opacity(
                 store.activeCustomWords.count >= CometLearningStore.maximumCustomWords ? 0.45 : 1
             )
-            .accessibilityHint("Choose a file containing words separated by spaces, lines, or commas")
+            .accessibilityHint("Choose a word list, or a CSV with word and context columns")
             .accessibilityIdentifier("comet-import-word-list")
 
             HStack(spacing: AppSpacing.sm) {
@@ -757,6 +925,26 @@ struct CometCustomWordsView: View {
                 .disabled(store.activeCustomWords.count >= CometLearningStore.maximumCustomWords)
                 .accessibilityLabel("Add practice word")
             }
+
+            TextField(
+                "Example sentence (optional)",
+                text: $newContextSentence,
+                axis: .vertical
+            )
+            .lineLimit(2...4)
+            .font(AppTypography.bodyMedium)
+            .foregroundColor(AppTheme.textPrimary)
+            .padding(.horizontal, 14)
+            .frame(minHeight: 50)
+            .background(RoundedRectangle(cornerRadius: 12).fill(AppTheme.cometPaperTop))
+            .accessibilityLabel("Optional example sentence")
+            .accessibilityHint("For example, The red ball is over there")
+            .accessibilityIdentifier("comet-custom-word-context")
+
+            Text("For contextual imports, use CSV headings “word,context” or write “word :: example sentence” on each line.")
+                .font(AppTypography.caption)
+                .foregroundColor(AppTheme.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
             if let message {
                 Text(message)
                     .font(AppTypography.bodySmall)
@@ -797,10 +985,35 @@ struct CometCustomWordsView: View {
 
     private func wordRow(_ word: CometCustomWord) -> some View {
         HStack(spacing: 12) {
-            Text(word.text)
-                .font(AppTypography.titleSmall)
-                .foregroundColor(AppTheme.textPrimary)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(word.text)
+                    .font(AppTypography.titleSmall)
+                    .foregroundColor(AppTheme.textPrimary)
+                Text(word.contextSentence ?? "No example sentence")
+                    .font(AppTypography.caption)
+                    .foregroundColor(
+                        word.contextSentence == nil
+                            ? AppTheme.textSecondary
+                            : AppTheme.cometCyan
+                    )
+                    .lineLimit(2)
+            }
             Spacer(minLength: 0)
+
+            Button {
+                editingContextWord = word
+            } label: {
+                Image(systemName: "text.quote")
+                    .frame(width: 44, height: 44)
+                    .foregroundColor(AppTheme.cometPurple)
+                    .background(Circle().fill(AppTheme.cometPaperTop))
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(
+                word.contextSentence == nil
+                    ? "Add an example sentence for \(word.text)"
+                    : "Edit the example sentence for \(word.text)"
+            )
 
             if let filename = word.recordingFilename {
                 Button {
@@ -872,13 +1085,17 @@ struct CometCustomWordsView: View {
     }
 
     private func addWord() {
-        guard let word = store.addCustomWord(newWord) else {
+        guard let word = store.addCustomWord(
+            newWord,
+            contextSentence: newContextSentence
+        ) else {
             message = store.activeCustomWords.count >= CometLearningStore.maximumCustomWords
                 ? "This profile already has \(CometLearningStore.maximumCustomWords) custom words."
                 : "Use a new word containing 1–10 letters."
             return
         }
         newWord = ""
+        newContextSentence = ""
         message = "Added \(word.text)."
         FeedbackManager.shared.haptic(.success)
     }
@@ -943,8 +1160,11 @@ struct CometCustomWordsView: View {
             return
         }
 
-        Task {
+        recordingStartTask?.cancel()
+        recordingStartTask = Task { @MainActor in
             let started = await audio.startRecording(for: word)
+            guard !Task.isCancelled else { return }
+            recordingStartTask = nil
             if !started {
                 message = audio.permissionDenied
                     ? "Microphone access is off. You can enable it in Settings."
@@ -959,6 +1179,90 @@ struct CometCustomWordsView: View {
         guard let wordID = audio.recordingWordID,
               let filename = audio.stopRecording() else { return }
         store.setRecordingFilename(filename, for: wordID)
+    }
+
+    private func endAudioSession() {
+        recordingStartTask?.cancel()
+        recordingStartTask = nil
+        finishRecordingIfNeeded()
+        audio.stopPlayback()
+    }
+}
+
+private struct CometWordContextEditor: View {
+    @Environment(\.dismiss) private var dismiss
+    @ObservedObject private var store = CometLearningStore.shared
+
+    let word: CometCustomWord
+    @State private var sentence: String
+
+    init(word: CometCustomWord) {
+        self.word = word
+        _sentence = State(initialValue: word.contextSentence ?? "")
+    }
+
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                AppTheme.backgroundDark.ignoresSafeArea()
+
+                VStack(alignment: .leading, spacing: AppSpacing.md) {
+                    Text("Example for “\(word.text)”")
+                        .font(AppTypography.titleSmall)
+                        .foregroundColor(AppTheme.textPrimary)
+                    Text("Use a short sentence that makes the meaning obvious, especially for sound-alike words.")
+                        .font(AppTypography.bodySmall)
+                        .foregroundColor(AppTheme.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    TextField(
+                        "Example sentence (optional)",
+                        text: $sentence,
+                        axis: .vertical
+                    )
+                    .lineLimit(3...6)
+                    .font(AppTypography.bodyMedium)
+                    .foregroundColor(AppTheme.textPrimary)
+                    .padding(14)
+                    .background(
+                        RoundedRectangle(cornerRadius: 14)
+                            .fill(AppTheme.cometPaperTop)
+                    )
+                    .accessibilityLabel("Example sentence for \(word.text)")
+
+                    Text("\(sentence.count)/\(CometLearningStore.maximumContextSentenceLength)")
+                        .font(AppTypography.caption)
+                        .foregroundColor(AppTheme.textSecondary)
+                        .frame(maxWidth: .infinity, alignment: .trailing)
+
+                    Spacer(minLength: 0)
+                }
+                .padding(AppSpacing.md)
+            }
+            .navigationTitle("Word context")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                        .foregroundColor(AppTheme.textSecondary)
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") {
+                        store.setContextSentence(sentence, for: word.id)
+                        dismiss()
+                    }
+                    .foregroundColor(AppTheme.cometCyan)
+                }
+            }
+            .onChange(of: sentence) { value in
+                if value.count > CometLearningStore.maximumContextSentenceLength {
+                    sentence = String(
+                        value.prefix(CometLearningStore.maximumContextSentenceLength)
+                    )
+                }
+            }
+        }
+        .preferredColorScheme(.dark)
     }
 }
 

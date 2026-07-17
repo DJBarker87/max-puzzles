@@ -3,6 +3,8 @@ import SwiftUI
 /// Primary action button with premium micro-interactions
 /// Features: squish animation, glow intensification, haptics, sound
 struct PrimaryButton: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     let title: String
     let icon: String?
     let action: () -> Void
@@ -18,6 +20,14 @@ struct PrimaryButton: View {
             case .small: return 14
             case .medium: return 16
             case .large: return 18
+            }
+        }
+
+        var font: Font {
+            switch self {
+            case .small: return AppTypography.buttonSmall
+            case .medium: return AppTypography.buttonMedium
+            case .large: return AppTypography.buttonLarge
             }
         }
 
@@ -80,12 +90,12 @@ struct PrimaryButton: View {
                 }
 
                 Text(title)
-                    .font(.system(size: size.fontSize, weight: .semibold, design: .rounded))
+                    .font(size.font)
             }
             .foregroundColor(.white)
             .padding(.horizontal, size.padding.h)
             .padding(.vertical, size.padding.v)
-            .frame(minWidth: size.minWidth)
+            .frame(minWidth: size.minWidth, minHeight: 44)
             .background(
                 ZStack {
                     // Base gradient
@@ -150,8 +160,8 @@ struct PrimaryButton: View {
                 y: isPressed ? 1 : 3
             )
             // Squish effect: scale + slight Y offset
-            .scaleEffect(isPressed ? 0.96 : 1.0)
-            .offset(y: isPressed ? 2 : 0)
+            .scaleEffect(isPressed && !reduceMotion ? 0.96 : 1.0)
+            .offset(y: isPressed && !reduceMotion ? 2 : 0)
             .opacity(isDisabled ? 0.5 : 1.0)
         }
         .buttonStyle(.plain)
@@ -159,7 +169,7 @@ struct PrimaryButton: View {
         .accessibilityHint(isLoading ? "Loading" : (isDisabled ? "Disabled" : "Double tap to activate"))
         .accessibilityAddTraits(.isButton)
         .onHover { hovering in
-            withAnimation(.easeInOut(duration: AppAnimation.fast)) {
+            withAnimation(reduceMotion ? nil : .easeInOut(duration: AppAnimation.fast)) {
                 isHovered = hovering
                 glowIntensity = hovering ? 0.4 : 0.2
             }
@@ -168,7 +178,7 @@ struct PrimaryButton: View {
             DragGesture(minimumDistance: 0)
                 .onChanged { _ in
                     if !isPressed {
-                        withAnimation(.easeOut(duration: AppAnimation.buttonPress)) {
+                        withAnimation(reduceMotion ? nil : .easeOut(duration: AppAnimation.buttonPress)) {
                             isPressed = true
                             glowIntensity = 0.5
                         }
@@ -177,7 +187,7 @@ struct PrimaryButton: View {
                     }
                 }
                 .onEnded { _ in
-                    withAnimation(AppAnimation.buttonSpring) {
+                    withAnimation(reduceMotion ? nil : AppAnimation.buttonSpring) {
                         isPressed = false
                         glowIntensity = isHovered ? 0.4 : 0.2
                     }
@@ -201,6 +211,8 @@ struct PrimaryButton: View {
 // MARK: - Icon Button with Premium Feel
 
 struct PremiumIconButton: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     let icon: String
     let action: () -> Void
     var size: CGFloat = 44
@@ -229,8 +241,10 @@ struct PremiumIconButton: View {
                     radius: isPressed ? 2 : 4,
                     y: isPressed ? 1 : 2
                 )
-                .scaleEffect(isPressed ? 0.92 : 1.0)
+                .scaleEffect(isPressed && !reduceMotion ? 0.92 : 1.0)
         }
+        .frame(minWidth: 44, minHeight: 44)
+        .contentShape(Rectangle())
         .buttonStyle(.plain)
         .accessibilityLabel(accessibilityLabelText.isEmpty ? icon : accessibilityLabelText)
         .accessibilityAddTraits(.isButton)
@@ -238,14 +252,14 @@ struct PremiumIconButton: View {
             DragGesture(minimumDistance: 0)
                 .onChanged { _ in
                     if !isPressed {
-                        withAnimation(.easeOut(duration: AppAnimation.buttonPress)) {
+                        withAnimation(reduceMotion ? nil : .easeOut(duration: AppAnimation.buttonPress)) {
                             isPressed = true
                         }
                         FeedbackManager.shared.haptic(.light)
                     }
                 }
                 .onEnded { _ in
-                    withAnimation(AppAnimation.buttonSpring) {
+                    withAnimation(reduceMotion ? nil : AppAnimation.buttonSpring) {
                         isPressed = false
                     }
                 }

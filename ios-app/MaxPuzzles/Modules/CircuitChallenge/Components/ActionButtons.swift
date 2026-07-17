@@ -100,6 +100,8 @@ struct ActionButtons: View {
 /// Individual action button with icon and optional label
 /// Supports highlighted state for primary actions
 struct ActionButton: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     let icon: String
     let label: String?
     let action: () -> Void
@@ -145,7 +147,7 @@ struct ActionButton: View {
 
                 if let label = label, !compact {
                     Text(label)
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(AppTypography.buttonSmall)
                 }
             }
             .foregroundColor(highlighted ? accentPrimary : textPrimary)
@@ -162,7 +164,7 @@ struct ActionButton: View {
                         lineWidth: 1
                     )
             )
-            .scaleEffect(isPressed ? 0.95 : 1.0)
+            .scaleEffect(isPressed && !reduceMotion ? 0.95 : 1.0)
         }
         .buttonStyle(.plain)
         .frame(minWidth: 44, minHeight: 44)
@@ -171,12 +173,12 @@ struct ActionButton: View {
         .simultaneousGesture(
             DragGesture(minimumDistance: 0)
                 .onChanged { _ in
-                    withAnimation(.easeOut(duration: 0.1)) {
+                    withAnimation(reduceMotion ? nil : .easeOut(duration: 0.1)) {
                         isPressed = true
                     }
                 }
                 .onEnded { _ in
-                    withAnimation(.easeOut(duration: 0.1)) {
+                    withAnimation(reduceMotion ? nil : .easeOut(duration: 0.1)) {
                         isPressed = false
                     }
                 }

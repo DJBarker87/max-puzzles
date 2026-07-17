@@ -10,6 +10,14 @@ struct MaxPuzzlesApp: App {
     private var musicService: MusicService { MusicService.shared }
     @Environment(\.scenePhase) var scenePhase
 
+    private var isRunningUITests: Bool {
+        #if DEBUG
+        ProcessInfo.processInfo.arguments.contains { $0.hasPrefix("-ui-testing-") }
+        #else
+        false
+        #endif
+    }
+
     init() {
         #if DEBUG
         // Apply deterministic UI-test storage before any singleton service can cache old values.
@@ -20,10 +28,14 @@ struct MaxPuzzlesApp: App {
             // The storage singleton may already exist during repeated UI-test launches.
             // Reset its in-memory published values as well as the persistent domain.
             StorageService.shared.clearAllData()
+            CometLearningStore.shared.resetAfterDataClear()
         }
         if launchArguments.contains("-ui-testing-skip-onboarding") {
             StorageService.shared.setPlayerName("Test Player")
             StorageService.shared.completeFirstRun()
+            if launchArguments.contains("-ui-testing-reset") {
+                CometLearningStore.shared.renameActiveProfile("Test Player")
+            }
         }
         #endif
 
@@ -36,6 +48,10 @@ struct MaxPuzzlesApp: App {
                 .environmentObject(appState)
                 .environmentObject(MusicService.shared)
                 .preferredColorScheme(.dark)
+                .task {
+                    guard !isRunningUITests else { return }
+                    ICloudProgressSyncService.shared.start()
+                }
         }
         .onChange(of: scenePhase) { newPhase in
             handleScenePhaseChange(newPhase)
@@ -47,14 +63,28 @@ struct MaxPuzzlesApp: App {
         case .active:
             // App returned to foreground
             appState.resumeSession()
+            musicService.setSceneActive(true)
             musicService.resume()
+            if !isRunningUITests {
+                ICloudProgressSyncService.shared.refresh()
+            }
         case .inactive:
             // App is about to go to background or user switched apps
             appState.pauseSession()
+            musicService.setSceneActive(false)
         case .background:
             // App is in background - save state and pause music
             appState.saveState()
+            musicService.setSceneActive(false)
             musicService.pause()
+            LetterSpeechService.shared.stop()
+            NumeralSpeechService.shared.stop()
+            CustomPromptAudioService.shared.stopPlayback()
+            SoundEffectsService.shared.suspend()
+            CometLearningStore.shared.flushPendingAttemptPersistence()
+            if !isRunningUITests {
+                ICloudProgressSyncService.shared.flush()
+            }
         @unknown default:
             break
         }

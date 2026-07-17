@@ -25,13 +25,14 @@ struct GameHeaderView: View {
                     .background(AppTheme.backgroundDark.opacity(0.8))
                     .cornerRadius(10)
             }
+            .accessibilityLabel("Back")
 
             // Music toggle
             MusicToggleButton(size: .small)
 
             // Title
             Text(title)
-                .font(.system(size: 16, weight: .semibold))
+                .font(AppTypography.buttonMedium)
                 .foregroundColor(.white)
                 .lineLimit(1)
 
@@ -89,7 +90,7 @@ struct TimerDisplayCompact: View {
                         .foregroundColor(AppTheme.accentPrimary)
 
                     Text(formattedTime)
-                        .font(.system(size: 18, weight: .bold, design: .monospaced))
+                        .font(.system(.headline, design: .monospaced, weight: .bold))
                         .foregroundColor(AppTheme.accentPrimary)
                 }
                 .padding(.horizontal, 8)
@@ -105,7 +106,7 @@ struct TimerDisplayCompact: View {
                         .foregroundColor(AppTheme.textSecondary)
 
                     Text(formattedTime)
-                        .font(.system(size: 14, weight: .bold, design: .monospaced))
+                        .font(.system(.subheadline, design: .monospaced, weight: .bold))
                         .foregroundColor(.white)
                 }
                 .padding(.horizontal, 10)
@@ -116,6 +117,8 @@ struct TimerDisplayCompact: View {
                 )
             }
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Elapsed time \(formattedTime)")
     }
 }
 

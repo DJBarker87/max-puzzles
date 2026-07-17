@@ -4,6 +4,8 @@ import SwiftUI
 
 /// Hexagonal loading indicator with animated energy flow
 struct PremiumLoadingView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     let message: String
     var size: CGFloat = 80
 
@@ -11,6 +13,7 @@ struct PremiumLoadingView: View {
     @State private var pulseScale: CGFloat = 1
     @State private var dotProgress: CGFloat = 0
     @State private var messageIndex: Int = 0
+    @State private var messageTimer: Timer?
 
     private let messages = [
         "Generating puzzle...",
@@ -91,7 +94,7 @@ struct PremiumLoadingView: View {
             // Loading message with animated dots
             HStack(spacing: 4) {
                 Text(displayMessage)
-                    .font(.system(size: 16, weight: .medium, design: .rounded))
+                    .font(AppTypography.bodyMedium.weight(.medium))
                     .foregroundColor(AppTheme.textSecondary)
 
                 // Animated dots
@@ -108,6 +111,14 @@ struct PremiumLoadingView: View {
         .onAppear {
             startAnimations()
         }
+        .onChange(of: reduceMotion) { _ in
+            stopAnimations()
+            startAnimations()
+        }
+        .onDisappear(perform: stopAnimations)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(displayMessage)
+        .accessibilityAddTraits(.updatesFrequently)
     }
 
     private func dotAnimation(for index: Int) -> Double {
@@ -116,6 +127,8 @@ struct PremiumLoadingView: View {
     }
 
     private func startAnimations() {
+        guard !reduceMotion else { return }
+
         // Rotation
         withAnimation(.linear(duration: 2).repeatForever(autoreverses: false)) {
             rotation = 360
@@ -133,11 +146,23 @@ struct PremiumLoadingView: View {
 
         // Cycle messages
         if message.isEmpty {
-            Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { _ in
+            messageTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { _ in
                 withAnimation {
                     messageIndex += 1
                 }
             }
+        }
+    }
+
+    private func stopAnimations() {
+        messageTimer?.invalidate()
+        messageTimer = nil
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+        withTransaction(transaction) {
+            rotation = 0
+            pulseScale = 1
+            dotProgress = 0
         }
     }
 }
@@ -146,6 +171,8 @@ struct PremiumLoadingView: View {
 
 /// Compact loading indicator for inline use
 struct MiniHexLoader: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     var size: CGFloat = 24
     var color: Color = AppTheme.connectorGlow
 
@@ -164,10 +191,22 @@ struct MiniHexLoader: View {
                 .rotationEffect(.degrees(rotation))
         }
         .onAppear {
+            guard !reduceMotion else { return }
             withAnimation(.linear(duration: 1).repeatForever(autoreverses: false)) {
                 rotation = 360
             }
         }
+        .onChange(of: reduceMotion) { newValue in
+            if newValue { resetAnimation() }
+        }
+        .onDisappear(perform: resetAnimation)
+        .accessibilityHidden(true)
+    }
+
+    private func resetAnimation() {
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+        withTransaction(transaction) { rotation = 0 }
     }
 }
 
@@ -175,6 +214,8 @@ struct MiniHexLoader: View {
 
 /// Full-screen overlay shown while generating puzzles
 struct GeneratingPuzzleOverlay: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     @State private var gridOpacity: [Double] = Array(repeating: 0.2, count: 9)
 
     var body: some View {
@@ -206,8 +247,12 @@ struct GeneratingPuzzleOverlay: View {
             }
         }
         .onAppear {
-            animateGrid()
+            if !reduceMotion { animateGrid() }
         }
+        .onChange(of: reduceMotion) { newValue in
+            if newValue { resetGrid() } else { animateGrid() }
+        }
+        .onDisappear(perform: resetGrid)
     }
 
     private func animateGrid() {
@@ -222,6 +267,14 @@ struct GeneratingPuzzleOverlay: View {
             ) {
                 gridOpacity[cellIndex] = 0.8
             }
+        }
+    }
+
+    private func resetGrid() {
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+        withTransaction(transaction) {
+            gridOpacity = Array(repeating: 0.35, count: 9)
         }
     }
 }

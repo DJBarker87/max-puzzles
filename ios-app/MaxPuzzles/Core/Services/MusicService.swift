@@ -1,6 +1,68 @@
 import AVFoundation
 import Foundation
 
+// MARK: - App Audio Session Coordinator
+
+/// The single place where app-owned audio changes AVAudioSession configuration.
+/// Keeping category changes here prevents music, spoken prompts and recording from racing.
+@MainActor
+final class AppAudioSessionCoordinator {
+    enum Purpose: Equatable {
+        case music
+        case spokenPlayback
+        case promptRecording
+    }
+
+    static let shared = AppAudioSessionCoordinator()
+
+    private var activePurpose: Purpose?
+
+    private init() {}
+
+    @discardableResult
+    func activate(_ purpose: Purpose) -> Bool {
+        #if os(iOS)
+        let session = AVAudioSession.sharedInstance()
+        do {
+            switch purpose {
+            case .music:
+                try session.setCategory(.ambient, mode: .default, options: [.mixWithOthers])
+            case .spokenPlayback:
+                try session.setCategory(.playback, mode: .spokenAudio, options: [.duckOthers])
+            case .promptRecording:
+                try session.setCategory(
+                    .playAndRecord,
+                    mode: .default,
+                    options: [.defaultToSpeaker, .allowBluetoothHFP]
+                )
+            }
+            try session.setActive(true)
+            activePurpose = purpose
+            return true
+        } catch {
+            activePurpose = nil
+            return false
+        }
+        #else
+        activePurpose = purpose
+        return true
+        #endif
+    }
+
+    /// Effects can share music and spoken-playback sessions, but are blocked while the microphone
+    /// is recording. Crucially, checking this never downgrades an active spoken/recording session.
+    func prepareForSoundEffects() -> Bool {
+        switch activePurpose {
+        case .promptRecording:
+            return false
+        case .music, .spokenPlayback:
+            return true
+        case nil:
+            return activate(.music)
+        }
+    }
+}
+
 // MARK: - MusicService
 
 /// Service for managing background music playback
@@ -16,6 +78,8 @@ class MusicService: ObservableObject {
     @Published private(set) var isPlaying = false
     @Published var volume: Float = 0.5 {
         didSet {
+            fadeTask?.cancel()
+            fadeTask = nil
             player?.volume = volume
             storage.setMusicVolume(volume)
         }
@@ -26,8 +90,10 @@ class MusicService: ObservableObject {
     private var player: AVAudioPlayer?
     private let storage = StorageService.shared
     private var currentTrack: MusicTrack?
-    private var hasConfiguredAudioSession = false
     private var requiredAudioSessions: Set<UUID> = []
+    private var fadeTask: Task<Void, Never>?
+    private var playbackGeneration = 0
+    private var isSceneActive = true
 
     private var isSuppressedForRequiredAudio: Bool {
         !requiredAudioSessions.isEmpty
@@ -44,22 +110,8 @@ class MusicService: ObservableObject {
     // MARK: - Audio Session
 
     @discardableResult
-    private func configureAudioSessionIfNeeded() -> Bool {
-        #if os(iOS)
-        if hasConfiguredAudioSession { return true }
-        do {
-            // Music is optional enrichment, so it follows the silent switch and mixes politely
-            // with audio already playing on the device.
-            try AVAudioSession.sharedInstance().setCategory(.ambient, mode: .default, options: [.mixWithOthers])
-            try AVAudioSession.sharedInstance().setActive(true)
-            hasConfiguredAudioSession = true
-            return true
-        } catch {
-            return false
-        }
-        #else
-        return true
-        #endif
+    private func configureAudioSession() -> Bool {
+        AppAudioSessionCoordinator.shared.activate(.music)
     }
 
     // MARK: - Playback Control
@@ -71,51 +123,43 @@ class MusicService: ObservableObject {
     ///   - loop: Whether to loop the music (default: true)
     func play(filename: String, fileExtension: String = "m4a", loop: Bool = true) {
         // Don't play if music is disabled
-        guard storage.isMusicEnabled, !isSuppressedForRequiredAudio else {
+        guard isSceneActive, storage.isMusicEnabled, !isSuppressedForRequiredAudio else {
             return
         }
 
-        guard configureAudioSessionIfNeeded() else { return }
-
-        // Stop any current playback
-        stop()
+        guard configureAudioSession() else { return }
 
         guard let url = Bundle.main.url(forResource: filename, withExtension: fileExtension) else {
             print("Music file not found: \(filename).\(fileExtension)")
             return
         }
 
-        do {
-            player = try AVAudioPlayer(contentsOf: url)
-            player?.volume = volume
-            player?.numberOfLoops = loop ? -1 : 0 // -1 = infinite loop
-            player?.prepareToPlay()
-            isPlaying = player?.play() ?? false
-        } catch {
-            isPlaying = false
-        }
+        startPlayback(url: url, loop: loop, initialVolume: volume)
     }
 
     /// Stops the currently playing music
     func stop() {
-        player?.stop()
-        player = nil
-        isPlaying = false
+        stopPlayback(cancelFade: true)
     }
 
     /// Pauses the currently playing music
     func pause() {
+        cancelFade()
         player?.pause()
+        player?.volume = volume
         isPlaying = false
     }
 
     /// Resumes paused music
     /// If no player exists but we have a current track, starts playing it
     func resume() {
-        guard storage.isMusicEnabled, !isSuppressedForRequiredAudio else { return }
+        guard isSceneActive, storage.isMusicEnabled, !isSuppressedForRequiredAudio else { return }
+        cancelFade()
+        guard configureAudioSession() else { return }
 
         if let player = player {
             // Resume existing player
+            player.volume = volume
             player.play()
             isPlaying = player.isPlaying
         } else if let track = currentTrack {
@@ -132,6 +176,13 @@ class MusicService: ObservableObject {
         } else {
             resume()
         }
+    }
+
+    /// Scene lifecycle is authoritative for whether app-owned music may start. Audio callbacks
+    /// can arrive after backgrounding, so every playback entry point also checks this flag.
+    func setSceneActive(_ active: Bool) {
+        isSceneActive = active
+        if !active { pause() }
     }
 
     // MARK: - Music State
@@ -158,20 +209,35 @@ class MusicService: ObservableObject {
     /// - Parameter duration: Fade duration in seconds
     func fadeOut(duration: TimeInterval = 1.0) {
         guard let player = player, isPlaying else { return }
+        cancelFade()
 
-        let fadeSteps = 20
-        let stepDuration = duration / Double(fadeSteps)
-        let volumeStep = volume / Float(fadeSteps)
-
-        Task {
-            for _ in 0..<fadeSteps {
-                try? await Task.sleep(nanoseconds: UInt64(stepDuration * 1_000_000_000))
-                let newVolume = max(0, player.volume - volumeStep)
-                player.volume = newVolume
-            }
+        guard duration > 0 else {
             stop()
-            // Restore volume for next play
-            player.volume = volume
+            return
+        }
+
+        let generation = playbackGeneration
+        let startVolume = player.volume
+        let fadeSteps = 20
+        let stepNanoseconds = UInt64((duration / Double(fadeSteps)) * 1_000_000_000)
+
+        fadeTask = Task { @MainActor [weak self, weak player] in
+            guard let self, let player else { return }
+            for step in 1...fadeSteps {
+                do {
+                    try await Task.sleep(nanoseconds: stepNanoseconds)
+                } catch {
+                    return
+                }
+                guard !Task.isCancelled,
+                      self.playbackGeneration == generation,
+                      self.player === player else { return }
+                let progress = Float(step) / Float(fadeSteps)
+                player.volume = startVolume * (1 - progress)
+            }
+            guard self.playbackGeneration == generation, self.player === player else { return }
+            self.stopPlayback(cancelFade: false)
+            self.fadeTask = nil
         }
     }
 
@@ -180,25 +246,38 @@ class MusicService: ObservableObject {
     ///   - filename: The name of the audio file
     ///   - duration: Fade duration in seconds
     func fadeIn(filename: String, fileExtension: String = "m4a", duration: TimeInterval = 1.0) {
-        guard storage.isMusicEnabled, !isSuppressedForRequiredAudio else { return }
+        guard isSceneActive, storage.isMusicEnabled, !isSuppressedForRequiredAudio else { return }
+        guard configureAudioSession() else { return }
 
         let targetVolume = volume
+        guard let url = Bundle.main.url(forResource: filename, withExtension: fileExtension) else {
+            print("Music file not found: \(filename).\(fileExtension)")
+            return
+        }
 
-        // Start at zero volume
-        volume = 0
-        play(filename: filename, fileExtension: fileExtension)
+        startPlayback(url: url, loop: true, initialVolume: duration > 0 ? 0 : targetVolume)
+        guard duration > 0, let player, isPlaying else { return }
 
+        let generation = playbackGeneration
         let fadeSteps = 20
-        let stepDuration = duration / Double(fadeSteps)
-        let volumeStep = targetVolume / Float(fadeSteps)
+        let stepNanoseconds = UInt64((duration / Double(fadeSteps)) * 1_000_000_000)
 
-        Task {
-            for _ in 0..<fadeSteps {
-                try? await Task.sleep(nanoseconds: UInt64(stepDuration * 1_000_000_000))
-                let newVolume = min(targetVolume, (player?.volume ?? 0) + volumeStep)
-                player?.volume = newVolume
+        fadeTask = Task { @MainActor [weak self, weak player] in
+            guard let self, let player else { return }
+            for step in 1...fadeSteps {
+                do {
+                    try await Task.sleep(nanoseconds: stepNanoseconds)
+                } catch {
+                    return
+                }
+                guard !Task.isCancelled,
+                      self.playbackGeneration == generation,
+                      self.player === player else { return }
+                player.volume = targetVolume * Float(step) / Float(fadeSteps)
             }
-            volume = targetVolume
+            guard self.playbackGeneration == generation, self.player === player else { return }
+            player.volume = targetVolume
+            self.fadeTask = nil
         }
     }
 
@@ -220,8 +299,48 @@ class MusicService: ObservableObject {
         resume track: MusicTrack? = .hub
     ) {
         guard requiredAudioSessions.remove(token) != nil else { return }
-        guard requiredAudioSessions.isEmpty, let track else { return }
+        guard requiredAudioSessions.isEmpty else { return }
+        guard isSceneActive else { return }
+
+        // Only the final focus owner restores the ordinary app session. This keeps a nested
+        // recorded prompt from downgrading the session while its enclosing speech game is active.
+        _ = AppAudioSessionCoordinator.shared.activate(.music)
+        guard let track else { return }
         play(track: track)
+    }
+
+    // MARK: - Player Lifecycle
+
+    private func startPlayback(url: URL, loop: Bool, initialVolume: Float) {
+        stopPlayback(cancelFade: true)
+        do {
+            let nextPlayer = try AVAudioPlayer(contentsOf: url)
+            nextPlayer.volume = initialVolume
+            nextPlayer.numberOfLoops = loop ? -1 : 0
+            nextPlayer.prepareToPlay()
+            player = nextPlayer
+            playbackGeneration &+= 1
+            isPlaying = nextPlayer.play()
+            if !isPlaying {
+                player = nil
+            }
+        } catch {
+            player = nil
+            isPlaying = false
+        }
+    }
+
+    private func stopPlayback(cancelFade shouldCancelFade: Bool) {
+        if shouldCancelFade { cancelFade() }
+        playbackGeneration &+= 1
+        player?.stop()
+        player = nil
+        isPlaying = false
+    }
+
+    private func cancelFade() {
+        fadeTask?.cancel()
+        fadeTask = nil
     }
 }
 

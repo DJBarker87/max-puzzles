@@ -8,13 +8,14 @@ class AppState: ObservableObject {
 
     @Published var isLoading = true
     @Published var needsFirstRun = false
+    @Published var needsProfileSelection = false
     @Published var currentUser: User?
     @Published var isGuest = true
     @Published var isInGame = false
     @Published var shouldPauseTimer = false
 
     /// Story mode progress tracker
-    @Published var storyProgress = StoryProgress()
+    @Published var storyProgress: StoryProgress
 
     /// Pending navigation to a chapter's level select (for showing unlock animation)
     /// Set by GameScreenView when completing level 6 after advancing chapters
@@ -24,13 +25,31 @@ class AppState: ObservableObject {
 
     private var backgroundDate: Date?
     private let sessionTimeoutSeconds: TimeInterval = 300 // 5 minutes
+    private var cancellables = Set<AnyCancellable>()
 
     // MARK: - Initialization
 
     init() {
+        let profileStore = CometLearningStore.shared
+        StorageService.shared.activateProfile(profileStore.activeProfileID)
+        let activeName = profileStore.activeProfile.name == "Explorer"
+            ? ""
+            : profileStore.activeProfile.name
+        StorageService.shared.setPlayerName(activeName)
+        storyProgress = StoryProgress(profileID: profileStore.activeProfileID)
+
         // Initialize with guest mode
         isGuest = true
         loadUserState()
+
+        profileStore.$activeProfileID
+            .dropFirst()
+            .removeDuplicates()
+            .sink { [weak self] profileID in
+                StorageService.shared.activateProfile(profileID)
+                self?.storyProgress = StoryProgress(profileID: profileID)
+            }
+            .store(in: &cancellables)
     }
 
     // MARK: - Loading
@@ -41,14 +60,50 @@ class AppState: ObservableObject {
         // This prevents a race condition where ContentView shows MainHubView briefly
         if StorageService.shared.needsFirstRunSetup {
             needsFirstRun = true
+        } else {
+            needsProfileSelection = CometLearningStore.shared.profiles.count > 1
         }
         // Now safe to set isLoading false - needsFirstRun is already set if needed
         isLoading = false
     }
 
-    /// Called when first run setup is completed
-    func completeFirstRun() {
+    /// Persists first-run identity before recording onboarding as complete.
+    ///
+    /// The completion flag must remain the final durable write. If the process is interrupted
+    /// before that point, onboarding is safely shown again instead of launching with an
+    /// unconfigured "Explorer" profile.
+    @discardableResult
+    func commitFirstRun(playerName rawPlayerName: String) -> Bool {
+        let playerName = rawPlayerName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !playerName.isEmpty else { return false }
+
+        let profileStore = CometLearningStore.shared
+        if profileStore.profiles.count == 1 {
+            profileStore.renameActiveProfile(playerName)
+        } else {
+            StorageService.shared.setPlayerName(playerName)
+        }
+
+        StorageService.shared.completeFirstRun()
+        return true
+    }
+
+    /// Removes the first-run screen after its optional exit animation has completed.
+    func finishFirstRunTransition() {
         needsFirstRun = false
+        needsProfileSelection = false
+    }
+
+    // MARK: - Player Profiles
+
+    func requestProfileSelection() {
+        guard !isInGame else { return }
+        needsProfileSelection = true
+    }
+
+    func selectProfile(_ profileID: UUID) {
+        CometLearningStore.shared.setActiveProfile(profileID)
+        needsProfileSelection = false
     }
 
     // MARK: - User State

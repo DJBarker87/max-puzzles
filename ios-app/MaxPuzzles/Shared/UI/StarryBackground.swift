@@ -43,14 +43,13 @@ struct StarryBackground: View {
                     // Base gradient
                     AppTheme.gridBackground
 
-                    // Stars
-                    ForEach(0..<starCount, id: \.self) { index in
-                        StarView(
-                            seed: index,
-                            bounds: geometry.size,
-                            animate: animateStars && !reduceMotion
-                        )
-                    }
+                    // A single canvas drives the whole star field, avoiding one perpetual
+                    // animation transaction per star.
+                    StarFieldView(
+                        starCount: starCount,
+                        bounds: geometry.size,
+                        animate: animateStars && !reduceMotion
+                    )
 
                     // Shooting stars
                     if enableShootingStars && !reduceMotion {
@@ -93,8 +92,8 @@ struct ParallaxBackground: View {
             )
             .clipped()
             .overlay(Color.black.opacity(0.3)) // Slight darkening for text readability
-            .animation(.easeOut(duration: 0.1), value: motionManager.roll)
-            .animation(.easeOut(duration: 0.1), value: motionManager.pitch)
+            .animation(enableParallax ? .easeOut(duration: 0.1) : nil, value: motionManager.roll)
+            .animation(enableParallax ? .easeOut(duration: 0.1) : nil, value: motionManager.pitch)
             .onAppear {
                 if enableParallax {
                     motionManager.start()
@@ -102,6 +101,9 @@ struct ParallaxBackground: View {
             }
             .onDisappear {
                 motionManager.stop()
+            }
+            .onChange(of: enableParallax) { enabled in
+                if enabled { motionManager.start() } else { motionManager.stop() }
             }
     }
 }
@@ -158,6 +160,7 @@ struct ShootingStarsLayer: View {
 
     @State private var stars: [ShootingStar] = []
     @State private var timer: Timer?
+    @State private var removalTasks: [UUID: Task<Void, Never>] = [:]
 
     var body: some View {
         ZStack {
@@ -170,6 +173,10 @@ struct ShootingStarsLayer: View {
         }
         .onDisappear {
             timer?.invalidate()
+            timer = nil
+            for task in removalTasks.values { task.cancel() }
+            removalTasks.removeAll()
+            stars.removeAll()
         }
     }
 
@@ -204,8 +211,17 @@ struct ShootingStarsLayer: View {
         }
 
         // Remove after animation completes
-        DispatchQueue.main.asyncAfter(deadline: .now() + star.duration + 0.5) {
+        removalTasks[star.id] = Task { @MainActor in
+            do {
+                try await Task.sleep(
+                    nanoseconds: UInt64((star.duration + 0.5) * 1_000_000_000)
+                )
+            } catch {
+                return
+            }
+            guard !Task.isCancelled else { return }
             stars.removeAll { $0.id == star.id }
+            removalTasks[star.id] = nil
         }
     }
 }
@@ -307,50 +323,36 @@ struct ShootingStarView: View {
     }
 }
 
-// MARK: - Individual Star View
+// MARK: - Star Field
 
-/// Individual twinkling star
-struct StarView: View {
-    let seed: Int
+/// All ambient stars share one low-frequency timeline and one canvas redraw.
+private struct StarFieldView: View {
+    let starCount: Int
     let bounds: CGSize
     let animate: Bool
 
-    @State private var opacity: Double = 0.3
-
-    private var position: CGPoint {
-        // Use seed for deterministic random position
-        let x = CGFloat((seed * 7919) % 1000) / 1000.0 * bounds.width
-        let y = CGFloat((seed * 6271) % 1000) / 1000.0 * bounds.height
-        return CGPoint(x: x, y: y)
-    }
-
-    private var size: CGFloat {
-        CGFloat((seed * 3571) % 3 + 1)
-    }
-
-    private var animationDuration: Double {
-        Double((seed * 2311) % 20 + 30) / 10.0  // 3-5 seconds
-    }
-
     var body: some View {
-        Circle()
-            .fill(Color.white)
-            .frame(width: size, height: size)
-            .position(position)
-            .opacity(opacity)
-            .onAppear {
-                if animate {
-                    withAnimation(
-                        .easeInOut(duration: animationDuration)
-                        .repeatForever(autoreverses: true)
-                        .delay(Double(seed % 50) * 0.1)
-                    ) {
-                        opacity = 0.8
-                    }
-                } else {
-                    opacity = 0.55
+        TimelineView(.animation(minimumInterval: 1.0 / 12.0, paused: !animate)) { timeline in
+            Canvas { context, _ in
+                let time = timeline.date.timeIntervalSinceReferenceDate
+                for seed in 0..<starCount {
+                    let x = CGFloat((seed * 7_919) % 1_000) / 1_000 * bounds.width
+                    let y = CGFloat((seed * 6_271) % 1_000) / 1_000 * bounds.height
+                    let diameter = CGFloat((seed * 3_571) % 3 + 1)
+                    let duration = Double((seed * 2_311) % 20 + 30) / 10
+                    let phase = Double(seed % 50) * 0.1
+                    let pulse = (sin((time + phase) * 2 * .pi / duration) + 1) / 2
+                    let opacity = animate ? 0.3 + pulse * 0.5 : 0.55
+                    let rect = CGRect(
+                        x: x - diameter / 2,
+                        y: y - diameter / 2,
+                        width: diameter,
+                        height: diameter
+                    )
+                    context.fill(Path(ellipseIn: rect), with: .color(.white.opacity(opacity)))
                 }
             }
+        }
     }
 }
 

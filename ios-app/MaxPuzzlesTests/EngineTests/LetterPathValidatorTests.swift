@@ -89,6 +89,67 @@ final class LetterPathValidatorTests: XCTestCase {
     }
 
     @MainActor
+    func testGameProgressIsSeparatedByPlayerProfile() {
+        let suiteName = "LetterPathValidatorTests.profiles.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let storage = StorageService(defaults: defaults)
+        let firstProfile = UUID()
+        let secondProfile = UUID()
+
+        storage.activateProfile(firstProfile)
+        storage.addCoins(40)
+        storage.incrementPuzzlesCompleted()
+        storage.markCometWriterLetterCompleted("c")
+        storage.completeCircuitTutorial()
+
+        storage.activateProfile(secondProfile)
+        XCTAssertEqual(storage.totalCoinsEarned, 0)
+        XCTAssertEqual(storage.puzzlesCompletedCount, 0)
+        XCTAssertTrue(storage.cometWriterCompletedLetters.isEmpty)
+        XCTAssertFalse(storage.hasCompletedCircuitTutorial)
+
+        storage.addCoins(15)
+        storage.markCometWriterLetterCompleted("a")
+
+        storage.activateProfile(firstProfile)
+        XCTAssertEqual(storage.totalCoinsEarned, 40)
+        XCTAssertEqual(storage.puzzlesCompletedCount, 1)
+        XCTAssertEqual(storage.cometWriterCompletedLetters, ["c"])
+        XCTAssertTrue(storage.hasCompletedCircuitTutorial)
+
+        storage.activateProfile(secondProfile)
+        XCTAssertEqual(storage.totalCoinsEarned, 15)
+        XCTAssertEqual(storage.cometWriterCompletedLetters, ["a"])
+    }
+
+    func testStoryProgressIsSeparatedByPlayerProfile() {
+        let suiteName = "LetterPathValidatorTests.storyProfiles.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let firstProfile = UUID()
+        let secondProfile = UUID()
+
+        let firstProgress = StoryProgress(profileID: firstProfile, defaults: defaults)
+        firstProgress.recordAttempt(
+            chapter: 1,
+            level: 1,
+            won: true,
+            livesLost: 0,
+            timeSeconds: 20,
+            tileCount: 8
+        )
+
+        let secondProgress = StoryProgress(profileID: secondProfile, defaults: defaults)
+        XCTAssertFalse(secondProgress.isLevelCompleted(chapter: 1, level: 1))
+        XCTAssertEqual(secondProgress.totalStars, 0)
+
+        let reloadedFirstProgress = StoryProgress(profileID: firstProfile, defaults: defaults)
+        XCTAssertTrue(reloadedFirstProgress.isLevelCompleted(chapter: 1, level: 1))
+        XCTAssertGreaterThan(reloadedFirstProgress.starsForLevel(chapter: 1, level: 1), 0)
+    }
+
+    @MainActor
     func testLearningRecordsAreSeparatedByChildProfile() {
         let suiteName = "LetterPathValidatorTests.learning.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
@@ -118,6 +179,70 @@ final class LetterPathValidatorTests: XCTestCase {
         store.setActiveProfile(firstProfileID)
         XCTAssertEqual(store.mastery(for: "A"), .mastered)
         XCTAssertEqual(store.activePoints, 10)
+    }
+
+    func testSpeechPromptsUseOrdinaryLetterNamesWithoutPhonicOverrides() throws {
+        let c = try XCTUnwrap(LetterLibrary.glyph(for: "c"))
+        let g = try XCTUnwrap(LetterLibrary.glyph(for: "g"))
+        let k = try XCTUnwrap(LetterLibrary.glyph(for: "k"))
+        let capitalG = try XCTUnwrap(LetterLibrary.glyph(for: "G"))
+        XCTAssertEqual(LetterSpeechService.lessonPrompt(for: c), c.spokenPrompt)
+        XCTAssertEqual(LetterSpeechService.lessonPrompt(for: g), g.spokenPrompt)
+        XCTAssertEqual(LetterSpeechService.lessonPrompt(for: k), k.spokenPrompt)
+        XCTAssertEqual(
+            LetterSpeechService.letterNamePrompt(for: g),
+            "Listen for the letter name. Letter g. Write g."
+        )
+        XCTAssertEqual(
+            LetterSpeechService.letterNamePrompt(for: capitalG),
+            "Listen for the letter name. Letter G. Write G."
+        )
+        XCTAssertEqual(
+            LetterSpeechService.recallPrompt(for: g),
+            "Write the letter g. goat starts with the letter g."
+        )
+        XCTAssertEqual(
+            LetterSpeechService.pathPrompt(for: c, animated: true),
+            "Watch the comet write c, then have a go."
+        )
+        XCTAssertEqual(
+            LetterSpeechService.wordPrompt(
+                for: g,
+                word: "go",
+                introduction: "Write the word.",
+                contextSentence: nil
+            ),
+            "Write the word. go. Write it on one line. Now write g."
+        )
+        XCTAssertEqual(
+            LetterSpeechService.spellingPrompt(for: "g", contextSentence: nil),
+            "Spell the word g."
+        )
+
+        let allPromptText = [
+            LetterSpeechService.lessonPrompt(for: c),
+            LetterSpeechService.lessonPrompt(for: g),
+            LetterSpeechService.lessonPrompt(for: k),
+            LetterSpeechService.lessonPrompt(for: capitalG),
+            LetterSpeechService.letterNamePrompt(for: g),
+            LetterSpeechService.letterNamePrompt(for: capitalG),
+            LetterSpeechService.recallPrompt(for: g),
+            LetterSpeechService.pathPrompt(for: c, animated: true),
+            LetterSpeechService.pathPrompt(for: capitalG, animated: false),
+            LetterSpeechService.wordPrompt(
+                for: g,
+                word: "go",
+                introduction: "Write the word.",
+                contextSentence: nil
+            )
+        ].joined(separator: " ").lowercased()
+        XCTAssertTrue(allPromptText.contains("letter g"))
+        XCTAssertFalse(allPromptText.contains("curly"))
+        XCTAssertFalse(allPromptText.contains("kicking"))
+        XCTAssertFalse(allPromptText.contains("phoneme"))
+        XCTAssertFalse(allPromptText.contains("lowercase"))
+        XCTAssertFalse(allPromptText.contains("uppercase"))
+        XCTAssertFalse(allPromptText.contains("capital"))
     }
 
     @MainActor
@@ -741,6 +866,27 @@ final class LetterPathValidatorTests: XCTestCase {
         XCTAssertFalse(viewModel.isDemonstrating)
         XCTAssertNil(viewModel.demonstrationStartedAt)
         viewModel.stopHint()
+    }
+
+    func testTracePadNeverAnimatesADemonstrationWithReduceMotion() {
+        XCTAssertTrue(
+            LetterTraceMotionPolicy.animatesDemonstration(
+                isDemonstrating: true,
+                reduceMotion: false
+            )
+        )
+        XCTAssertFalse(
+            LetterTraceMotionPolicy.animatesDemonstration(
+                isDemonstrating: true,
+                reduceMotion: true
+            )
+        )
+        XCTAssertFalse(
+            LetterTraceMotionPolicy.animatesDemonstration(
+                isDemonstrating: false,
+                reduceMotion: false
+            )
+        )
     }
 
     @MainActor

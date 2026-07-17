@@ -14,6 +14,12 @@ enum TraceTouchPhase {
     case cancelled
 }
 
+enum LetterTraceMotionPolicy {
+    static func animatesDemonstration(isDemonstrating: Bool, reduceMotion: Bool) -> Bool {
+        isDemonstrating && !reduceMotion
+    }
+}
+
 struct LetterTracePad: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @ObservedObject var viewModel: CometWriterViewModel
@@ -34,12 +40,15 @@ struct LetterTracePad: View {
             let size = geometry.size
 
             ZStack {
-                if viewModel.isDemonstrating {
+                if LetterTraceMotionPolicy.animatesDemonstration(
+                    isDemonstrating: viewModel.isDemonstrating,
+                    reduceMotion: reduceMotion
+                ) {
                     TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { timeline in
                         traceCanvas(at: timeline.date)
                     }
                 } else {
-                    traceCanvas(at: .distantPast)
+                    traceCanvas(at: nil)
                 }
 
                 TraceTouchCapture(pencilOnly: pencilOnly) { phase, location in
@@ -91,7 +100,7 @@ struct LetterTracePad: View {
         }
     }
 
-    private func traceCanvas(at date: Date) -> some View {
+    private func traceCanvas(at date: Date?) -> some View {
         Canvas { context, canvasSize in
             if showsWritingLines {
                 drawWritingLines(in: &context, size: canvasSize)
@@ -101,7 +110,9 @@ struct LetterTracePad: View {
             drawActiveTrace(in: &context, size: canvasSize)
             drawCorrection(in: &context, size: canvasSize)
             drawStartMarkers(in: &context, size: canvasSize)
-            drawDemonstration(in: &context, size: canvasSize, at: date)
+            if let date {
+                drawDemonstration(in: &context, size: canvasSize, at: date)
+            }
         }
     }
 
@@ -525,8 +536,29 @@ struct LetterTracePad: View {
     }
 }
 
-/// Keeps a whole word on one ruled surface. Only the active letter accepts input; finished
-/// letters remain visible in their original positions so the child is genuinely building a word.
+enum WordMissionLayout {
+    /// Four generous writing slots keep long words finger-friendly on a compact iPhone.
+    static let maximumVisibleCharacters = 4
+
+    static func visibleIndices(characterCount: Int, activeIndex: Int) -> [Int] {
+        let count = max(characterCount, 0)
+        guard count > 0 else { return [] }
+        let visibleCount = min(count, maximumVisibleCharacters)
+        guard count > visibleCount else { return Array(0..<count) }
+
+        let clampedActiveIndex = min(max(activeIndex, 0), count - 1)
+        let preferredStart = clampedActiveIndex - 1
+        let start = min(max(preferredStart, 0), count - visibleCount)
+        return Array(start..<(start + visibleCount))
+    }
+
+    static func aspectRatio(characterCount: Int) -> CGFloat {
+        CGFloat(min(max(characterCount, 1), maximumVisibleCharacters)) / 1.18
+    }
+}
+
+/// Keeps a word on one ruled surface. Long words move through a four-letter window so every
+/// active slot remains large enough for a child's finger while completed letters stay visible.
 struct WordMissionTracePad: View {
     @ObservedObject var viewModel: CometWriterViewModel
     let characters: [String]
@@ -538,8 +570,12 @@ struct WordMissionTracePad: View {
 
     var body: some View {
         GeometryReader { geometry in
-            let count = max(characters.count, 1)
-            let slotWidth = geometry.size.width / CGFloat(count)
+            let visibleIndices = WordMissionLayout.visibleIndices(
+                characterCount: characters.count,
+                activeIndex: activeIndex
+            )
+            let visibleCount = max(visibleIndices.count, 1)
+            let slotWidth = geometry.size.width / CGFloat(visibleCount)
             let inset = min(12, max(6, slotWidth * 0.08))
 
             ZStack {
@@ -548,7 +584,8 @@ struct WordMissionTracePad: View {
                 }
 
                 HStack(spacing: 0) {
-                    ForEach(Array(characters.enumerated()), id: \.offset) { index, character in
+                    ForEach(Array(visibleIndices.enumerated()), id: \.element) { position, index in
+                        let character = characters[index]
                         wordSlot(
                             at: index,
                             character: character,
@@ -556,7 +593,7 @@ struct WordMissionTracePad: View {
                         )
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .overlay(alignment: .trailing) {
-                            if index < characters.count - 1 {
+                            if position < visibleIndices.count - 1 {
                                 Rectangle()
                                     .fill(AppTheme.cometGuide.opacity(0.12))
                                     .frame(width: 1)
@@ -612,7 +649,7 @@ struct WordMissionTracePad: View {
             ZStack(alignment: .bottom) {
                 Color.clear
                 Text("\(index + 1)")
-                    .font(.system(size: 11, weight: .bold, design: .rounded))
+                    .font(.system(.caption2, design: .rounded, weight: .bold))
                     .foregroundColor(AppTheme.cometGuide.opacity(0.34))
                     .padding(.bottom, 5)
                     .accessibilityHidden(true)
@@ -704,7 +741,7 @@ private struct CompletedWordLetterView: View {
         }
         .overlay(alignment: .topTrailing) {
             Text("\(attempt.reward.score)")
-                .font(.system(size: 10, weight: .heavy, design: .rounded))
+                .font(.system(.caption2, design: .rounded, weight: .heavy))
                 .foregroundColor(AppTheme.backgroundDark)
                 .padding(.horizontal, 5)
                 .frame(minHeight: 20)

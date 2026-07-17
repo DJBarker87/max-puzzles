@@ -3,6 +3,7 @@ import SwiftUI
 /// Premium card displaying a puzzle module with glass effect and micro-interactions
 struct ModuleCardView: View {
     @Environment(\.verticalSizeClass) private var verticalSizeClass
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     let title: String
     let description: String
@@ -14,7 +15,7 @@ struct ModuleCardView: View {
 
     @State private var isHovered = false
     @State private var iconBounce = false
-    @State private var glowPulse: CGFloat = 0
+    @State private var bounceTask: Task<Void, Never>?
 
     private var isCompactHeight: Bool { verticalSizeClass == .compact }
     private var iconFrameSize: CGFloat { isCompactHeight ? 88 : 120 }
@@ -41,7 +42,7 @@ struct ModuleCardView: View {
                     } else {
                         // Outer glow
                         Circle()
-                            .fill(AppTheme.accentPrimary.opacity(0.2 + glowPulse * 0.15))
+                            .fill(AppTheme.accentPrimary.opacity(0.28))
                             .frame(width: symbolGlowSize, height: symbolGlowSize)
                             .blur(radius: 12)
 
@@ -85,7 +86,7 @@ struct ModuleCardView: View {
 
                 // Title with electric typography - bold with glow effect
                 Text(title)
-                    .font(.system(size: isCompactHeight ? 19 : 22, weight: .heavy, design: .rounded))
+                    .font(AppTypography.titleSmall)
                     .foregroundColor(.white)
                     .multilineTextAlignment(.center)
                     .lineLimit(2, reservesSpace: true)
@@ -95,7 +96,7 @@ struct ModuleCardView: View {
 
                 // Description
                 Text(description)
-                    .font(.system(size: 14, weight: .regular, design: .rounded))
+                    .font(AppTypography.bodySmall)
                     .foregroundColor(AppTheme.textSecondary)
                     .multilineTextAlignment(.center)
                     .lineLimit(isCompactHeight ? 1 : 2, reservesSpace: true)
@@ -109,7 +110,7 @@ struct ModuleCardView: View {
                     .foregroundColor(AppTheme.textSecondary)
                 } else {
                     Text("Play")
-                        .font(.system(size: 16, weight: .semibold, design: .rounded))
+                        .font(AppTypography.buttonMedium)
                         .foregroundColor(AppTheme.accentPrimary)
                         .padding(.horizontal, 16)
                         .padding(.vertical, 6)
@@ -180,34 +181,38 @@ struct ModuleCardView: View {
                 y: 2
             )
             // Micro-interactions
-            .scaleEffect(isHovered && !isLocked ? 1.03 : 1.0)
+            .scaleEffect(isHovered && !isLocked && !reduceMotion ? 1.03 : 1.0)
             .opacity(isLocked ? 0.6 : 1.0)
         }
         .buttonStyle(ScrollFriendlyPressStyle(scale: 0.97, yOffset: 2))
+        .disabled(isLocked)
         .accessibilityLabel(title)
         .accessibilityHint(isLocked ? "This module is locked" : "\(description). Double tap to play")
         .accessibilityAddTraits(.isButton)
         .onHover { hovering in
-            withAnimation(.easeOut(duration: 0.2)) {
+            withAnimation(reduceMotion ? nil : .easeOut(duration: 0.2)) {
                 isHovered = hovering
             }
-            if hovering && !isLocked {
+            bounceTask?.cancel()
+            if hovering && !isLocked && !reduceMotion {
                 // Bounce icon on hover
                 withAnimation(.spring(response: 0.3, dampingFraction: 0.5)) {
                     iconBounce = true
                 }
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                bounceTask = Task { @MainActor in
+                    try? await Task.sleep(nanoseconds: 200_000_000)
+                    guard !Task.isCancelled else { return }
                     withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
                         iconBounce = false
                     }
                 }
+            } else {
+                iconBounce = false
             }
         }
-        .onAppear {
-            // Subtle continuous glow pulse
-            withAnimation(.easeInOut(duration: 2).repeatForever(autoreverses: true)) {
-                glowPulse = 1
-            }
+        .onDisappear {
+            bounceTask?.cancel()
+            bounceTask = nil
         }
     }
 
@@ -261,12 +266,12 @@ struct MenuOptionCard: View {
                 // Text
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title)
-                        .font(.system(size: 18, weight: .semibold, design: .rounded))
+                        .font(AppTypography.buttonLarge)
                         .foregroundColor(.white)
 
                     if let subtitle = subtitle {
                         Text(subtitle)
-                            .font(.system(size: 13, weight: .regular, design: .rounded))
+                            .font(AppTypography.bodySmall)
                             .foregroundColor(AppTheme.textSecondary)
                     }
                 }
@@ -321,14 +326,16 @@ struct MenuOptionCard: View {
 /// Uses `ButtonStyle.Configuration.isPressed` instead of a zero-distance drag gesture. The old
 /// gesture looked good but intercepted the parent carousel's pan recognizer on iPhone.
 private struct ScrollFriendlyPressStyle: ButtonStyle {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     let scale: CGFloat
     let yOffset: CGFloat
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .scaleEffect(configuration.isPressed ? scale : 1)
-            .offset(y: configuration.isPressed ? yOffset : 0)
-            .animation(.easeOut(duration: 0.1), value: configuration.isPressed)
+            .scaleEffect(configuration.isPressed && !reduceMotion ? scale : 1)
+            .offset(y: configuration.isPressed && !reduceMotion ? yOffset : 0)
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.1), value: configuration.isPressed)
     }
 }
 

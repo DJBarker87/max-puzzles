@@ -14,12 +14,14 @@ drawing—not vertical bands or an arbitrary silhouette—defines every colourab
 - Every group owns a unique, in-bounds 5-by-3 atlas tile, and every referenced mask asset exists.
 - Mask and label coordinates are normalised to `0...1`; no metadata can address a neighbouring
   atlas cell.
-- Repeated taps or strokes in one group count once. Progress is the number of distinct groups
-  attempted, never the number of touch events.
+- Repeated taps in one group count once. Pencil mode does not award a group merely because it was
+  attempted: bounded real strokes must cover at least 18% of that semantic mask on the 30×30
+  evaluation grid. A tiny mark cannot complete a colour.
 - Tap to Fill and Pencil Shading share one progress model. Changing mode preserves selected colour,
   fills, strokes, and saved progress.
 - Pencil strokes store normalised points and render through the selected semantic mask. Paint must
-  not appear in another region or outside the picture/canvas.
+  not appear in another region or outside the picture/canvas. Persistence is capped at 128 points
+  per stroke, 36 strokes per region and 160 strokes per picture.
 - Finish remains unavailable until all groups have either been filled or genuinely shaded.
 
 The giraffe is the canonical semantic check: blue sky/background, golden-yellow body, warm-brown
@@ -67,8 +69,9 @@ For each example:
   meaningful in-mask stroke rather than a single accidental point.
 - **Presentation races:** completion currently follows delayed animation. Guard against presenting
   the colouring stage twice, after dismissal, or before the Reduce Motion reveal has completed.
-- **Memory pressure:** loading all mask atlases at once is unnecessary. Decode only the current
-  picture's assets and release them when leaving the full-screen stage.
+- **Memory pressure:** the activity asynchronously prepares only the current picture, gates the
+  canvas behind a loading state, caches cropped 512×512 tiles with a 24 MB cost limit and releases
+  those entries when leaving the full-screen stage. Recheck real-device pressure before release.
 - **Small targets:** thin regions need generous semantic hit-testing without allowing colour to leak
   into a neighbour. Keep the rendered clip exact even if the touch target is expanded.
 - **Accessibility:** mode and swatch choices need text labels and selected traits; colour alone cannot

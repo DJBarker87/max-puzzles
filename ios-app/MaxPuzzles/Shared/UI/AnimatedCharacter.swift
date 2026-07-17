@@ -8,6 +8,8 @@ enum CharacterAnimation {
 
 /// Animated character image for win/lose screens
 struct AnimatedCharacter: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     let imageName: String
     let animation: CharacterAnimation
     let size: CGFloat
@@ -17,6 +19,7 @@ struct AnimatedCharacter: View {
     @State private var rotation: Double = 0
     @State private var punchOffset: CGFloat = 0
     @State private var bounceScale: CGFloat = 0.3
+    @State private var animationTask: Task<Void, Never>?
 
     var body: some View {
         Image(imageName)
@@ -31,11 +34,21 @@ struct AnimatedCharacter: View {
             .onAppear {
                 startAnimations()
             }
+            .onChange(of: reduceMotion) { _ in
+                startAnimations()
+            }
+            .onDisappear(perform: stopAnimations)
     }
 
     // MARK: - Animations
 
     private func startAnimations() {
+        stopAnimations()
+        if reduceMotion {
+            appeared = true
+            bounceScale = 1
+            return
+        }
         switch animation {
         case .boxer:
             startBoxerAnimation()
@@ -51,19 +64,19 @@ struct AnimatedCharacter: View {
         }
 
         // Victory punch motion (delayed)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+        animationTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 500_000_000)
+            guard !Task.isCancelled else { return }
             withAnimation(.easeInOut(duration: 0.15)) {
                 punchOffset = 15
             }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.5)) {
-                    punchOffset = 0
-                }
+            try? await Task.sleep(nanoseconds: 150_000_000)
+            guard !Task.isCancelled else { return }
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.5)) {
+                punchOffset = 0
             }
-        }
-
-        // Continuous subtle bob
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+            try? await Task.sleep(nanoseconds: 150_000_000)
+            guard !Task.isCancelled else { return }
             withAnimation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true)) {
                 bounceScale = 1.05
             }
@@ -80,17 +93,31 @@ struct AnimatedCharacter: View {
         }
 
         // Continuous floating bob
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+        animationTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 500_000_000)
+            guard !Task.isCancelled else { return }
+            withAnimation(.easeInOut(duration: 4.0).repeatForever(autoreverses: true)) {
+                rotation = 8
+            }
+            try? await Task.sleep(nanoseconds: 300_000_000)
+            guard !Task.isCancelled else { return }
             withAnimation(.easeInOut(duration: 2.5).repeatForever(autoreverses: true)) {
                 floatOffset = 12
             }
         }
+    }
 
-        // Gentle rotation
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            withAnimation(.easeInOut(duration: 4.0).repeatForever(autoreverses: true)) {
-                rotation = 8
-            }
+    private func stopAnimations() {
+        animationTask?.cancel()
+        animationTask = nil
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+        withTransaction(transaction) {
+            appeared = false
+            floatOffset = 0
+            rotation = 0
+            punchOffset = 0
+            bounceScale = 0.3
         }
     }
 }

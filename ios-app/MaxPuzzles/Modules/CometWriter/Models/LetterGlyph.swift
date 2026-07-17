@@ -405,7 +405,10 @@ struct LetterGlyph: Identifiable, Hashable, Sendable {
     }
 
     var spokenPrompt: String {
-        "\(formationName.capitalized). \(promptTitle). \(formationCue)"
+        if isNumber {
+            return "Number \(character). \(promptTitle). \(formationCue)"
+        }
+        return "Letter \(character). \(promptTitle). \(formationCue)"
     }
 }
 

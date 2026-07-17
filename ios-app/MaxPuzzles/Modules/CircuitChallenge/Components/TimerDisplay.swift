@@ -4,6 +4,8 @@ import SwiftUI
 
 /// Premium timer display with glass effect and running animation
 struct TimerDisplay: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     let elapsedSeconds: Int
     let isRunning: Bool
     let compact: Bool
@@ -35,7 +37,9 @@ struct TimerDisplay: View {
     }
 
     private var iconSize: CGFloat { compact ? 16 : 20 }
-    private var fontSize: CGFloat { compact ? 16 : 20 }
+    private var timerFont: Font {
+        .system(compact ? .body : .title3, design: .monospaced, weight: .bold)
+    }
 
     var body: some View {
         HStack(spacing: compact ? 4 : 8) {
@@ -59,10 +63,10 @@ struct TimerDisplay: View {
 
             // Time display with monospace font
             Text(formattedTime)
-                .font(.system(size: fontSize, weight: .bold, design: .monospaced))
+                .font(timerFont)
                 .foregroundColor(.white)
                 .contentTransition(.numericText())
-                .animation(.spring(response: 0.3, dampingFraction: 0.7), value: elapsedSeconds)
+                .animation(reduceMotion ? nil : .spring(response: 0.3, dampingFraction: 0.7), value: elapsedSeconds)
         }
         .padding(.horizontal, compact ? 10 : 14)
         .padding(.vertical, compact ? 6 : 10)
@@ -112,34 +116,41 @@ struct TimerDisplay: View {
         .accessibilityLabel("Timer: \(accessibilityTimeString)")
         .accessibilityValue(formattedTime)
         .onAppear {
-            if isRunning {
+            if isRunning && !reduceMotion {
                 startAnimations()
             }
         }
         .onChange(of: isRunning) { running in
-            if running {
+            if running && !reduceMotion {
                 startAnimations()
             } else {
                 stopAnimations()
             }
         }
+        .onChange(of: reduceMotion) { newValue in
+            if newValue {
+                stopAnimations(animated: false)
+            } else if isRunning {
+                startAnimations()
+            }
+        }
+        .onDisappear { stopAnimations(animated: false) }
     }
 
     private func startAnimations() {
-        // Subtle icon movement
-        withAnimation(.easeInOut(duration: 1.0).repeatForever(autoreverses: true)) {
-            iconRotation = 5
-        }
-
-        // Pulse effect
-        withAnimation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true)) {
-            pulseScale = 1.05
-            glowOpacity = 0.5
-        }
+        // Numeric updates already communicate that the timer is running. A static icon avoids
+        // an otherwise permanent redraw for the duration of every puzzle.
+        iconRotation = 0
+        pulseScale = 1
+        glowOpacity = 0.4
     }
 
     private func stopAnimations() {
-        withAnimation(.easeOut(duration: 0.3)) {
+        stopAnimations(animated: !reduceMotion)
+    }
+
+    private func stopAnimations(animated: Bool) {
+        withAnimation(animated ? .easeOut(duration: 0.3) : nil) {
             iconRotation = 0
             pulseScale = 1.0
             glowOpacity = 0.3

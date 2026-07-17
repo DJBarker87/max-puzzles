@@ -106,6 +106,7 @@
 		DT00000C1111111111111111 /* DownloadedDotPuzzleColourArtwork.generated.swift in Sources */ = {isa = PBXBuildFile; fileRef = DT00000B1111111111111111 /* DownloadedDotPuzzleColourArtwork.generated.swift */; };
 		SP0000021111111111111111 /* StarSpellerViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = SP0000011111111111111111 /* StarSpellerViews.swift */; };
 		SP0000041111111111111111 /* SpellingWordImportTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = SP0000031111111111111111 /* SpellingWordImportTests.swift */; };
+		IC0000021111111111111111 /* ICloudProgressSyncService.swift in Sources */ = {isa = PBXBuildFile; fileRef = IC0000011111111111111111 /* ICloudProgressSyncService.swift */; };
 		PV0001011111111111111111 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = PV0001001111111111111111 /* PrivacyInfo.xcprivacy */; };
 /* End PBXBuildFile section */
 
@@ -229,6 +230,7 @@
 		DT00000B1111111111111111 /* DownloadedDotPuzzleColourArtwork.generated.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownloadedDotPuzzleColourArtwork.generated.swift; sourceTree = "<group>"; };
 		SP0000011111111111111111 /* StarSpellerViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StarSpellerViews.swift; sourceTree = "<group>"; };
 		SP0000031111111111111111 /* SpellingWordImportTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpellingWordImportTests.swift; sourceTree = "<group>"; };
+		IC0000011111111111111111 /* ICloudProgressSyncService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ICloudProgressSyncService.swift; sourceTree = "<group>"; };
 		PV0001001111111111111111 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -336,6 +338,7 @@
 				LL0001001111111111111111 /* MusicService.swift */,
 				SS0001001111111111111111 /* SoundEffectsService.swift */,
 				II0001001111111111111111 /* StorageService.swift */,
+				IC0000011111111111111111 /* ICloudProgressSyncService.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -897,6 +900,7 @@
 				DT00000A1111111111111111 /* DotToDotColouringViews.swift in Sources */,
 				DT00000C1111111111111111 /* DownloadedDotPuzzleColourArtwork.generated.swift in Sources */,
 				SP0000021111111111111111 /* StarSpellerViews.swift in Sources */,
+				IC0000021111111111111111 /* ICloudProgressSyncService.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1065,7 +1069,8 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 4;
+				CODE_SIGN_ENTITLEMENTS = MaxPuzzles/MaxPuzzles.entitlements;
+				CURRENT_PROJECT_VERSION = 6;
 				DEVELOPMENT_ASSET_PATHS = "";
 				DEVELOPMENT_TEAM = XAB7FWS6XP;
 				ENABLE_PREVIEWS = YES;
@@ -1083,7 +1088,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.2;
+				MARKETING_VERSION = 1.4;
 				PRODUCT_BUNDLE_IDENTIFIER = com.maxpuzzles.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTS_MACCATALYST = YES;
@@ -1101,7 +1106,8 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 4;
+				CODE_SIGN_ENTITLEMENTS = MaxPuzzles/MaxPuzzles.entitlements;
+				CURRENT_PROJECT_VERSION = 6;
 				DEVELOPMENT_ASSET_PATHS = "";
 				DEVELOPMENT_TEAM = XAB7FWS6XP;
 				ENABLE_PREVIEWS = YES;
@@ -1119,7 +1125,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.2;
+				MARKETING_VERSION = 1.4;
 				PRODUCT_BUNDLE_IDENTIFIER = com.maxpuzzles.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTS_MACCATALYST = YES;
@@ -1136,11 +1142,11 @@
 				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 4;
+				CURRENT_PROJECT_VERSION = 6;
 				DEVELOPMENT_TEAM = "";
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
-				MARKETING_VERSION = 1.2;
+				MARKETING_VERSION = 1.4;
 				PRODUCT_BUNDLE_IDENTIFIER = com.maxpuzzles.app.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = NO;
@@ -1156,11 +1162,11 @@
 				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 4;
+				CURRENT_PROJECT_VERSION = 6;
 				DEVELOPMENT_TEAM = "";
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
-				MARKETING_VERSION = 1.2;
+				MARKETING_VERSION = 1.4;
 				PRODUCT_BUNDLE_IDENTIFIER = com.maxpuzzles.app.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = NO;
@@ -1175,10 +1181,10 @@
 			buildSettings = {
 				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 4;
+				CURRENT_PROJECT_VERSION = 6;
 				DEVELOPMENT_TEAM = "";
 				GENERATE_INFOPLIST_FILE = YES;
-				MARKETING_VERSION = 1.2;
+				MARKETING_VERSION = 1.4;
 				PRODUCT_BUNDLE_IDENTIFIER = com.maxpuzzles.app.uitests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = NO;
@@ -1193,10 +1199,10 @@
 			buildSettings = {
 				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 4;
+				CURRENT_PROJECT_VERSION = 6;
 				DEVELOPMENT_TEAM = "";
 				GENERATE_INFOPLIST_FILE = YES;
-				MARKETING_VERSION = 1.2;
+				MARKETING_VERSION = 1.4;
 				PRODUCT_BUNDLE_IDENTIFIER = com.maxpuzzles.app.uitests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = NO;

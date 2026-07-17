@@ -25,7 +25,7 @@ struct ChapterSelectView: View {
                     // Title with total stars - more compact in landscape
                     HStack(spacing: 12) {
                         Text("Story Mode")
-                            .font(.system(size: isLandscape ? 22 : 28, weight: .heavy, design: .rounded))
+                            .font(.scaledSystem(size: isLandscape ? 22 : 28, weight: .heavy, design: .rounded))
                             .foregroundColor(.white)
                             .shadow(color: AppTheme.connectorGlow.opacity(0.8), radius: 8)
                             .shadow(color: AppTheme.accentPrimary.opacity(0.5), radius: 4)
@@ -34,9 +34,9 @@ struct ChapterSelectView: View {
                             // Inline stars badge in landscape
                             HStack(spacing: 4) {
                                 Image(systemName: "star.fill")
-                                    .font(.system(size: 11))
+                                    .font(.scaledSystem(size: 11))
                                 Text("\(progress.totalStars)/210")
-                                    .font(.system(size: 12, weight: .bold))
+                                    .font(.scaledSystem(size: 12, weight: .bold))
                             }
                             .foregroundColor(AppTheme.accentTertiary)
                         }
@@ -46,16 +46,16 @@ struct ChapterSelectView: View {
                         // Portrait: subtitle below
                         HStack(spacing: 12) {
                             Text("Help the aliens!")
-                                .font(.system(size: 13, weight: .medium))
+                                .font(.scaledSystem(size: 13, weight: .medium))
                                 .foregroundColor(.white.opacity(0.9))
 
                             HStack(spacing: 4) {
                                 Image(systemName: "star.fill")
-                                    .font(.system(size: 11))
+                                    .font(.scaledSystem(size: 11))
                                 Text("\(progress.totalStars)")
-                                    .font(.system(size: 13, weight: .bold))
+                                    .font(.scaledSystem(size: 13, weight: .bold))
                                 Text("/210")
-                                    .font(.system(size: 10))
+                                    .font(.scaledSystem(size: 10))
                                     .foregroundColor(AppTheme.textSecondary)
                             }
                             .foregroundColor(AppTheme.accentTertiary)
@@ -84,7 +84,7 @@ struct ChapterSelectView: View {
                                     }
                                 }) {
                                     Image(systemName: "chevron.left")
-                                        .font(.system(size: 28, weight: .semibold))
+                                        .font(.scaledSystem(size: 28, weight: .semibold))
                                         .foregroundColor(.white.opacity(0.7))
                                         .padding(12)
                                         .background(Circle().fill(Color.black.opacity(0.3)))
@@ -103,7 +103,7 @@ struct ChapterSelectView: View {
                                     }
                                 }) {
                                     Image(systemName: "chevron.right")
-                                        .font(.system(size: 28, weight: .semibold))
+                                        .font(.scaledSystem(size: 28, weight: .semibold))
                                         .foregroundColor(.white.opacity(0.7))
                                         .padding(12)
                                         .background(Circle().fill(Color.black.opacity(0.3)))
@@ -271,7 +271,7 @@ struct ChapterSelectView: View {
             }
 
             Text("\(progress.completedChaptersCount) of 10 chapters completed")
-                .font(.system(size: 14))
+                .font(.scaledSystem(size: 14))
                 .foregroundColor(AppTheme.textSecondary)
         }
     }
@@ -371,7 +371,7 @@ struct LargeChapterCard: View {
                             .frame(width: cardWidth * 0.6, height: cardWidth * 0.6)
 
                         Image(systemName: "lock.fill")
-                            .font(.system(size: 48))
+                            .font(.scaledSystem(size: 48))
                             .foregroundColor(.white.opacity(0.8))
                     }
 
@@ -387,7 +387,7 @@ struct LargeChapterCard: View {
                                         .shadow(color: AppTheme.accentPrimary.opacity(0.5), radius: 8)
 
                                     Image(systemName: "checkmark")
-                                        .font(.system(size: 22, weight: .bold))
+                                        .font(.scaledSystem(size: 22, weight: .bold))
                                         .foregroundColor(.white)
                                 }
                                 .offset(x: -20, y: 20)
@@ -406,16 +406,16 @@ struct LargeChapterCard: View {
                 // Chapter info
                 VStack(spacing: isLandscape ? 4 : 8) {
                     Text("Chapter \(alien.chapter)")
-                        .font(.system(size: isLandscape ? 12 : 14, weight: .medium))
+                        .font(.scaledSystem(size: isLandscape ? 12 : 14, weight: .medium))
                         .foregroundColor(isUnlocked ? AppTheme.textSecondary : .gray)
 
                     Text(alien.name)
-                        .font(.system(size: isLandscape ? 24 : 32, weight: .heavy, design: .rounded))
+                        .font(.scaledSystem(size: isLandscape ? 24 : 32, weight: .heavy, design: .rounded))
                         .foregroundColor(isUnlocked ? .white : .gray)
 
                     if isUnlocked {
                         Text(alien.words.joined(separator: " • "))
-                            .font(.system(size: isLandscape ? 10 : 13))
+                            .font(.scaledSystem(size: isLandscape ? 10 : 13))
                             .foregroundColor(AppTheme.accentPrimary.opacity(0.9))
                             .multilineTextAlignment(.center)
 
@@ -437,16 +437,16 @@ struct LargeChapterCard: View {
                                 // Stats row
                                 HStack {
                                     Text("\(levelsCompleted)/7 levels")
-                                        .font(.system(size: 11))
+                                        .font(.scaledSystem(size: 11))
                                         .foregroundColor(AppTheme.textSecondary)
 
                                     Spacer()
 
                                     HStack(spacing: 2) {
                                         Image(systemName: "star.fill")
-                                            .font(.system(size: 10))
+                                            .font(.scaledSystem(size: 10))
                                         Text("\(chapterStars)/21")
-                                            .font(.system(size: 11))
+                                            .font(.scaledSystem(size: 11))
                                     }
                                     .foregroundColor(AppTheme.accentTertiary)
                                 }
@@ -532,13 +532,13 @@ struct ChapterIntroView: View {
                     .frame(width: 200, height: 200)
 
                 Text(alien.name)
-                    .font(.system(size: 36, weight: .heavy, design: .rounded))
+                    .font(.scaledSystem(size: 36, weight: .heavy, design: .rounded))
                     .foregroundColor(.white)
                     .shadow(color: AppTheme.connectorGlow.opacity(0.8), radius: 8)
 
                 SpeechBubble {
                     Text("Let's try Chapter \(alien.chapter)!")
-                        .font(.system(size: 18, weight: .medium))
+                        .font(.scaledSystem(size: 18, weight: .medium))
                         .foregroundColor(AppTheme.backgroundDark)
                 }
 
@@ -546,7 +546,7 @@ struct ChapterIntroView: View {
 
                 Button(action: {}) {
                     Text("Start Chapter")
-                        .font(.system(size: 18, weight: .bold))
+                        .font(.scaledSystem(size: 18, weight: .bold))
                         .foregroundColor(.white)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 16)

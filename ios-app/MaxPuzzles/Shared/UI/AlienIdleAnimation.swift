@@ -34,6 +34,14 @@ struct AlienIdleAnimationModifier: ViewModifier {
                     startAnimation()
                 }
             }
+            .onChange(of: reduceMotion) { newValue in
+                if newValue {
+                    stopAnimation()
+                } else {
+                    startAnimation()
+                }
+            }
+            .onDisappear(perform: stopAnimation)
     }
 
     // MARK: - Animation Values
@@ -104,6 +112,15 @@ struct AlienIdleAnimationModifier: ViewModifier {
 
         withAnimation(.linear(duration: duration).repeatForever(autoreverses: false)) {
             animationPhase = 1.0
+        }
+    }
+
+    private func stopAnimation() {
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+        withTransaction(transaction) {
+            animationPhase = 0
+            isAnimating = false
         }
     }
 }

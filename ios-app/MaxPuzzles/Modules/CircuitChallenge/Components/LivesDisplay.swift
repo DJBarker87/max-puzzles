@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 // MARK: - LivesDisplay
 
@@ -38,6 +39,12 @@ struct LivesDisplay: View {
             }
         }
         .onChange(of: lives) { newValue in
+            if let previousLives, newValue < previousLives {
+                UIAccessibility.post(
+                    notification: .announcement,
+                    argument: "Life lost. \(newValue) \(newValue == 1 ? "life" : "lives") remaining"
+                )
+            }
             previousLives = newValue
         }
         .onAppear {
@@ -63,6 +70,8 @@ struct LivesDisplay: View {
 
 /// Single heart with premium pulse, glow, and crack animations
 struct HeartView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     let isActive: Bool
     let isBreaking: Bool
     let compact: Bool
@@ -72,6 +81,7 @@ struct HeartView: View {
     @State private var glowOpacity: Double = 0.3
     @State private var crackOffset: CGFloat = 0
     @State private var showCrack: Bool = false
+    @State private var breakTask: Task<Void, Never>?
 
     private let activeColor = Color(hex: "ff3366")
     private let inactiveColor = Color(hex: "2a2a3a")
@@ -117,7 +127,7 @@ struct HeartView: View {
         .scaleEffect(scale)
         .rotationEffect(.degrees(rotation))
         .onAppear {
-            if isActive && !isBreaking {
+            if isActive && !isBreaking && !reduceMotion {
                 startPulseAnimation()
             }
         }
@@ -127,26 +137,36 @@ struct HeartView: View {
             }
         }
         .onChange(of: isActive) { active in
-            if active && !isBreaking {
+            if active && !isBreaking && !reduceMotion {
                 startPulseAnimation()
             } else if !active {
-                withAnimation {
-                    scale = 1.0
-                    glowOpacity = 0
-                }
+                stopAnimations(activeGlow: false)
             }
         }
+        .onChange(of: reduceMotion) { newValue in
+            if newValue {
+                stopAnimations(activeGlow: isActive)
+            } else if isActive && !isBreaking {
+                startPulseAnimation()
+            }
+        }
+        .onDisappear { stopAnimations(activeGlow: isActive) }
     }
 
     private func startPulseAnimation() {
-        // Heart pulse with glow
-        withAnimation(.easeInOut(duration: 1.2).repeatForever(autoreverses: true)) {
-            scale = 1.15
-            glowOpacity = 0.6
-        }
+        // Keep the status display static; the finite life-loss animation provides feedback
+        // without five independent perpetual redraws.
+        scale = 1
+        glowOpacity = 0.4
     }
 
     private func playBreakAnimation() {
+        breakTask?.cancel()
+        guard !reduceMotion else {
+            stopAnimations(activeGlow: false)
+            return
+        }
+
         // Show crack
         showCrack = true
         crackOffset = 0
@@ -162,27 +182,41 @@ struct HeartView: View {
         }
 
         // Shake
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+        breakTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 100_000_000)
+            guard !Task.isCancelled else { return }
             withAnimation(.easeOut(duration: 0.1)) {
                 scale = 1.1
                 rotation = 12
             }
-        }
-
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+            try? await Task.sleep(nanoseconds: 100_000_000)
+            guard !Task.isCancelled else { return }
             withAnimation(.easeOut(duration: 0.1)) {
                 scale = 0.9
                 rotation = -12
             }
-        }
-
-        // Settle and fade
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            try? await Task.sleep(nanoseconds: 100_000_000)
+            guard !Task.isCancelled else { return }
             withAnimation(.easeOut(duration: 0.15)) {
                 scale = 1.0
                 rotation = 0
                 showCrack = false
             }
+            breakTask = nil
+        }
+    }
+
+    private func stopAnimations(activeGlow: Bool) {
+        breakTask?.cancel()
+        breakTask = nil
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+        withTransaction(transaction) {
+            scale = 1
+            rotation = 0
+            glowOpacity = activeGlow ? 0.3 : 0
+            crackOffset = 0
+            showCrack = false
         }
     }
 }

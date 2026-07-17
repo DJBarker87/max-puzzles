@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 // MARK: - SummaryScreenView
 
@@ -40,6 +41,7 @@ struct SummaryScreenView: View {
     @State private var nextAlienRotation: Double = -180
     @State private var chapterCompleteTextOpacity: Double = 0
     @State private var unlockGlowOpacity: Double = 0
+    @State private var transitionTask: Task<Void, Never>?
 
     /// Check if this is a chapter completion (Level 7 win in story mode)
     private var isChapterComplete: Bool {
@@ -116,6 +118,10 @@ struct SummaryScreenView: View {
                 startCharacterReveal()
             }
         }
+        .onDisappear {
+            transitionTask?.cancel()
+            transitionTask = nil
+        }
     }
 
     // MARK: - Chapter Complete Celebration
@@ -150,13 +156,13 @@ struct SummaryScreenView: View {
                     // "Chapter Complete!" text
                     VStack(spacing: 8) {
                         Text("Chapter Complete!")
-                            .font(.system(size: 32, weight: .heavy, design: .rounded))
+                            .font(.scaledSystem(size: 32, weight: .heavy, design: .rounded))
                             .foregroundColor(.white)
                             .shadow(color: AppTheme.accentPrimary.opacity(0.8), radius: 10)
 
                         if let chapter = data.storyChapter {
                             Text("You finished Chapter \(chapter)!")
-                                .font(.system(size: 18, weight: .medium))
+                                .font(.scaledSystem(size: 18, weight: .medium))
                                 .foregroundColor(AppTheme.textSecondary)
                         }
                     }
@@ -176,7 +182,7 @@ struct SummaryScreenView: View {
                     if let nextAlien = nextChapterAlien {
                         VStack(spacing: 12) {
                             Text("New Friend Unlocked!")
-                                .font(.system(size: 16, weight: .semibold))
+                                .font(.scaledSystem(size: 16, weight: .semibold))
                                 .foregroundColor(AppTheme.accentTertiary)
                                 .opacity(nextAlienOpacity)
 
@@ -190,7 +196,7 @@ struct SummaryScreenView: View {
                                 .shadow(color: AppTheme.accentPrimary.opacity(0.5), radius: 20)
 
                             Text("Meet \(nextAlien.name)!")
-                                .font(.system(size: 24, weight: .bold, design: .rounded))
+                                .font(.scaledSystem(size: 24, weight: .bold, design: .rounded))
                                 .foregroundColor(.white)
                                 .opacity(nextAlienOpacity)
 
@@ -198,7 +204,7 @@ struct SummaryScreenView: View {
                             HStack(spacing: 8) {
                                 ForEach(nextAlien.words, id: \.self) { word in
                                     Text(word)
-                                        .font(.system(size: 14, weight: .medium))
+                                        .font(.scaledSystem(size: 14, weight: .medium))
                                         .foregroundColor(AppTheme.accentPrimary)
                                         .padding(.horizontal, 12)
                                         .padding(.vertical, 6)
@@ -212,16 +218,16 @@ struct SummaryScreenView: View {
                         // Final chapter complete - special message
                         VStack(spacing: 12) {
                             Text("🏆")
-                                .font(.system(size: 80))
+                                .font(.scaledSystem(size: 80))
                                 .opacity(nextAlienOpacity)
 
                             Text("You completed ALL chapters!")
-                                .font(.system(size: 22, weight: .bold))
+                                .font(.scaledSystem(size: 22, weight: .bold))
                                 .foregroundColor(AppTheme.accentTertiary)
                                 .opacity(nextAlienOpacity)
 
                             Text("You're a Puzzle Master!")
-                                .font(.system(size: 18, weight: .medium))
+                                .font(.scaledSystem(size: 18, weight: .medium))
                                 .foregroundColor(.white)
                                 .opacity(nextAlienOpacity)
                         }
@@ -238,33 +244,48 @@ struct SummaryScreenView: View {
     }
 
     private func startChapterCompleteCelebration() {
+        transitionTask?.cancel()
+
         // Play victory music
         musicService.play(track: .victory, loop: false)
 
         // Haptic celebration
         FeedbackManager.shared.haptic(.success)
 
+        UIAccessibility.post(notification: .announcement, argument: "Chapter complete")
+
         // Phase 1: Show "Chapter Complete!" text (0s)
-        withAnimation(.easeOut(duration: 0.5)) {
+        withAnimation(reduceMotion ? nil : .easeOut(duration: 0.5)) {
             chapterCompleteTextOpacity = 1.0
         }
 
-        // Phase 2: Show current alien (0.3s)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+        if reduceMotion {
+            characterOpacity = 1
+            unlockGlowOpacity = 0.55
+            nextAlienScale = 1
+            nextAlienRotation = 0
+            nextAlienOpacity = 1
+            transitionTask = Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 4_500_000_000)
+                guard !Task.isCancelled, showingChapterComplete else { return }
+                transitionFromChapterComplete()
+            }
+            return
+        }
+
+        transitionTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 300_000_000)
+            guard !Task.isCancelled else { return }
             withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) {
                 characterOpacity = 1.0
             }
-        }
-
-        // Phase 3: Glow starts (0.8s)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+            try? await Task.sleep(nanoseconds: 500_000_000)
+            guard !Task.isCancelled else { return }
             withAnimation(.easeInOut(duration: 0.8)) {
                 unlockGlowOpacity = 1.0
             }
-        }
-
-        // Phase 4: Next alien spins in dramatically (1.2s)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+            try? await Task.sleep(nanoseconds: 400_000_000)
+            guard !Task.isCancelled else { return }
             FeedbackManager.shared.haptic(.medium)
 
             withAnimation(.spring(response: 0.8, dampingFraction: 0.6)) {
@@ -272,22 +293,25 @@ struct SummaryScreenView: View {
                 nextAlienRotation = 0
                 nextAlienOpacity = 1.0
             }
-        }
-
-        // Phase 5: Another haptic when alien lands (1.8s)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.8) {
+            try? await Task.sleep(nanoseconds: 600_000_000)
+            guard !Task.isCancelled else { return }
             FeedbackManager.shared.haptic(.success)
-        }
-
-        // Auto-transition to results after celebration (4.5s)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 4.5) {
-            if showingChapterComplete {
-                transitionFromChapterComplete()
-            }
+            try? await Task.sleep(nanoseconds: 2_700_000_000)
+            guard !Task.isCancelled, showingChapterComplete else { return }
+            transitionFromChapterComplete()
         }
     }
 
     private func transitionFromChapterComplete() {
+        transitionTask?.cancel()
+        transitionTask = nil
+        if reduceMotion {
+            showingChapterComplete = false
+            resultsOpacity = 1
+            UIAccessibility.post(notification: .screenChanged, argument: nil)
+            return
+        }
+
         // Fade out celebration, then show results
         withAnimation(.easeOut(duration: 0.4)) {
             chapterCompleteTextOpacity = 0
@@ -296,11 +320,15 @@ struct SummaryScreenView: View {
             unlockGlowOpacity = 0
         }
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+        transitionTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 400_000_000)
+            guard !Task.isCancelled else { return }
             showingChapterComplete = false
             withAnimation(.easeIn(duration: 0.3)) {
                 resultsOpacity = 1
             }
+            UIAccessibility.post(notification: .screenChanged, argument: nil)
+            transitionTask = nil
         }
     }
 
@@ -328,7 +356,7 @@ struct SummaryScreenView: View {
                         // Speech bubble with message (pointing up to alien)
                         SpeechBubble(pointsUp: true) {
                             Text(data.won ? alienWinMessage : alienLoseMessage)
-                                .font(.system(size: 18, weight: .medium))
+                                .font(.scaledSystem(size: 18, weight: .medium))
                                 .foregroundColor(AppTheme.backgroundDark)
                                 .multilineTextAlignment(.center)
                         }
@@ -407,38 +435,51 @@ struct SummaryScreenView: View {
     }
 
     private func startCharacterReveal() {
+        transitionTask?.cancel()
         if reduceMotion {
             characterScale = 1
             characterOpacity = 1
-            return
-        }
-
-        // Animate character in
-        withAnimation(.spring(response: 0.6, dampingFraction: 0.7)) {
-            characterScale = 1.0
-            characterOpacity = 1.0
+        } else {
+            // Animate character in
+            withAnimation(.spring(response: 0.6, dampingFraction: 0.7)) {
+                characterScale = 1.0
+                characterOpacity = 1.0
+            }
         }
 
         // Auto-transition to results after delay
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-            if showingCharacter {
-                transitionToResults()
-            }
+        transitionTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 2_000_000_000)
+            guard !Task.isCancelled, showingCharacter else { return }
+            transitionToResults()
         }
     }
 
     private func transitionToResults() {
+        transitionTask?.cancel()
+        transitionTask = nil
+        if reduceMotion {
+            showingCharacter = false
+            resultsOpacity = 1
+            UIAccessibility.post(notification: .screenChanged, argument: nil)
+            return
+        }
+
         // Fade out character, then show results
         withAnimation(.easeOut(duration: 0.3)) {
             characterOpacity = 0
             characterScale = 1.2
         }
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+        transitionTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 300_000_000)
+            guard !Task.isCancelled else { return }
             showingCharacter = false
             withAnimation(.easeIn(duration: 0.3)) {
                 resultsOpacity = 1
             }
+            UIAccessibility.post(notification: .screenChanged, argument: nil)
+            transitionTask = nil
         }
     }
 
@@ -452,11 +493,11 @@ struct SummaryScreenView: View {
                 // Results Card
                 VStack(spacing: 20) {
                     Text("Puzzle Complete!")
-                        .font(.system(size: 28, weight: .bold))
+                        .font(.scaledSystem(size: 28, weight: .bold))
                         .foregroundColor(.white)
 
                     Text("Results")
-                        .font(.system(size: 18, weight: .semibold))
+                        .font(.scaledSystem(size: 18, weight: .semibold))
                         .foregroundColor(AppTheme.textSecondary)
 
                     if let results = data.hiddenModeResults {
@@ -501,10 +542,10 @@ struct SummaryScreenView: View {
                                     .foregroundColor(AppTheme.accentTertiary)
                                     .fontWeight(.bold)
                             }
-                            .font(.system(size: 22))
+                            .font(.scaledSystem(size: 22))
 
                             Text("(\(results.correctCount * 10) earned - \(results.mistakeCount * 30) penalty)")
-                                .font(.system(size: 13))
+                                .font(.scaledSystem(size: 13))
                                 .foregroundColor(AppTheme.textSecondary)
                         }
                     }
@@ -550,7 +591,7 @@ struct SummaryScreenView: View {
             // Results Card
             VStack(spacing: isExtraCompact ? 6 : (isCompact ? 10 : 20)) {
                 Text("Puzzle Complete!")
-                    .font(.system(size: titleSize, weight: .bold))
+                    .font(.scaledSystem(size: titleSize, weight: .bold))
                     .foregroundColor(.white)
 
                 // Animated stars reveal - smaller on extra compact
@@ -569,7 +610,7 @@ struct SummaryScreenView: View {
                                 .foregroundColor(.white)
                             Text("Time")
                                 .foregroundColor(AppTheme.textSecondary)
-                                .font(.system(size: 11))
+                                .font(.scaledSystem(size: 11))
                         }
                         VStack(spacing: 2) {
                             Text("+\(data.puzzleCoins)")
@@ -577,7 +618,7 @@ struct SummaryScreenView: View {
                                 .fontWeight(.bold)
                             Text("Points")
                                 .foregroundColor(AppTheme.textSecondary)
-                                .font(.system(size: 11))
+                                .font(.scaledSystem(size: 11))
                         }
                         VStack(spacing: 2) {
                             Text("\(data.mistakes)")
@@ -585,10 +626,10 @@ struct SummaryScreenView: View {
                                 .foregroundColor(.white)
                             Text("Mistakes")
                                 .foregroundColor(AppTheme.textSecondary)
-                                .font(.system(size: 11))
+                                .font(.scaledSystem(size: 11))
                         }
                     }
-                    .font(.system(size: statFontSize))
+                    .font(.scaledSystem(size: statFontSize))
                 } else {
                     VStack(spacing: statSpacing) {
                         HStack {
@@ -598,7 +639,7 @@ struct SummaryScreenView: View {
                                 .fontWeight(.bold)
                                 .foregroundColor(.white)
                         }
-                        .font(.system(size: statFontSize))
+                        .font(.scaledSystem(size: statFontSize))
 
                         HStack {
                             Text("Points:")
@@ -607,7 +648,7 @@ struct SummaryScreenView: View {
                                 .foregroundColor(AppTheme.accentTertiary)
                                 .fontWeight(.bold)
                         }
-                        .font(.system(size: statFontSize))
+                        .font(.scaledSystem(size: statFontSize))
 
                         HStack {
                             Text("Mistakes:")
@@ -616,7 +657,7 @@ struct SummaryScreenView: View {
                                 .fontWeight(.bold)
                                 .foregroundColor(.white)
                         }
-                        .font(.system(size: statFontSize))
+                        .font(.scaledSystem(size: statFontSize))
                     }
                 }
             }
@@ -656,11 +697,11 @@ struct SummaryScreenView: View {
             // Results Card
             VStack(spacing: isExtraCompact ? 6 : (isCompact ? 10 : 20)) {
                 Text("Out of Lives")
-                    .font(.system(size: titleSize, weight: .bold))
+                    .font(.scaledSystem(size: titleSize, weight: .bold))
                     .foregroundColor(.white)
 
                 Text("You made \(data.correctMoves) correct moves before running out of lives.")
-                    .font(.system(size: isExtraCompact ? 12 : (isCompact ? 13 : 15)))
+                    .font(.scaledSystem(size: isExtraCompact ? 12 : (isCompact ? 13 : 15)))
                     .foregroundColor(AppTheme.textSecondary)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 8)
@@ -672,7 +713,7 @@ struct SummaryScreenView: View {
                         .foregroundColor(AppTheme.accentTertiary)
                         .fontWeight(.bold)
                 }
-                .font(.system(size: isExtraCompact ? 14 : (isCompact ? 16 : 20)))
+                .font(.scaledSystem(size: isExtraCompact ? 14 : (isCompact ? 16 : 20)))
             }
             .padding(padding)
             .background(AppTheme.backgroundMid.opacity(0.9))
@@ -702,7 +743,7 @@ struct SummaryScreenView: View {
                             onNextLevel?()
                         }) {
                             Text("Next Level")
-                                .font(.system(size: fontSize, weight: .semibold))
+                                .font(.scaledSystem(size: fontSize, weight: .semibold))
                                 .foregroundColor(.white)
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, buttonPadding)
@@ -715,7 +756,7 @@ struct SummaryScreenView: View {
                             onPlayAgain?()
                         }) {
                             Text("Retry")
-                                .font(.system(size: fontSize, weight: .semibold))
+                                .font(.scaledSystem(size: fontSize, weight: .semibold))
                                 .foregroundColor(.white)
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, buttonPadding)
@@ -733,7 +774,7 @@ struct SummaryScreenView: View {
                         onNextLevel?()
                     }) {
                         Text("Next Level")
-                            .font(.system(size: fontSize, weight: .semibold))
+                            .font(.scaledSystem(size: fontSize, weight: .semibold))
                             .foregroundColor(.white)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, buttonPadding)
@@ -746,7 +787,7 @@ struct SummaryScreenView: View {
                         onPlayAgain?()
                     }) {
                         Text("Retry")
-                            .font(.system(size: fontSize, weight: .semibold))
+                            .font(.scaledSystem(size: fontSize, weight: .semibold))
                             .foregroundColor(.white)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, buttonPadding)
@@ -764,7 +805,7 @@ struct SummaryScreenView: View {
                     onPlayAgain?()
                 }) {
                     Text("Try Again")
-                        .font(.system(size: fontSize, weight: .semibold))
+                        .font(.scaledSystem(size: fontSize, weight: .semibold))
                         .foregroundColor(.white)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, buttonPadding)
@@ -777,7 +818,7 @@ struct SummaryScreenView: View {
                     onPlayAgain?()
                 }) {
                     Text("Play Again")
-                        .font(.system(size: fontSize, weight: .semibold))
+                        .font(.scaledSystem(size: fontSize, weight: .semibold))
                         .foregroundColor(.white)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, buttonPadding)
@@ -790,7 +831,7 @@ struct SummaryScreenView: View {
                     onChangeDifficulty?()
                 }) {
                     Text("Change Difficulty")
-                        .font(.system(size: fontSize, weight: .semibold))
+                        .font(.scaledSystem(size: fontSize, weight: .semibold))
                         .foregroundColor(.white)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, buttonPadding)
@@ -806,7 +847,7 @@ struct SummaryScreenView: View {
             // Exit
             Button(action: handleExit) {
                 Text("Exit")
-                    .font(.system(size: fontSize, weight: .semibold))
+                    .font(.scaledSystem(size: fontSize, weight: .semibold))
                     .foregroundColor(AppTheme.textSecondary)
                     .frame(maxWidth: .infinity, minHeight: 44)
                     .padding(.vertical, extraCompact ? 6 : (compact ? 10 : 16))
@@ -838,7 +879,7 @@ struct SummaryScreenView: View {
                         onPlayAgain?()
                     }) {
                         Text("Try Again")
-                            .font(.system(size: fontSize, weight: .semibold))
+                            .font(.scaledSystem(size: fontSize, weight: .semibold))
                             .foregroundColor(.white)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, buttonPadding)
@@ -850,7 +891,7 @@ struct SummaryScreenView: View {
                     if let seeSolution = onSeeSolution {
                         Button(action: seeSolution) {
                             Text("Solution")
-                                .font(.system(size: fontSize, weight: .semibold))
+                                .font(.scaledSystem(size: fontSize, weight: .semibold))
                                 .foregroundColor(.white)
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, buttonPadding)
@@ -865,7 +906,7 @@ struct SummaryScreenView: View {
                     onPlayAgain?()
                 }) {
                     Text("Try Again")
-                        .font(.system(size: fontSize, weight: .semibold))
+                        .font(.scaledSystem(size: fontSize, weight: .semibold))
                         .foregroundColor(.white)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, buttonPadding)
@@ -877,7 +918,7 @@ struct SummaryScreenView: View {
                 if let seeSolution = onSeeSolution {
                     Button(action: seeSolution) {
                         Text("See Solution")
-                            .font(.system(size: fontSize, weight: .semibold))
+                            .font(.scaledSystem(size: fontSize, weight: .semibold))
                             .foregroundColor(.white)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, buttonPadding)
@@ -890,7 +931,7 @@ struct SummaryScreenView: View {
             // Exit
             Button(action: handleExit) {
                 Text("Exit")
-                    .font(.system(size: fontSize, weight: .semibold))
+                    .font(.scaledSystem(size: fontSize, weight: .semibold))
                     .foregroundColor(AppTheme.textSecondary)
                     .frame(maxWidth: .infinity, minHeight: 44)
                     .padding(.vertical, extraCompact ? 6 : (compact ? 10 : 16))
@@ -907,7 +948,7 @@ struct SummaryScreenView: View {
                 if let icon = icon {
                     Image(systemName: icon)
                         .foregroundColor(iconColor)
-                        .font(.system(size: 16, weight: .bold))
+                        .font(.scaledSystem(size: 16, weight: .bold))
                 }
                 Text(label)
                     .foregroundColor(.white)
@@ -915,7 +956,7 @@ struct SummaryScreenView: View {
             Spacer()
             Text(value)
                 .fontWeight(.bold)
-                .font(.system(size: 22))
+                .font(.scaledSystem(size: 22))
                 .foregroundColor(.white)
         }
         .padding(.horizontal, 16)

@@ -12,7 +12,81 @@ final class LetterSpeechService {
     private init() {}
 
     func speak(_ glyph: LetterGlyph) {
-        speak(glyph.spokenPrompt)
+        speak(Self.lessonPrompt(for: glyph))
+    }
+
+    func speakLetterNamePrompt(for glyph: LetterGlyph) {
+        speak(Self.letterNamePrompt(for: glyph))
+    }
+
+    func speakRecallPrompt(for glyph: LetterGlyph) {
+        speak(Self.recallPrompt(for: glyph))
+    }
+
+    func speakPathPrompt(for glyph: LetterGlyph, animated: Bool) {
+        speak(Self.pathPrompt(for: glyph, animated: animated))
+    }
+
+    func speakWordPrompt(
+        for glyph: LetterGlyph,
+        word: String,
+        introduction: String,
+        contextSentence: String?
+    ) {
+        speak(
+            Self.wordPrompt(
+                for: glyph,
+                word: word,
+                introduction: introduction,
+                contextSentence: contextSentence
+            )
+        )
+    }
+
+    func speakSpellingPrompt(for word: String, contextSentence: String?) {
+        speak(Self.spellingPrompt(for: word, contextSentence: contextSentence))
+    }
+
+    nonisolated static func lessonPrompt(for glyph: LetterGlyph) -> String {
+        glyph.spokenPrompt
+    }
+
+    nonisolated static func letterNamePrompt(for glyph: LetterGlyph) -> String {
+        if glyph.isNumber {
+            return "Listen for the number name. Number \(glyph.character). Write \(glyph.character)."
+        }
+        return "Listen for the letter name. Letter \(glyph.character). Write \(glyph.character)."
+    }
+
+    nonisolated static func recallPrompt(for glyph: LetterGlyph) -> String {
+        if glyph.isNumber {
+            return "Write number \(glyph.character)."
+        }
+        return "Write the letter \(glyph.character). \(glyph.exampleWord) starts with the letter \(glyph.character)."
+    }
+
+    nonisolated static func pathPrompt(for glyph: LetterGlyph, animated: Bool) -> String {
+        animated
+            ? "Watch the comet write \(glyph.character), then have a go."
+            : "The path for \(glyph.character) is shown. Start at the green star and follow the arrows."
+    }
+
+    nonisolated static func wordPrompt(
+        for glyph: LetterGlyph,
+        word: String,
+        introduction: String,
+        contextSentence: String?
+    ) -> String {
+        let context = contextSentence.map { " Example: \($0)" } ?? ""
+        return "\(introduction) \(word).\(context) Write it on one line. Now write \(glyph.character)."
+    }
+
+    nonisolated static func spellingPrompt(
+        for word: String,
+        contextSentence: String?
+    ) -> String {
+        let context = contextSentence.map { " \($0)" } ?? ""
+        return "Spell the word \(word).\(context)"
     }
 
     func speak(_ words: String) {
@@ -27,6 +101,7 @@ final class LetterSpeechService {
         utterance.rate = 0.43
         utterance.pitchMultiplier = 1.05
         utterance.volume = storage.voiceVolume
+        guard AppAudioSessionCoordinator.shared.activate(.spokenPlayback) else { return }
         synthesizer.speak(utterance)
     }
 

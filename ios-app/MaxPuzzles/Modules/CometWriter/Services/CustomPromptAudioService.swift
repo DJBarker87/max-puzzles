@@ -14,6 +14,7 @@ final class CustomPromptAudioService: NSObject, ObservableObject, AVAudioPlayerD
 
     private var recorder: AVAudioRecorder?
     private var player: AVAudioPlayer?
+    private var requiredAudioToken: UUID?
 
     private static var recordingsDirectory: URL {
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
@@ -21,15 +22,21 @@ final class CustomPromptAudioService: NSObject, ObservableObject, AVAudioPlayerD
     }
 
     func startRecording(for word: CometCustomWord) async -> Bool {
-        stopPlayback()
-        if recordingWordID != nil { _ = stopRecording() }
+        stopPlayback(releaseAudioFocus: false)
+        if recordingWordID != nil { _ = stopRecording(releaseAudioFocus: false) }
 
         let allowed = await requestPermission()
+        guard !Task.isCancelled else {
+            releaseAudioFocus()
+            return false
+        }
         guard allowed else {
             permissionDenied = true
+            releaseAudioFocus()
             return false
         }
         permissionDenied = false
+        acquireAudioFocus()
 
         do {
             try FileManager.default.createDirectory(
@@ -40,13 +47,10 @@ final class CustomPromptAudioService: NSObject, ObservableObject, AVAudioPlayerD
             let url = Self.recordingsDirectory.appendingPathComponent(filename)
             try? FileManager.default.removeItem(at: url)
 
-            let session = AVAudioSession.sharedInstance()
-            try session.setCategory(
-                .playAndRecord,
-                mode: .spokenAudio,
-                options: [.defaultToSpeaker, .allowBluetoothHFP]
-            )
-            try session.setActive(true)
+            guard AppAudioSessionCoordinator.shared.activate(.promptRecording) else {
+                releaseAudioFocus()
+                return false
+            }
 
             let settings: [String: Any] = [
                 AVFormatIDKey: Int(kAudioFormatMPEG4AAC),
@@ -57,8 +61,12 @@ final class CustomPromptAudioService: NSObject, ObservableObject, AVAudioPlayerD
             let nextRecorder = try AVAudioRecorder(url: url, settings: settings)
             nextRecorder.isMeteringEnabled = false
             nextRecorder.prepareToRecord()
+            guard !Task.isCancelled else {
+                releaseAudioFocus()
+                return false
+            }
             guard nextRecorder.record() else {
-                restoreAmbientAudioSession()
+                releaseAudioFocus()
                 return false
             }
             recorder = nextRecorder
@@ -67,19 +75,26 @@ final class CustomPromptAudioService: NSObject, ObservableObject, AVAudioPlayerD
         } catch {
             recorder = nil
             recordingWordID = nil
-            restoreAmbientAudioSession()
+            releaseAudioFocus()
             return false
         }
     }
 
     /// Returns the completed local filename so the learning store can associate it with a word.
     func stopRecording() -> String? {
-        guard let recorder else { return nil }
+        stopRecording(releaseAudioFocus: true)
+    }
+
+    private func stopRecording(releaseAudioFocus shouldReleaseAudioFocus: Bool) -> String? {
+        guard let recorder else {
+            if shouldReleaseAudioFocus { releaseAudioFocus() }
+            return nil
+        }
         recorder.stop()
         let filename = recorder.url.lastPathComponent
         self.recorder = nil
         recordingWordID = nil
-        restoreAmbientAudioSession()
+        if shouldReleaseAudioFocus { releaseAudioFocus() }
 
         guard FileManager.default.fileExists(atPath: recorder.url.path) else { return nil }
         return filename
@@ -90,20 +105,28 @@ final class CustomPromptAudioService: NSObject, ObservableObject, AVAudioPlayerD
             stopPlayback()
             return
         }
-        _ = stopRecording()
-        stopPlayback()
+        _ = stopRecording(releaseAudioFocus: false)
+        stopPlayback(releaseAudioFocus: false)
+        acquireAudioFocus()
 
         let url = Self.recordingsDirectory.appendingPathComponent(filename)
-        guard FileManager.default.fileExists(atPath: url.path) else { return }
+        guard FileManager.default.fileExists(atPath: url.path) else {
+            releaseAudioFocus()
+            return
+        }
         do {
-            let session = AVAudioSession.sharedInstance()
-            try session.setCategory(.ambient, mode: .spokenAudio, options: [.mixWithOthers])
-            try session.setActive(true)
+            guard AppAudioSessionCoordinator.shared.activate(.spokenPlayback) else {
+                releaseAudioFocus()
+                return
+            }
             let nextPlayer = try AVAudioPlayer(contentsOf: url)
             nextPlayer.delegate = self
             nextPlayer.volume = StorageService.shared.voiceVolume
             nextPlayer.prepareToPlay()
-            guard nextPlayer.play() else { return }
+            guard nextPlayer.play() else {
+                releaseAudioFocus()
+                return
+            }
             player = nextPlayer
             playingFilename = filename
         } catch {
@@ -112,9 +135,14 @@ final class CustomPromptAudioService: NSObject, ObservableObject, AVAudioPlayerD
     }
 
     func stopPlayback() {
+        stopPlayback(releaseAudioFocus: true)
+    }
+
+    private func stopPlayback(releaseAudioFocus shouldReleaseAudioFocus: Bool) {
         player?.stop()
         player = nil
         playingFilename = nil
+        if shouldReleaseAudioFocus { releaseAudioFocus() }
     }
 
     func delete(filename: String) {
@@ -125,15 +153,18 @@ final class CustomPromptAudioService: NSObject, ObservableObject, AVAudioPlayerD
     }
 
     func deleteAllRecordings() {
-        _ = stopRecording()
-        stopPlayback()
+        _ = stopRecording(releaseAudioFocus: false)
+        stopPlayback(releaseAudioFocus: false)
+        releaseAudioFocus()
         try? FileManager.default.removeItem(at: Self.recordingsDirectory)
     }
 
     nonisolated func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
         Task { @MainActor in
+            guard self.player === player else { return }
             self.player = nil
             self.playingFilename = nil
+            self.releaseAudioFocus()
         }
     }
 
@@ -145,13 +176,14 @@ final class CustomPromptAudioService: NSObject, ObservableObject, AVAudioPlayerD
         }
     }
 
-    private func restoreAmbientAudioSession() {
-        do {
-            let session = AVAudioSession.sharedInstance()
-            try session.setCategory(.ambient, mode: .default, options: [.mixWithOthers])
-            try session.setActive(true)
-        } catch {
-            // The next app audio action retries configuration; recording data is already safe.
-        }
+    private func acquireAudioFocus() {
+        guard requiredAudioToken == nil else { return }
+        requiredAudioToken = MusicService.shared.beginRequiredAudioSession()
+    }
+
+    private func releaseAudioFocus() {
+        guard let token = requiredAudioToken else { return }
+        requiredAudioToken = nil
+        MusicService.shared.endRequiredAudioSession(token)
     }
 }

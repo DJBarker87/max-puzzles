@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 // MARK: - GameCoinDisplay
 
@@ -13,8 +14,8 @@ struct GameCoinDisplay: View {
 
         var fontSize: Font {
             switch self {
-            case .small: return .system(size: 14, weight: .bold, design: .monospaced)
-            case .regular: return .system(size: 18, weight: .bold, design: .monospaced)
+            case .small: return .system(.subheadline, design: .monospaced, weight: .bold)
+            case .regular: return .system(.headline, design: .monospaced, weight: .bold)
             }
         }
 
@@ -71,6 +72,8 @@ struct GameCoinDisplay: View {
 
 /// Floating animation for coin changes (+10 or -30)
 struct CoinChangeAnimation: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     let change: CoinAnimation
     let size: GameCoinDisplay.DisplaySize
 
@@ -87,7 +90,15 @@ struct CoinChangeAnimation: View {
             .foregroundColor(isEarn ? AppTheme.accentPrimary : AppTheme.error)
             .opacity(opacity)
             .offset(y: offset)
+            .accessibilityHidden(true)
             .onAppear {
+                UIAccessibility.post(
+                    notification: .announcement,
+                    argument: isEarn
+                        ? "Earned \(change.value) puzzle points"
+                        : "Lost \(abs(change.value)) puzzle points"
+                )
+                guard !reduceMotion else { return }
                 withAnimation(.easeOut(duration: 0.8)) {
                     opacity = 0
                     offset = isEarn ? -20 : 20

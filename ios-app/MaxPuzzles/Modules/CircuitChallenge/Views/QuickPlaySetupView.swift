@@ -132,7 +132,7 @@ struct QuickPlaySetupView: View {
     private var compactDifficultyCard: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Difficulty")
-                .font(.system(size: 14, weight: .semibold))
+                .font(.scaledSystem(size: 14, weight: .semibold))
                 .foregroundColor(.white)
 
             Menu {
@@ -157,7 +157,7 @@ struct QuickPlaySetupView: View {
             .disabled(isCustomMode)
 
             Text(currentPreset.name)
-                .font(.system(size: 12))
+                .font(.scaledSystem(size: 12))
                 .foregroundColor(AppTheme.textSecondary)
         }
         .padding(12)
@@ -169,10 +169,10 @@ struct QuickPlaySetupView: View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Hidden Mode")
-                    .font(.system(size: 14, weight: .medium))
+                    .font(.scaledSystem(size: 14, weight: .medium))
                     .foregroundColor(.white)
                 Text("Mistakes revealed at end")
-                    .font(.system(size: 11))
+                    .font(.scaledSystem(size: 11))
                     .foregroundColor(AppTheme.textSecondary)
             }
             Spacer()
@@ -188,7 +188,7 @@ struct QuickPlaySetupView: View {
     private var compactCustomToggle: some View {
         HStack {
             Text("Custom Settings")
-                .font(.system(size: 14, weight: .medium))
+                .font(.scaledSystem(size: 14, weight: .medium))
                 .foregroundColor(.white)
             Spacer()
             Toggle("", isOn: $isCustomMode)
@@ -205,7 +205,7 @@ struct QuickPlaySetupView: View {
             // Operations row
             VStack(alignment: .leading, spacing: 4) {
                 Text("Operations")
-                    .font(.system(size: 12, weight: .medium))
+                    .font(.scaledSystem(size: 12, weight: .medium))
                     .foregroundColor(.white)
                 HStack(spacing: 6) {
                     compactOpToggle("+", isOn: $additionEnabled)
@@ -218,7 +218,7 @@ struct QuickPlaySetupView: View {
             // Number range
             VStack(alignment: .leading, spacing: 2) {
                 Text("+/− Range: \(Int(addSubRange))")
-                    .font(.system(size: 11))
+                    .font(.scaledSystem(size: 11))
                     .foregroundColor(.white)
                 Slider(value: $addSubRange, in: 5...100, step: 5)
                     .tint(AppTheme.accentPrimary)
@@ -232,7 +232,7 @@ struct QuickPlaySetupView: View {
             VStack(alignment: .leading, spacing: 8) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Rows")
-                        .font(.system(size: 11))
+                        .font(.scaledSystem(size: 11))
                         .foregroundColor(.white)
                     HStack(spacing: 3) {
                         ForEach([3, 4, 5, 6], id: \.self) { n in
@@ -242,7 +242,7 @@ struct QuickPlaySetupView: View {
                 }
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Cols")
-                        .font(.system(size: 11))
+                        .font(.scaledSystem(size: 11))
                         .foregroundColor(.white)
                     HStack(spacing: 3) {
                         ForEach([4, 5, 6, 7], id: \.self) { n in
@@ -260,7 +260,7 @@ struct QuickPlaySetupView: View {
     private func compactOpToggle(_ symbol: String, isOn: Binding<Bool>) -> some View {
         Button(action: { isOn.wrappedValue.toggle() }) {
             Text(symbol)
-                .font(.system(size: 16, weight: .bold))
+                .font(.scaledSystem(size: 16, weight: .bold))
                 .frame(width: 44, height: 44)
                 .background(isOn.wrappedValue ? AppTheme.accentPrimary : AppTheme.backgroundDark)
                 .foregroundColor(.white)
@@ -271,7 +271,7 @@ struct QuickPlaySetupView: View {
     private func compactSizeButton(_ value: Int, selected: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Text("\(value)")
-                .font(.system(size: 12, weight: .medium))
+                .font(.scaledSystem(size: 12, weight: .medium))
                 .frame(width: 44, height: 44)
                 .background(selected ? AppTheme.accentPrimary : AppTheme.backgroundDark)
                 .foregroundColor(.white)
@@ -284,7 +284,7 @@ struct QuickPlaySetupView: View {
     private var startButton: some View {
         Button(action: { onStart(finalDifficulty) }) {
             Text("Start Puzzle")
-                .font(.system(size: 18, weight: .semibold))
+                .font(.scaledSystem(size: 18, weight: .semibold))
                 .foregroundColor(.white)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 16)
@@ -303,7 +303,7 @@ struct QuickPlaySetupView: View {
     private var difficultySelectionCard: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("Difficulty")
-                .font(.system(size: 18, weight: .semibold))
+                .font(.scaledSystem(size: 18, weight: .semibold))
                 .foregroundColor(.white)
 
             // Difficulty Picker
@@ -334,7 +334,7 @@ struct QuickPlaySetupView: View {
 
             // Description
             Text(getPresetDescription(currentPreset))
-                .font(.system(size: 14))
+                .font(.scaledSystem(size: 14))
                 .foregroundColor(AppTheme.textSecondary)
         }
         .padding()
@@ -345,7 +345,7 @@ struct QuickPlaySetupView: View {
     private var customSettingsCard: some View {
         VStack(alignment: .leading, spacing: 16) {
             Toggle("Customise Settings", isOn: $isCustomMode)
-                .font(.system(size: 16, weight: .medium))
+                .font(.scaledSystem(size: 16, weight: .medium))
                 .foregroundColor(.white)
                 .toggleStyle(SwitchToggleStyle(tint: AppTheme.accentPrimary))
 
@@ -357,7 +357,7 @@ struct QuickPlaySetupView: View {
                     // Add/Sub Range
                     VStack(alignment: .leading, spacing: 8) {
                         Text("+/− Number Range: \(Int(addSubRange))")
-                            .font(.system(size: 14))
+                            .font(.scaledSystem(size: 14))
                             .foregroundColor(.white)
                         Slider(value: $addSubRange, in: 5...100, step: 5)
                             .tint(AppTheme.accentPrimary)
@@ -381,7 +381,7 @@ struct QuickPlaySetupView: View {
     private var operationsSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Operations")
-                .font(.system(size: 14, weight: .medium))
+                .font(.scaledSystem(size: 14, weight: .medium))
                 .foregroundColor(.white)
 
             HStack(spacing: 12) {
@@ -397,7 +397,7 @@ struct QuickPlaySetupView: View {
                         ? "Choose at least one times table"
                         : "At least one operation must be enabled"
                 )
-                    .font(.system(size: 12))
+                    .font(.scaledSystem(size: 12))
                     .foregroundColor(AppTheme.error)
             }
         }
@@ -406,7 +406,7 @@ struct QuickPlaySetupView: View {
     private func operationToggle(_ symbol: String, isOn: Binding<Bool>) -> some View {
         Button(action: { isOn.wrappedValue.toggle() }) {
             Text(symbol)
-                .font(.system(size: 20, weight: .bold))
+                .font(.scaledSystem(size: 20, weight: .bold))
                 .frame(width: 48, height: 48)
                 .background(isOn.wrappedValue ? AppTheme.accentPrimary : AppTheme.backgroundDark)
                 .foregroundColor(.white)
@@ -422,7 +422,7 @@ struct QuickPlaySetupView: View {
         HStack(spacing: 24) {
             VStack(alignment: .leading, spacing: 8) {
                 Text("Rows")
-                    .font(.system(size: 14, weight: .medium))
+                    .font(.scaledSystem(size: 14, weight: .medium))
                     .foregroundColor(.white)
                 HStack(spacing: 4) {
                     ForEach([3, 4, 5, 6], id: \.self) { n in
@@ -435,7 +435,7 @@ struct QuickPlaySetupView: View {
 
             VStack(alignment: .leading, spacing: 8) {
                 Text("Columns")
-                    .font(.system(size: 14, weight: .medium))
+                    .font(.scaledSystem(size: 14, weight: .medium))
                     .foregroundColor(.white)
                 HStack(spacing: 4) {
                     ForEach([4, 5, 6, 7, 8], id: \.self) { n in
@@ -451,7 +451,7 @@ struct QuickPlaySetupView: View {
     private func gridSizeButton(_ value: Int, selected: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Text("\(value)")
-                .font(.system(size: 14, weight: .medium))
+                .font(.scaledSystem(size: 14, weight: .medium))
                 .frame(width: 44, height: 44)
                 .background(selected ? AppTheme.accentPrimary : AppTheme.backgroundDark)
                 .foregroundColor(.white)
@@ -462,12 +462,12 @@ struct QuickPlaySetupView: View {
     private var hiddenModeCard: some View {
         VStack(alignment: .leading, spacing: 12) {
             Toggle("Hidden Mode", isOn: $hiddenMode)
-                .font(.system(size: 16, weight: .medium))
+                .font(.scaledSystem(size: 16, weight: .medium))
                 .foregroundColor(.white)
                 .toggleStyle(SwitchToggleStyle(tint: AppTheme.accentPrimary))
 
             Text("Mistakes aren't revealed until the end. No lives - always reach FINISH.")
-                .font(.system(size: 13))
+                .font(.scaledSystem(size: 13))
                 .foregroundColor(AppTheme.textSecondary)
         }
         .padding()
@@ -543,7 +543,7 @@ struct TimesTablePicker: View {
     var body: some View {
         VStack(alignment: .leading, spacing: compact ? 5 : 8) {
             Text("Times tables")
-                .font(.system(size: compact ? 12 : 14, weight: .medium))
+                .font(.scaledSystem(size: compact ? 12 : 14, weight: .medium))
                 .foregroundColor(.white)
 
             LazyVGrid(columns: columns, spacing: 6) {
@@ -558,7 +558,7 @@ struct TimesTablePicker: View {
                         FeedbackManager.shared.haptic(.selection)
                     } label: {
                         Text("\(table)")
-                            .font(.system(size: compact ? 13 : 15, weight: .bold, design: .rounded))
+                            .font(.scaledSystem(size: compact ? 13 : 15, weight: .bold, design: .rounded))
                             .foregroundColor(isSelected ? AppTheme.backgroundDark : .white)
                             .frame(maxWidth: .infinity, minHeight: 44)
                             .background(
@@ -581,7 +581,7 @@ struct TimesTablePicker: View {
             }
 
             Text(selectionSummary)
-                .font(.system(size: compact ? 10 : 12, weight: .medium))
+                .font(.scaledSystem(size: compact ? 10 : 12, weight: .medium))
                 .foregroundColor(selection.isEmpty ? AppTheme.error : AppTheme.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
         }

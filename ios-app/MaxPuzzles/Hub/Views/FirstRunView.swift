@@ -10,16 +10,14 @@ struct FirstRunView: View {
     @State private var alienOffset: CGFloat = 400  // Start below screen
     @State private var alienScale: CGFloat = 1.0
     @State private var bubbleOpacity: Double = 0
-    @State private var inputOpacity: Double = 0
-    @State private var buttonOpacity: Double = 0
     @State private var isExiting = false
     @State private var alienArrived = false  // Separate state for animation
+    @State private var entranceTask: Task<Void, Never>?
+    @State private var exitTask: Task<Void, Never>?
     @FocusState private var isTextFieldFocused: Bool
 
     // Pick a random welcome alien (computed once) - use first alien or a safe default
     @State private var welcomeAlien: ChapterAlien = ChapterAlien.all.first ?? ChapterAlien.defaultAlien
-
-    private var storage: StorageService { StorageService.shared }
 
     var body: some View {
         ZStack {
@@ -31,16 +29,29 @@ struct FirstRunView: View {
                     isTextFieldFocused = false
                 }
 
-            SplashBackground(overlayOpacity: 0.4)
+            StarryBackground(
+                starCount: 32,
+                enableShootingStars: false,
+                animateStars: true
+            )
                 .allowsHitTesting(false)
 
             VStack(spacing: 20) {
                 Spacer()
 
+                SpeechBubble(pointsUp: false) {
+                    Text("What’s your name?")
+                        .font(AppTypography.bodyLarge.weight(.bold))
+                        .foregroundColor(AppTheme.backgroundDark)
+                        .multilineTextAlignment(.center)
+                }
+                .padding(.horizontal, 40)
+                .opacity(bubbleOpacity)
+
                 // Name input field (appears above alien)
                 VStack(spacing: 16) {
                     TextField("Your name", text: $playerName)
-                        .font(.system(size: 22, weight: .medium, design: .rounded))
+                        .font(AppTypography.titleSmall.weight(.medium))
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 24)
                         .padding(.vertical, 16)
@@ -59,49 +70,34 @@ struct FirstRunView: View {
                         }
                         .autocorrectionDisabled()
                         .textInputAutocapitalization(.words)
+                        .onChange(of: playerName) { newValue in
+                            if newValue.count > 24 {
+                                playerName = String(newValue.prefix(24))
+                            }
+                        }
 
                     // Continue button
                     Button(action: completeFirstRun) {
                         HStack {
-                            Text(playerName.isEmpty ? "Skip" : "Let's Play!")
-                                .font(.system(size: 18, weight: .bold, design: .rounded))
+                            Text("Let's Play!")
+                                .font(AppTypography.buttonLarge)
 
                             Image(systemName: "arrow.right")
                                 .font(.system(size: 16, weight: .bold))
                         }
                         .foregroundColor(.white)
+                        .frame(minHeight: 48)
                         .padding(.horizontal, 32)
-                        .padding(.vertical, 14)
-                        .background(
-                            playerName.isEmpty
-                                ? AppTheme.backgroundMid
-                                : AppTheme.accentPrimary
-                        )
+                        .background(canContinue ? AppTheme.accentPrimary : AppTheme.backgroundMid)
                         .cornerRadius(14)
-                        .shadow(color: playerName.isEmpty ? .clear : AppTheme.accentPrimary.opacity(0.4), radius: 12)
+                        .shadow(color: canContinue ? AppTheme.accentPrimary.opacity(0.4) : .clear, radius: 12)
                     }
-                    .accessibilityLabel(playerName.isEmpty ? "Skip" : "Let's Play!")
+                    .disabled(!canContinue)
+                    .accessibilityLabel("Let's Play!")
+                    .accessibilityHint(canContinue ? "Starts the games" : "Enter your name first")
                 }
                 .frame(maxWidth: 400)
                 .padding(.horizontal, 24)
-                .opacity(inputOpacity)
-                .accessibilityHidden(inputOpacity < 0.9)
-
-                // Speech bubble (appears above alien)
-                SpeechBubble(pointsUp: false) {
-                    VStack(spacing: 6) {
-                        Text("Hi there! I'm \(welcomeAlien.name)!")
-                            .font(.system(size: 17, weight: .bold))
-                            .foregroundColor(AppTheme.backgroundDark)
-
-                        Text("What's your name? It stays on this device.")
-                            .font(.system(size: 15, weight: .medium))
-                            .foregroundColor(AppTheme.backgroundDark.opacity(0.8))
-                            .multilineTextAlignment(.center)
-                    }
-                }
-                .padding(.horizontal, 50)
-                .opacity(bubbleOpacity)
 
                 // Alien image rising from bottom
                 Image(welcomeAlien.imageName)
@@ -117,14 +113,18 @@ struct FirstRunView: View {
         .opacity(isExiting ? 0 : 1)
         .onAppear {
             // Pick a random alien on appear (avoids init-time randomization issues)
-            welcomeAlien = ChapterAlien.all.randomElement() ?? ChapterAlien.all[0]
+            welcomeAlien = ChapterAlien.all.randomElement() ?? ChapterAlien.defaultAlien
             if reduceMotion {
                 alienOffset = 0
                 alienArrived = true
                 bubbleOpacity = 1
-                inputOpacity = 1
             } else {
                 startAnimations()
+            }
+
+            Task { @MainActor in
+                await Task.yield()
+                isTextFieldFocused = true
             }
 
             // Ensure music is playing (in case it wasn't started in splash)
@@ -132,6 +132,14 @@ struct FirstRunView: View {
                 musicService.play(track: .hub)
             }
         }
+        .onDisappear {
+            entranceTask?.cancel()
+            exitTask?.cancel()
+        }
+    }
+
+    private var canContinue: Bool {
+        !playerName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     private func startAnimations() {
@@ -140,37 +148,29 @@ struct FirstRunView: View {
             alienOffset = 0
         }
 
-        // Mark alien as arrived after spring animation completes
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+        entranceTask?.cancel()
+        entranceTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 650_000_000)
+            guard !Task.isCancelled else { return }
+            withAnimation(.easeOut(duration: 0.35)) {
+                bubbleOpacity = 1
+            }
+
+            try? await Task.sleep(nanoseconds: 350_000_000)
+            guard !Task.isCancelled else { return }
             alienArrived = true
-        }
-
-        // Speech bubble fades in after alien arrives
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.9) {
-            withAnimation(.easeOut(duration: 0.4)) {
-                bubbleOpacity = 1.0
-            }
-        }
-
-        // Input field fades in
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.3) {
-            withAnimation(.easeOut(duration: 0.4)) {
-                inputOpacity = 1.0
-            }
         }
     }
 
     private func completeFirstRun() {
-        // Save the player name (even if empty)
         let nameToSave = playerName.trimmingCharacters(in: .whitespacesAndNewlines)
-        storage.setPlayerName(nameToSave)
-        storage.completeFirstRun()
+        guard appState.commitFirstRun(playerName: nameToSave) else { return }
 
         // Haptic feedback
         FeedbackManager.shared.haptic(.success)
 
         if reduceMotion {
-            appState.completeFirstRun()
+            appState.finishFirstRunTransition()
             return
         }
 
@@ -178,20 +178,21 @@ struct FirstRunView: View {
         withAnimation(.easeIn(duration: 0.3)) {
             alienOffset = 400
             bubbleOpacity = 0
-            inputOpacity = 0
         }
 
-        // Use Task for proper @MainActor handling
-        Task { @MainActor in
+        exitTask?.cancel()
+        exitTask = Task { @MainActor in
             // Fade out whole view
             try? await Task.sleep(nanoseconds: 200_000_000) // 0.2s
+            guard !Task.isCancelled else { return }
             withAnimation(.easeOut(duration: 0.3)) {
                 isExiting = true
             }
 
             // Transition to main hub
             try? await Task.sleep(nanoseconds: 300_000_000) // 0.3s more (0.5s total)
-            appState.completeFirstRun()
+            guard !Task.isCancelled else { return }
+            appState.finishFirstRunTransition()
         }
     }
 }

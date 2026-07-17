@@ -1,10 +1,13 @@
 import SwiftUI
+import UIKit
 
 // MARK: - Star Reveal View
 
 /// Animated star reveal after completing a level
 /// Stars pop up and fly into their holders one by one
 struct StarRevealView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     let starsEarned: Int  // 1-3
     let onComplete: () -> Void
 
@@ -13,6 +16,7 @@ struct StarRevealView: View {
     @State private var starOpacities: [Double] = [0, 0, 0]
     @State private var starOffsets: [CGFloat] = [50, 50, 50]
     @State private var holderGlows: [Bool] = [false, false, false]
+    @State private var revealTask: Task<Void, Never>?
 
     private let starDelay: Double = 0.4  // Delay between each star
 
@@ -43,48 +47,81 @@ struct StarRevealView: View {
             .frame(height: 80)
         }
         .onAppear {
+            restartReveal()
+        }
+        .onChange(of: reduceMotion) { _ in restartReveal() }
+        .onDisappear {
+            revealTask?.cancel()
+            revealTask = nil
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(safeStarsEarned) of 3 stars earned")
+    }
+
+    private var safeStarsEarned: Int { min(max(starsEarned, 0), 3) }
+
+    private func restartReveal() {
+        revealTask?.cancel()
+        revealedStars = 0
+        starScales = [0, 0, 0]
+        starOpacities = [0, 0, 0]
+        starOffsets = [50, 50, 50]
+        holderGlows = [false, false, false]
+
+        if reduceMotion {
+            revealedStars = safeStarsEarned
+            UIAccessibility.post(
+                notification: .announcement,
+                argument: "\(safeStarsEarned) of 3 stars earned"
+            )
+            revealTask = Task { @MainActor in
+                await Task.yield()
+                guard !Task.isCancelled else { return }
+                onComplete()
+            }
+        } else {
             animateStars()
         }
     }
 
     private func animateStars() {
-        for i in 0..<starsEarned {
-            let delay = Double(i) * starDelay
-
-            // Pop up animation
-            withAnimation(.spring(response: 0.4, dampingFraction: 0.6).delay(delay)) {
+        revealTask = Task { @MainActor in
+            for i in 0..<safeStarsEarned {
+                guard !Task.isCancelled else { return }
+                withAnimation(.spring(response: 0.4, dampingFraction: 0.6)) {
                 starScales[i] = 1.3
                 starOpacities[i] = 1
                 starOffsets[i] = 0
-            }
+                }
 
-            // Settle and fly to holder
-            withAnimation(.easeInOut(duration: 0.3).delay(delay + 0.3)) {
-                starScales[i] = 0.1
-                starOffsets[i] = -100
-                starOpacities[i] = 0
-            }
+                try? await Task.sleep(nanoseconds: 300_000_000)
+                guard !Task.isCancelled else { return }
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    starScales[i] = 0.1
+                    starOffsets[i] = -100
+                    starOpacities[i] = 0
+                }
 
-            // Show in holder
-            DispatchQueue.main.asyncAfter(deadline: .now() + delay + 0.5) {
+                try? await Task.sleep(nanoseconds: 200_000_000)
+                guard !Task.isCancelled else { return }
                 withAnimation(.spring(response: 0.3, dampingFraction: 0.5)) {
                     revealedStars = i + 1
                     holderGlows[i] = true
                 }
 
-                // Remove glow after a moment
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                    withAnimation(.easeOut(duration: 0.3)) {
-                        holderGlows[i] = false
-                    }
+                try? await Task.sleep(nanoseconds: 300_000_000)
+                guard !Task.isCancelled else { return }
+                withAnimation(.easeOut(duration: 0.3)) {
+                    holderGlows[i] = false
                 }
             }
-        }
-
-        // Call completion after all stars revealed
-        let totalDuration = Double(starsEarned) * starDelay + 0.8
-        DispatchQueue.main.asyncAfter(deadline: .now() + totalDuration) {
+            guard !Task.isCancelled else { return }
+            UIAccessibility.post(
+                notification: .announcement,
+                argument: "\(safeStarsEarned) of 3 stars earned"
+            )
             onComplete()
+            revealTask = nil
         }
     }
 }
@@ -92,6 +129,8 @@ struct StarRevealView: View {
 // MARK: - Star Holder
 
 struct StarHolder: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     let isFilled: Bool
     let isGlowing: Bool
 
@@ -111,7 +150,7 @@ struct StarHolder: View {
                 .font(.system(size: 48))
                 .foregroundColor(isFilled ? AppTheme.accentTertiary : AppTheme.textSecondary.opacity(0.3))
                 .scaleEffect(isFilled && isGlowing ? 1.2 : 1.0)
-                .animation(.spring(response: 0.3, dampingFraction: 0.5), value: isFilled)
+                .animation(reduceMotion ? nil : .spring(response: 0.3, dampingFraction: 0.5), value: isFilled)
         }
     }
 }
@@ -176,6 +215,8 @@ struct StarDisplay: View {
                     .foregroundColor(index < stars ? AppTheme.accentTertiary : AppTheme.textSecondary.opacity(0.3))
             }
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(min(max(stars, 0), maxStars)) of \(maxStars) stars earned")
     }
 }
 

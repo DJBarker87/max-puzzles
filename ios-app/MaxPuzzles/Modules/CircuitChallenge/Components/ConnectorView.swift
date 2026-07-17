@@ -5,8 +5,6 @@ import SwiftUI
 /// Connector line between two cells with electric flow animation
 /// Matches web app exactly with 5 animation layers
 struct ConnectorView: View {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
     let startPoint: CGPoint
     let endPoint: CGPoint
     let value: Int
@@ -15,11 +13,6 @@ struct ConnectorView: View {
     let animationDelay: Double
     let cellRadius: CGFloat  // Added to scale shortening
     let verticalBadgeAtBottom: Bool  // For iPhone 6-row grids: put badge at bottom of vertical connectors
-
-    @State private var flowPhase1: CGFloat = 0
-    @State private var flowPhase2: CGFloat = 0
-    @State private var glowOpacity: CGFloat = 0.5
-    @State private var animationsStarted: Bool = false
 
     /// Scale factor for line widths based on cell size (base is 42px radius)
     private var lineScale: CGFloat {
@@ -107,25 +100,6 @@ struct ConnectorView: View {
                 defaultConnector
             }
         }
-        .onAppear {
-            if isTraversed && !animationsStarted && !reduceMotion {
-                startAnimations()
-            }
-        }
-        .onChange(of: isTraversed) { newValue in
-            if newValue && !animationsStarted && !reduceMotion {
-                startAnimations()
-            }
-        }
-        .onChange(of: reduceMotion) { shouldReduceMotion in
-            if shouldReduceMotion {
-                flowPhase1 = 0
-                flowPhase2 = 0
-                glowOpacity = 0.5
-            } else if isTraversed && !animationsStarted {
-                startAnimations()
-            }
-        }
     }
 
     // MARK: - Default Connector
@@ -154,7 +128,7 @@ struct ConnectorView: View {
         ZStack {
             // Layer 1: Glow (scaled by cell size)
             ConnectorLine(start: shortenedStart, end: shortenedEnd)
-                .stroke(Color(hex: "00ff88").opacity(glowOpacity), style: StrokeStyle(lineWidth: 18 * lineScale, lineCap: .round))
+                .stroke(Color(hex: "00ff88").opacity(0.65), style: StrokeStyle(lineWidth: 18 * lineScale, lineCap: .round))
                 .blur(radius: 6 * lineScale)
 
             // Layer 2: Main line (scaled by cell size)
@@ -169,7 +143,7 @@ struct ConnectorView: View {
                         lineWidth: 6 * lineScale,
                         lineCap: .round,
                         dash: [6 * lineScale, 30 * lineScale],
-                        dashPhase: flowPhase2
+                        dashPhase: 0
                     )
                 )
 
@@ -181,7 +155,7 @@ struct ConnectorView: View {
                         lineWidth: 4 * lineScale,
                         lineCap: .round,
                         dash: [4 * lineScale, 20 * lineScale],
-                        dashPhase: flowPhase1
+                        dashPhase: 0
                     )
                 )
 
@@ -221,32 +195,6 @@ struct ConnectorView: View {
         }
     }
 
-    // MARK: - Animation
-
-    private func startAnimations() {
-        animationsStarted = true
-
-        // Scale the animation phase offset based on cell size
-        let scaledPhase = -36 * lineScale
-
-        // Staggered start for energy flow animations
-        DispatchQueue.main.asyncAfter(deadline: .now() + animationDelay / 1000) {
-            withAnimation(.linear(duration: 0.8).repeatForever(autoreverses: false)) {
-                flowPhase1 = scaledPhase
-            }
-        }
-
-        DispatchQueue.main.asyncAfter(deadline: .now() + (animationDelay + 200) / 1000) {
-            withAnimation(.linear(duration: 1.2).repeatForever(autoreverses: false)) {
-                flowPhase2 = scaledPhase
-            }
-        }
-
-        // Glow pulse (matching web: 0.5 to 0.8 over 1.5s)
-        withAnimation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true)) {
-            glowOpacity = 0.8
-        }
-    }
 }
 
 // MARK: - Connector Line Shape

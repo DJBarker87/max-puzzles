@@ -13,6 +13,7 @@ struct CometWriterGameView: View {
     @AppStorage("maxpuzzles.cometWriter.accuracyStreak") private var accuracyStreak = 0
     @AppStorage("maxpuzzles.cometWriter.bestAccuracyStreak") private var bestAccuracyStreak = 0
     @State private var showsWritingTools = false
+    @State private var showsExitConfirmation = false
     @State private var latestReward: CometReward?
     @State private var requiredAudioToken: UUID?
 
@@ -104,6 +105,12 @@ struct CometWriterGameView: View {
             StorageService.shared.markCometWriterLetterCompleted(viewModel.glyph.character)
             awardCompletedLetter()
         }
+        .alert("Leave this writing session?", isPresented: $showsExitConfirmation) {
+            Button("Keep practising", role: .cancel) {}
+            Button("Leave session", role: .destructive) { dismiss() }
+        } message: {
+            Text("Completed attempts are saved, but the current unfinished letter will reset.")
+        }
         .accessibilityIdentifier("comet-writer-game")
     }
 
@@ -111,7 +118,7 @@ struct CometWriterGameView: View {
         HStack(spacing: 12) {
             PremiumIconButton(
                 icon: "chevron.left",
-                action: { dismiss() },
+                action: requestExit,
                 size: 48,
                 accessibilityLabelText: "Back to letter missions"
             )
@@ -152,7 +159,7 @@ struct CometWriterGameView: View {
     private var promptCard: some View {
         HStack(spacing: AppSpacing.md) {
             Text(viewModel.glyph.character)
-                .font(.system(size: 64, weight: .heavy, design: .rounded))
+                    .font(.system(.largeTitle, design: .rounded, weight: .heavy))
                 .foregroundColor(AppTheme.cometCyan)
                 .frame(width: 72)
                 .accessibilityHidden(true)
@@ -240,11 +247,7 @@ struct CometWriterGameView: View {
 
             actionButton(title: "Show path", icon: "play.fill") {
                 viewModel.showHint(animated: !reduceMotion)
-                if reduceMotion {
-                    speech.speak("The path for \(viewModel.glyph.formationName) is shown. Start at the green star and follow the arrows.")
-                } else {
-                    speech.speak("Watch the comet write \(viewModel.glyph.formationName), then have a go.")
-                }
+                speech.speakPathPrompt(for: viewModel.glyph, animated: !reduceMotion)
             }
             .accessibilityIdentifier("comet-writer-show-path")
             .accessibilityValue(viewModel.isDemonstrating ? "Playing" : "Ready")
@@ -311,7 +314,7 @@ struct CometWriterGameView: View {
         HStack(spacing: 10) {
             PremiumIconButton(
                 icon: "chevron.left",
-                action: { dismiss() },
+                action: requestExit,
                 size: 44,
                 accessibilityLabelText: "Back to letter missions"
             )
@@ -344,7 +347,7 @@ struct CometWriterGameView: View {
     private var compactPrompt: some View {
         HStack(spacing: 12) {
             Text(viewModel.glyph.character)
-                .font(.system(size: 50, weight: .heavy, design: .rounded))
+                    .font(.system(.largeTitle, design: .rounded, weight: .heavy))
                 .foregroundColor(AppTheme.cometCyan)
                 .frame(width: 54)
                 .accessibilityHidden(true)
@@ -482,12 +485,21 @@ struct CometWriterGameView: View {
         latestReward = reward
     }
 
+    private func requestExit() {
+        guard !viewModel.isLetterComplete else {
+            dismiss()
+            return
+        }
+        viewModel.cancelActiveTrace()
+        showsExitConfirmation = true
+    }
+
     private func rewardSummary(_ reward: CometReward) -> some View {
         VStack(spacing: 7) {
             HStack(spacing: 14) {
                 VStack(spacing: 0) {
                     Text("\(reward.score)")
-                        .font(.system(size: 34, weight: .heavy, design: .rounded))
+                    .font(.system(.largeTitle, design: .rounded, weight: .heavy))
                         .foregroundColor(AppTheme.accentPrimary)
                     Text("out of 100")
                         .font(AppTypography.caption)
@@ -584,6 +596,7 @@ struct AdvancedWritingGameView: View {
     @State private var sessionItemsCompleted = 0
     @State private var sessionRewards: [CometReward] = []
     @State private var isSessionComplete = false
+    @State private var showsExitConfirmation = false
     @State private var requiredAudioToken: UUID?
 
     private let speech = LetterSpeechService.shared
@@ -729,6 +742,12 @@ struct AdvancedWritingGameView: View {
                 scheduleNextWordLetter()
             }
         }
+        .alert("Leave this writing mission?", isPresented: $showsExitConfirmation) {
+            Button("Keep practising", role: .cancel) {}
+            Button("Leave mission", role: .destructive) { dismiss() }
+        } message: {
+            Text("Finished attempts are saved, but the current unfinished challenge will reset.")
+        }
         // Keep the screen marker separate so it does not overwrite identifiers on the word pad
         // and its direct-interaction writing surface.
         .background {
@@ -745,7 +764,7 @@ struct AdvancedWritingGameView: View {
         HStack(spacing: 12) {
             PremiumIconButton(
                 icon: "chevron.left",
-                action: { dismiss() },
+                action: requestExit,
                 size: 48,
                 accessibilityLabelText: "Back to writing missions"
             )
@@ -794,7 +813,7 @@ struct AdvancedWritingGameView: View {
     private var recallPrompt: some View {
         HStack(spacing: 12) {
             Text(cueStyle == .see ? viewModel.glyph.character : "?")
-                .font(.system(size: 54, weight: .heavy, design: .rounded))
+                    .font(.system(.largeTitle, design: .rounded, weight: .heavy))
                 .foregroundColor(cueStyle == .see ? AppTheme.cometCyan : AppTheme.cometPurple)
                 .frame(width: 62)
                 .accessibilityHidden(true)
@@ -852,7 +871,7 @@ struct AdvancedWritingGameView: View {
                     ForEach(Array(wordCharacters.enumerated()), id: \.offset) { index, character in
                         VStack(spacing: 2) {
                             Text(character)
-                                .font(.system(size: 32, weight: .heavy, design: .rounded))
+                        .font(.system(.title2, design: .rounded, weight: .heavy))
                                 .foregroundColor(wordCharacterColor(at: index))
                                 .frame(minWidth: 28)
                                 .overlay(alignment: .bottom) {
@@ -866,7 +885,7 @@ struct AdvancedWritingGameView: View {
 
                             if wordAttempts.indices.contains(index) {
                                 Text("\(wordAttempts[index].reward.score)")
-                                    .font(.system(size: 10, weight: .bold, design: .rounded))
+                                    .font(.system(.caption2, design: .rounded, weight: .bold))
                                     .foregroundColor(AppTheme.accentPrimary)
                             }
                         }
@@ -905,7 +924,10 @@ struct AdvancedWritingGameView: View {
                 showsWritingLines: showsWritingLines
             )
             .frame(maxWidth: 760, maxHeight: .infinity)
-            .aspectRatio(CGFloat(wordCharacters.count) / 1.18, contentMode: .fit)
+            .aspectRatio(
+                WordMissionLayout.aspectRatio(characterCount: wordCharacters.count),
+                contentMode: .fit
+            )
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
             LetterTracePad(
@@ -1136,6 +1158,16 @@ struct AdvancedWritingGameView: View {
         if cueStyle == .hear || isWordMission { speakCurrentTarget() }
     }
 
+    private func requestExit() {
+        guard !isSessionComplete else {
+            dismiss()
+            return
+        }
+        autoAdvanceTask?.cancel()
+        viewModel.cancelActiveTrace()
+        showsExitConfirmation = true
+    }
+
     private var currentWord: String {
         missionWords[wordIndex % missionWords.count]
     }
@@ -1150,7 +1182,7 @@ struct AdvancedWritingGameView: View {
 
     private var completionTitle: String {
         if mission == .letterRecall { return "Letter remembered!" }
-        if mission == .phonics { return "Sound decoded!" }
+        if mission == .phonics { return "Letter remembered!" }
         if mission == .alienMail { return "Message ready!" }
         return "\(currentWord) complete!"
     }
@@ -1174,7 +1206,7 @@ struct AdvancedWritingGameView: View {
         switch mission {
         case .letterRecall: return "Letter Recall"
         case .wordWriting: return "Word Mission"
-        case .phonics: return "Sound Mission"
+        case .phonics: return "Letter Name Mission"
         case .alienMail: return "Alien Mail"
         }
     }
@@ -1188,9 +1220,9 @@ struct AdvancedWritingGameView: View {
     private func speakCurrentTarget() {
         if isRecallMission {
             if mission == .phonics {
-                speech.speak("Listen to the sound. \(viewModel.glyph.character). Write the letter that makes this sound.")
+                speech.speakLetterNamePrompt(for: viewModel.glyph)
             } else {
-                speech.speak("Write the letter \(viewModel.glyph.character).")
+                speech.speakRecallPrompt(for: viewModel.glyph)
             }
         } else {
             if characterIndex == 0,
@@ -1200,7 +1232,12 @@ struct AdvancedWritingGameView: View {
                 return
             }
             let prefix = mission == .alienMail ? "Send this word to Nova." : "Write the word."
-            speech.speak("\(prefix) \(currentWord). Write it on one line. Now write \(viewModel.glyph.character).")
+            speech.speakWordPrompt(
+                for: viewModel.glyph,
+                word: currentWord,
+                introduction: prefix,
+                contextSentence: learningStore.contextSentence(forWord: currentWord)
+            )
         }
     }
 
@@ -1312,7 +1349,7 @@ struct AdvancedWritingGameView: View {
                     ForEach(Array(wordAttempts.enumerated()), id: \.offset) { _, attempt in
                         VStack(spacing: 1) {
                             Text(attempt.character)
-                                .font(.system(size: 22, weight: .heavy, design: .rounded))
+                    .font(.system(.title3, design: .rounded, weight: .heavy))
                                 .foregroundColor(AppTheme.textPrimary)
                             Text("\(attempt.reward.score)")
                                 .font(AppTypography.caption)
@@ -1343,7 +1380,7 @@ struct AdvancedWritingGameView: View {
         } else {
             VStack(spacing: 5) {
                 Text("\(reward.score) / 100")
-                    .font(.system(size: 32, weight: .heavy, design: .rounded))
+                .font(.system(.title2, design: .rounded, weight: .heavy))
                     .foregroundColor(AppTheme.accentPrimary)
                 Text(reward.encouragement)
                     .font(AppTypography.buttonMedium)

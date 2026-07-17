@@ -1,6 +1,20 @@
-Turn handwriting and maths practice into a space adventure.
+Turn handwriting, numeral recognition, spelling and maths practice into a space adventure.
 
-Maxi's Mighty Mindgames brings together two playful learning experiences for children aged 6–8: Comet Writer and Circuit Challenge. Short missions, calm feedback and meaningful rewards help learners keep going without turning every mistake into a noisy interruption.
+Maxi's Mighty Mindgames brings together four playful learning experiences for children aged 6–8. Short missions, calm feedback and meaningful rewards help learners keep going without turning every mistake into a noisy interruption.
+
+DOT-TO-DOT DISCOVERY
+
+Recognise numerals while revealing 84 hand-reviewed, child-friendly illustrated pictures. Every visible dot belongs to the picture, and every exterior turn is one the numbered trail can actually draw.
+
+• Choose Tap dots to press the next numeral, or Trace lines to draw from the last dot to the next
+• Build confidence across numeral ranges 1–10, 1–15 and 1–20, with selected 1–25 adventures
+• See and hear the next numeral, with a gentle hint if needed
+• Scan the whole field: varied spacing makes the numeral more useful than simply choosing the nearest dot
+• Zoom into the finished artwork and colour meaningful regions using picture-specific colours
+• Choose quick tap-to-shade or colour directly with a finger or Apple Pencil
+• Build subitising confidence with standard 1–5 dot patterns and a quick Star Spot bonus
+• Occasionally move into Comet Writer to form a numeral between pictures
+• Explore animals, vehicles, food, nature and everyday favourites
 
 COMET WRITER
 
@@ -10,17 +24,27 @@ Practise all 26 lowercase letters, 26 capitals and the numbers 0–9. Every symb
 • Get immediate feedback on starting point, direction, path and line placement
 • See a formation score out of 100 and earn Comet Points for every attempt
 • Pick any symbol instantly in Quick Practice
-• Recall chosen letters from sight or sound
-• Hear phonics and write the matching letter in Sound Mission
+• Recall chosen letters from sight or by hearing their letter names
+• Hear ordinary letter names and write the match in Letter Name Mission
 • Write a whole common word on one continuous writing line
 • Build control first with Flight School's lines, curves, slants and loops
 • Move from the screen to real pencil-and-paper practice
 • Choose finger input or Apple Pencil-only input on compatible iPad models
 • Adjust letter size and turn writing lines on or off
 
+For the most comfortable handwriting experience, Comet Writer is best played with a capacitive stylus.
+
+STAR SPELLER
+
+Choose a Year 1 phonics or tricky-word group and a 3, 5 or 10-word mission. The child hears each hidden word in a short context sentence, types it and then forms every letter using Comet Writer's guided handwriting tools. Adaptive practice revisits spellings that needed errors or hints, and the active child profile keeps a grown-up progress summary.
+
+A grown-up can add a familiar word list with optional example sentences. Optional pronunciations recorded by a grown-up remain on the device.
+
 GROWN-UP MISSION CONTROL
 
-Create separate local profiles, choose left- or right-handed writing, see formation mastery, replay saved writing trails and make a local PDF progress report. Grown-ups can also add custom practice words and optionally record a pronunciation on the device.
+Create a separate profile for each child, choose who is playing when the app opens and switch from the main menu. Each profile keeps its own progress. When iCloud is available, profile details and a small progress snapshot sync privately between devices using the same Apple Account.
+
+Grown-ups can also choose left- or right-handed writing, see formation mastery, replay saved writing trails, make a local PDF progress report, add custom practice words and optionally record a pronunciation on the device.
 
 CIRCUIT CHALLENGE
 
@@ -30,9 +54,8 @@ BUILT FOR FOCUSED PRACTICE
 
 • No adverts
 • No in-app purchases
-• No account or sign-in
 • No third-party analytics or tracking
-• Learning records and optional recordings are stored on the device
-• Works without an internet connection
+• No developer account or separate sign-in
+• Works offline; private Apple iCloud progress sync resumes when available
 
-A grown-up gate protects progress tools, profiles, reports and optional microphone recording. The app does not automatically upload a child's writing, name, scores or voice recording; a grown-up can explicitly export a local report through the system share sheet.
+A grown-up gate protects detailed progress tools, reports, custom words, profile deletion and optional microphone recording. Writing trails, custom words and voice recordings stay on the device. A grown-up can explicitly export a local report through Apple's system share sheet.

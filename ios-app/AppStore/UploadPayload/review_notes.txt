@@ -1,13 +1,16 @@
-No account, sign-in, payment or network connection is required. The app contains no adverts, in-app purchases, third-party analytics or tracking SDKs.
+Version 1.4 adds Dot-to-Dot Discovery, Star Speller and private progress sync through Apple's NSUbiquitousKeyValueStore. No developer account, payment or network connection is required. The app contains no adverts, in-app purchases, third-party analytics or tracking SDKs.
 
 Suggested review path:
 
-1. On the hub, select Comet Writer.
-2. Select Quick Practice to choose any lowercase letter, capital or number.
-3. Select Start with c to see the three-stage guided formation lesson.
-4. Under Ready for a challenge, select Word Mission to write a complete word on one screen.
-5. Under Grown-up tools, open Mission Control or My Words. The random multiplication question is the parental gate; there is no fixed passcode.
-6. Microphone access is requested only after a grown-up passes the gate, opens My Words and explicitly chooses to record a local pronunciation.
-7. Return to the hub, select Circuit Challenge, then Quick Play and Custom Settings. Enable multiplication or division to see the individual times-table picker.
+1. On the hub, open Dot-to-Dot Discovery. Both requested styles are visible at the top: Tap dots (“Press the next numeral”) and Trace lines (“Draw from the last dot to the next”).
+2. In Tap dots, open Giraffe and press 1, 2, 3 in order. In Trace lines, open Sailboat, press 1 to begin, then drag from 1 to 2. Tapping 2 without tracing produces a calm reminder and does not advance.
+3. Complete Giraffe, then open its full-screen colouring stage. Switch between Tap and Pencil modes: the available colours and masks correspond to the giraffe, spots and background rather than generic strips. Completing every colour shows the reward; More Pictures returns directly to the gallery. A separate Star Spot prompt remains optional.
+4. Return to the gallery and choose Big Number Adventure to see selected 1–25 trails such as Ocean Ship, Dump Truck and Scooter. Every visible exterior turn corresponds to a numbered dot; there are no fake dots.
+5. Return to the hub, tap the round profile avatar, then Add profile. With multiple profiles, the “Who’s playing?” picker appears on launch and the active player can be changed from the hub or Settings.
+6. Open Comet Writer. The capacitive-stylus recommendation appears at the top. Open Letter Name Mission to hear the target letter's ordinary name using Apple's on-device speech synthesizer.
+7. Open Star Speller, choose a Year 1 group and select a 3, 5 or 10-word mission. Built-in words are spoken in authored context sentences. A grown-up can use My Words behind the random multiplication gate to add or import words and optional example sentences. Microphone access is requested only if Record is explicitly chosen.
+8. Open Circuit Challenge, then Quick Play and Custom Settings. Enable multiplication or division to see the individual times-table picker.
 
-All child profiles, scores, writing traces, custom words and optional audio recordings are stored locally. A grown-up may explicitly export a locally generated progress report or puzzle through the system share sheet. Pencil-only input is shown only on iPad, where Apple Pencil is available.
+iCloud implementation: the app stores profile metadata and a compact merge-only progress envelope in NSUbiquitousKeyValueStore so the same Apple Account can continue across devices. There is no developer server. Writing traces, detailed attempts, custom words and optional audio recordings are excluded from iCloud and remain on-device. Existing users' progress is migrated into their first profile. Clear All Data writes a reset marker so an older device cannot restore deleted progress.
+
+A grown-up may explicitly export a locally generated progress report or puzzle through Apple's system share sheet. Pencil-only input is shown only on iPad, where Apple Pencil is available.

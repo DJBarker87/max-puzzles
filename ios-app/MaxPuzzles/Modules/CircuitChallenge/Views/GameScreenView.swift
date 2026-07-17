@@ -7,14 +7,12 @@ import SwiftUI
 struct GameScreenView: View {
     @StateObject private var viewModel: GameViewModel
     @ObservedObject private var feedback = FeedbackManager.shared
+    @ObservedObject private var storage = StorageService.shared
     @EnvironmentObject var appState: AppState
     @EnvironmentObject var musicService: MusicService
     @Environment(\.dismiss) private var dismiss
     @Environment(\.verticalSizeClass) private var verticalSizeClass
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    @AppStorage("maxpuzzles.tutorial.circuitChallenge.completed")
-    private var hasCompletedCircuitTutorial = false
 
     @State private var showExitConfirm = false
     @State private var navigateToSummary = false
@@ -31,6 +29,7 @@ struct GameScreenView: View {
     @State private var showLevelIntro = false
     @State private var introScale: CGFloat = 0.5
     @State private var introOpacity: Double = 0
+    @State private var nextPuzzleTask: Task<Void, Never>?
 
     private let initialDifficulty: DifficultySettings
 
@@ -167,6 +166,8 @@ struct GameScreenView: View {
             musicService.play(track: .game)
         }
         .onDisappear {
+            nextPuzzleTask?.cancel()
+            nextPuzzleTask = nil
             viewModel.pauseTimer()
             appState.exitGame()
             // Stop game music when leaving
@@ -181,7 +182,7 @@ struct GameScreenView: View {
         }
         .onChange(of: viewModel.state.puzzle?.id) { puzzleID in
             if puzzleID != nil &&
-                !hasCompletedCircuitTutorial &&
+                !storage.hasCompletedCircuitTutorial &&
                 viewModel.state.moveHistory.isEmpty {
                 showCircuitTutorial = true
             }
@@ -253,10 +254,14 @@ struct GameScreenView: View {
                             showNextLevelIntro()
 
                             // Generate puzzle after brief delay (while intro shows)
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                            nextPuzzleTask?.cancel()
+                            nextPuzzleTask = Task { @MainActor in
+                                try? await Task.sleep(nanoseconds: 500_000_000)
+                                guard !Task.isCancelled else { return }
                                 viewModel.generateNewPuzzle()
                                 // Restart game music
                                 musicService.play(track: .game)
+                                nextPuzzleTask = nil
                             }
                         }
                     } : nil,
@@ -321,7 +326,7 @@ struct GameScreenView: View {
             VStack(spacing: 8) {
                 Button(action: { showExitConfirm = true }) {
                     Image(systemName: "chevron.left")
-                        .font(.system(size: 16, weight: .semibold))
+                        .font(.scaledSystem(size: 16, weight: .semibold))
                         .foregroundColor(.white)
                         .frame(width: 44, height: 44)
                         .background(AppTheme.backgroundMid)
@@ -433,10 +438,10 @@ struct GameScreenView: View {
     private func errorContent(_ error: String) -> some View {
         VStack(spacing: 16) {
             Text("⚠️")
-                .font(.system(size: 48))
+                .font(.scaledSystem(size: 48))
                 .accessibilityHidden(true)
             Text(error)
-                .font(.system(size: 16))
+                .font(.scaledSystem(size: 16))
                 .foregroundColor(AppTheme.error)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 24)
@@ -444,7 +449,7 @@ struct GameScreenView: View {
             Button("Try Again") {
                 handleNewPuzzle()
             }
-            .font(.system(size: 16, weight: .semibold))
+            .font(.scaledSystem(size: 16, weight: .semibold))
             .foregroundColor(.white)
             .padding(.horizontal, 24)
             .padding(.vertical, 12)
@@ -462,7 +467,7 @@ struct GameScreenView: View {
                 .scaleEffect(1.5)
                 .tint(AppTheme.accentPrimary)
             Text("Generating puzzle...")
-                .font(.system(size: 16))
+                .font(.scaledSystem(size: 16))
                 .foregroundColor(AppTheme.textSecondary)
         }
     }
@@ -475,12 +480,12 @@ struct GameScreenView: View {
             .overlay {
                 VStack(spacing: 18) {
                     Image(systemName: "bolt.horizontal.fill")
-                        .font(.system(size: 36, weight: .bold))
+                        .font(.scaledSystem(size: 36, weight: .bold))
                         .foregroundColor(AppTheme.connectorGlow)
                         .accessibilityHidden(true)
 
                     Text("How to play")
-                        .font(.system(size: 24, weight: .bold, design: .rounded))
+                        .font(.scaledSystem(size: 24, weight: .bold, design: .rounded))
                         .foregroundColor(.white)
 
                     VStack(spacing: 10) {
@@ -488,20 +493,20 @@ struct GameScreenView: View {
                         Text("2. Find the connector marked \(tutorialAnswer)")
                         Text("3. Tap the hex at the other end")
                     }
-                    .font(.system(size: 17, weight: .semibold, design: .rounded))
+                    .font(.scaledSystem(size: 17, weight: .semibold, design: .rounded))
                     .foregroundColor(.white)
                     .multilineTextAlignment(.center)
 
                     Text("Keep matching answers until you reach FINISH.")
-                        .font(.system(size: 14, weight: .medium))
+                        .font(.scaledSystem(size: 14, weight: .medium))
                         .foregroundColor(AppTheme.textSecondary)
                         .multilineTextAlignment(.center)
 
                     Button("Let me try") {
-                        hasCompletedCircuitTutorial = true
+                        storage.completeCircuitTutorial()
                         showCircuitTutorial = false
                     }
-                    .font(.system(size: 17, weight: .bold, design: .rounded))
+                    .font(.scaledSystem(size: 17, weight: .bold, design: .rounded))
                     .foregroundColor(.white)
                     .frame(minWidth: 180, minHeight: 48)
                     .background(AppTheme.accentPrimary)
@@ -537,10 +542,10 @@ struct GameScreenView: View {
             .overlay {
                 VStack(spacing: 16) {
                     Image(systemName: viewModel.state.status == .won ? "checkmark.circle.fill" : "xmark.circle.fill")
-                        .font(.system(size: 64))
+                        .font(.scaledSystem(size: 64))
                         .foregroundColor(viewModel.state.status == .won ? AppTheme.accentPrimary : AppTheme.accentSecondary)
                     Text(viewModel.state.status == .won ? "Puzzle Complete!" : "Out of Lives")
-                        .font(.system(size: 24, weight: .bold))
+                        .font(.scaledSystem(size: 24, weight: .bold))
                         .foregroundColor(.white)
                 }
             }
@@ -552,11 +557,11 @@ struct GameScreenView: View {
             .overlay {
                 VStack(spacing: 24) {
                     Text("Exit Puzzle?")
-                        .font(.system(size: 22, weight: .bold))
+                        .font(.scaledSystem(size: 22, weight: .bold))
                         .foregroundColor(.white)
 
                     Text("Your progress on this puzzle will be lost.")
-                        .font(.system(size: 15))
+                        .font(.scaledSystem(size: 15))
                         .foregroundColor(AppTheme.textSecondary)
                         .multilineTextAlignment(.center)
 
@@ -564,7 +569,7 @@ struct GameScreenView: View {
                         Button("Continue Playing") {
                             showExitConfirm = false
                         }
-                        .font(.system(size: 16, weight: .semibold))
+                        .font(.scaledSystem(size: 16, weight: .semibold))
                         .foregroundColor(.white)
                         .padding(.horizontal, 20)
                         .padding(.vertical, 12)
@@ -578,7 +583,7 @@ struct GameScreenView: View {
                         Button("Exit") {
                             dismiss()
                         }
-                        .font(.system(size: 16, weight: .semibold))
+                        .font(.scaledSystem(size: 16, weight: .semibold))
                         .foregroundColor(.white)
                         .padding(.horizontal, 20)
                         .padding(.vertical, 12)
@@ -615,7 +620,7 @@ struct GameScreenView: View {
                 // Speech bubble with intro message (pointing up to alien)
                 SpeechBubble(pointsUp: true) {
                     Text(introMessage(for: alien))
-                        .font(.system(size: 18, weight: .medium))
+                        .font(.scaledSystem(size: 18, weight: .medium))
                         .foregroundColor(AppTheme.backgroundDark)
                         .multilineTextAlignment(.center)
                 }
@@ -623,14 +628,14 @@ struct GameScreenView: View {
 
                 // Level info - use alien name + level number
                 Text("\(alien.name) \(level)")
-                    .font(.system(size: 24, weight: .bold))
+                    .font(.scaledSystem(size: 24, weight: .bold))
                     .foregroundColor(.white)
 
                 Spacer()
 
                 // Tap to continue hint
                 Text("Tap to start")
-                    .font(.system(size: 14))
+                    .font(.scaledSystem(size: 14))
                     .foregroundColor(AppTheme.textSecondary)
                     .padding(.bottom, 40)
             }

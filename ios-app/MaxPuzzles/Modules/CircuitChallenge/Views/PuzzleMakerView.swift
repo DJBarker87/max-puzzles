@@ -135,11 +135,11 @@ struct PuzzleMakerView: View {
     private var introCard: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Create Printable Puzzles")
-                .font(.system(size: 18, weight: .bold))
+                .font(.scaledSystem(size: 18, weight: .bold))
                 .foregroundColor(.white)
 
             Text("Generate Circuit Challenge puzzles to print. Each A4 page contains 2 puzzles.")
-                .font(.system(size: 14))
+                .font(.scaledSystem(size: 14))
                 .foregroundColor(AppTheme.textSecondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -153,7 +153,7 @@ struct PuzzleMakerView: View {
     private var difficultyCard: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("Difficulty")
-                .font(.system(size: 18, weight: .semibold))
+                .font(.scaledSystem(size: 18, weight: .semibold))
                 .foregroundColor(.white)
 
             Menu {
@@ -182,7 +182,7 @@ struct PuzzleMakerView: View {
             .disabled(viewModel.isCustomMode)
 
             Text(viewModel.presetDescription)
-                .font(.system(size: 14))
+                .font(.scaledSystem(size: 14))
                 .foregroundColor(AppTheme.textSecondary)
         }
         .padding()
@@ -198,7 +198,7 @@ struct PuzzleMakerView: View {
                 get: { viewModel.isCustomMode },
                 set: { _ in viewModel.toggleCustomMode() }
             ))
-            .font(.system(size: 16, weight: .medium))
+            .font(.scaledSystem(size: 16, weight: .medium))
             .foregroundColor(.white)
             .toggleStyle(SwitchToggleStyle(tint: AppTheme.accentPrimary))
 
@@ -210,7 +210,7 @@ struct PuzzleMakerView: View {
                     // Add/Sub Range
                     VStack(alignment: .leading, spacing: 8) {
                         Text("+/− Number Range: \(Int(viewModel.addSubRange))")
-                            .font(.system(size: 14))
+                            .font(.scaledSystem(size: 14))
                             .foregroundColor(.white)
                         Slider(value: $viewModel.addSubRange, in: 5...100, step: 5)
                             .tint(AppTheme.accentPrimary)
@@ -232,7 +232,7 @@ struct PuzzleMakerView: View {
 
                     // Custom description
                     Text(viewModel.customDescription)
-                        .font(.system(size: 14))
+                        .font(.scaledSystem(size: 14))
                         .foregroundColor(AppTheme.textSecondary)
                 }
             }
@@ -247,7 +247,7 @@ struct PuzzleMakerView: View {
     private var operationsSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Operations")
-                .font(.system(size: 14, weight: .medium))
+                .font(.scaledSystem(size: 14, weight: .medium))
                 .foregroundColor(.white)
 
             HStack(spacing: 12) {
@@ -263,7 +263,7 @@ struct PuzzleMakerView: View {
                         ? "Choose at least one times table"
                         : "At least one operation must be enabled"
                 )
-                    .font(.system(size: 12))
+                    .font(.scaledSystem(size: 12))
                     .foregroundColor(AppTheme.error)
             }
         }
@@ -272,7 +272,7 @@ struct PuzzleMakerView: View {
     private func operationToggle(_ symbol: String, isOn: Bool) -> some View {
         Button(action: { viewModel.toggleOperation(symbol) }) {
             Text(symbol)
-                .font(.system(size: 20, weight: .bold))
+                .font(.scaledSystem(size: 20, weight: .bold))
                 .frame(width: 48, height: 48)
                 .background(isOn ? AppTheme.accentPrimary : AppTheme.backgroundDark)
                 .foregroundColor(.white)
@@ -290,7 +290,7 @@ struct PuzzleMakerView: View {
         HStack(spacing: 24) {
             VStack(alignment: .leading, spacing: 8) {
                 Text("Rows")
-                    .font(.system(size: 14, weight: .medium))
+                    .font(.scaledSystem(size: 14, weight: .medium))
                     .foregroundColor(.white)
                 HStack(spacing: 4) {
                     ForEach([3, 4, 5, 6], id: \.self) { n in
@@ -303,7 +303,7 @@ struct PuzzleMakerView: View {
 
             VStack(alignment: .leading, spacing: 8) {
                 Text("Columns")
-                    .font(.system(size: 14, weight: .medium))
+                    .font(.scaledSystem(size: 14, weight: .medium))
                     .foregroundColor(.white)
                 HStack(spacing: 4) {
                     ForEach([4, 5, 6, 7, 8], id: \.self) { n in
@@ -319,7 +319,7 @@ struct PuzzleMakerView: View {
     private func gridSizeButton(_ value: Int, selected: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Text("\(value)")
-                .font(.system(size: 14, weight: .medium))
+                .font(.scaledSystem(size: 14, weight: .medium))
                 .frame(width: 44, height: 44)
                 .background(selected ? AppTheme.accentPrimary : AppTheme.backgroundDark)
                 .foregroundColor(.white)
@@ -332,12 +332,12 @@ struct PuzzleMakerView: View {
     private var puzzleCountCard: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("Puzzle Count")
-                .font(.system(size: 18, weight: .semibold))
+                .font(.scaledSystem(size: 18, weight: .semibold))
                 .foregroundColor(.white)
 
             VStack(alignment: .leading, spacing: 8) {
                 Text("Number of Puzzles: \(viewModel.config.puzzleCount)")
-                    .font(.system(size: 14))
+                    .font(.scaledSystem(size: 14))
                     .foregroundColor(.white)
 
                 Slider(
@@ -352,11 +352,11 @@ struct PuzzleMakerView: View {
 
                 HStack {
                     Text("2")
-                        .font(.system(size: 12))
+                        .font(.scaledSystem(size: 12))
                         .foregroundColor(AppTheme.textSecondary)
                     Spacer()
                     Text("50")
-                        .font(.system(size: 12))
+                        .font(.scaledSystem(size: 12))
                         .foregroundColor(AppTheme.textSecondary)
                 }
             }
@@ -365,7 +365,7 @@ struct PuzzleMakerView: View {
                 get: { viewModel.config.showAnswers },
                 set: { viewModel.setShowAnswers($0) }
             ))
-            .font(.system(size: 14))
+            .font(.scaledSystem(size: 14))
             .foregroundColor(.white)
             .toggleStyle(SwitchToggleStyle(tint: AppTheme.accentPrimary))
         }
@@ -388,7 +388,7 @@ struct PuzzleMakerView: View {
                      ? "Generating Puzzles..."
                      : "Generate \(viewModel.config.puzzleCount) Puzzles")
             }
-            .font(.system(size: 18, weight: .semibold))
+            .font(.scaledSystem(size: 18, weight: .semibold))
             .foregroundColor(.white)
             .frame(maxWidth: .infinity)
             .padding(.vertical, 16)
@@ -408,11 +408,11 @@ struct PuzzleMakerView: View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
                 Text("Preview")
-                    .font(.system(size: 18, weight: .semibold))
+                    .font(.scaledSystem(size: 18, weight: .semibold))
                     .foregroundColor(.white)
                 Spacer()
                 Text("\(viewModel.puzzles.count) puzzles • \(viewModel.totalPages) pages")
-                    .font(.system(size: 12))
+                    .font(.scaledSystem(size: 12))
                     .foregroundColor(AppTheme.textSecondary)
             }
 
@@ -427,7 +427,7 @@ struct PuzzleMakerView: View {
                 Spacer()
 
                 Text("Puzzle \(viewModel.previewIndex + 1) of \(viewModel.puzzles.count)")
-                    .font(.system(size: 14))
+                    .font(.scaledSystem(size: 14))
                     .foregroundColor(.white)
 
                 Spacer()
@@ -463,7 +463,7 @@ struct PuzzleMakerView: View {
                     Image(systemName: "square.and.arrow.up")
                     Text("Share / Print PDF")
                 }
-                .font(.system(size: 16, weight: .semibold))
+                .font(.scaledSystem(size: 16, weight: .semibold))
                 .foregroundColor(.white)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 14)
@@ -478,7 +478,7 @@ struct PuzzleMakerView: View {
     private var compactDifficultyCard: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Difficulty")
-                .font(.system(size: 14, weight: .semibold))
+                .font(.scaledSystem(size: 14, weight: .semibold))
                 .foregroundColor(.white)
 
             Menu {
@@ -503,7 +503,7 @@ struct PuzzleMakerView: View {
             .disabled(viewModel.isCustomMode)
 
             Text(viewModel.currentPreset.name)
-                .font(.system(size: 12))
+                .font(.scaledSystem(size: 12))
                 .foregroundColor(AppTheme.textSecondary)
         }
         .padding(12)
@@ -514,7 +514,7 @@ struct PuzzleMakerView: View {
     private var compactCustomToggle: some View {
         HStack {
             Text("Custom Settings")
-                .font(.system(size: 14, weight: .medium))
+                .font(.scaledSystem(size: 14, weight: .medium))
                 .foregroundColor(.white)
             Spacer()
             Toggle("", isOn: Binding(
@@ -534,7 +534,7 @@ struct PuzzleMakerView: View {
             // Operations row
             VStack(alignment: .leading, spacing: 4) {
                 Text("Operations")
-                    .font(.system(size: 12, weight: .medium))
+                    .font(.scaledSystem(size: 12, weight: .medium))
                     .foregroundColor(.white)
                 HStack(spacing: 6) {
                     ForEach(["+", "−", "×", "÷"], id: \.self) { op in
@@ -546,7 +546,7 @@ struct PuzzleMakerView: View {
             // Number range
             VStack(alignment: .leading, spacing: 2) {
                 Text("+/− Range: \(Int(viewModel.addSubRange))")
-                    .font(.system(size: 11))
+                    .font(.scaledSystem(size: 11))
                     .foregroundColor(.white)
                 Slider(value: $viewModel.addSubRange, in: 5...100, step: 5)
                     .tint(AppTheme.accentPrimary)
@@ -566,7 +566,7 @@ struct PuzzleMakerView: View {
             VStack(alignment: .leading, spacing: 8) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Rows")
-                        .font(.system(size: 11))
+                        .font(.scaledSystem(size: 11))
                         .foregroundColor(.white)
                     HStack(spacing: 3) {
                         ForEach([3, 4, 5, 6], id: \.self) { n in
@@ -578,7 +578,7 @@ struct PuzzleMakerView: View {
                 }
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Cols")
-                        .font(.system(size: 11))
+                        .font(.scaledSystem(size: 11))
                         .foregroundColor(.white)
                     HStack(spacing: 3) {
                         ForEach([4, 5, 6, 7], id: \.self) { n in
@@ -598,7 +598,7 @@ struct PuzzleMakerView: View {
     private func compactOpToggle(_ symbol: String, isOn: Bool) -> some View {
         Button(action: { viewModel.toggleOperation(symbol) }) {
             Text(symbol)
-                .font(.system(size: 16, weight: .bold))
+                .font(.scaledSystem(size: 16, weight: .bold))
                 .frame(width: 44, height: 44)
                 .background(isOn ? AppTheme.accentPrimary : AppTheme.backgroundDark)
                 .foregroundColor(.white)
@@ -609,7 +609,7 @@ struct PuzzleMakerView: View {
     private func compactSizeButton(_ value: Int, selected: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Text("\(value)")
-                .font(.system(size: 12, weight: .medium))
+                .font(.scaledSystem(size: 12, weight: .medium))
                 .frame(width: 44, height: 44)
                 .background(selected ? AppTheme.accentPrimary : AppTheme.backgroundDark)
                 .foregroundColor(.white)
@@ -620,7 +620,7 @@ struct PuzzleMakerView: View {
     private var compactPuzzleCountCard: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Puzzles: \(viewModel.config.puzzleCount)")
-                .font(.system(size: 14, weight: .medium))
+                .font(.scaledSystem(size: 14, weight: .medium))
                 .foregroundColor(.white)
 
             Slider(
@@ -637,7 +637,7 @@ struct PuzzleMakerView: View {
                 get: { viewModel.config.showAnswers },
                 set: { viewModel.setShowAnswers($0) }
             ))
-            .font(.system(size: 12))
+            .font(.scaledSystem(size: 12))
             .foregroundColor(.white)
             .toggleStyle(SwitchToggleStyle(tint: AppTheme.accentPrimary))
         }
@@ -658,7 +658,7 @@ struct PuzzleMakerView: View {
                 Spacer()
 
                 Text("\(viewModel.previewIndex + 1)/\(viewModel.puzzles.count)")
-                    .font(.system(size: 12))
+                    .font(.scaledSystem(size: 12))
                     .foregroundColor(.white)
 
                 Spacer()
@@ -689,7 +689,7 @@ struct PuzzleMakerView: View {
             Image(systemName: "exclamationmark.triangle.fill")
                 .foregroundColor(AppTheme.error)
             Text(message)
-                .font(.system(size: 14))
+                .font(.scaledSystem(size: 14))
                 .foregroundColor(AppTheme.error)
         }
         .padding()

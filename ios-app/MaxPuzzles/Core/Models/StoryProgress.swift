@@ -28,7 +28,12 @@ struct LevelProgressData: Codable {
 /// Tracks story mode progress - chapters, levels, and stars
 class StoryProgress: ObservableObject {
 
-    private let storageKey = "storyProgressV2"
+    private static let legacyStorageKey = "storyProgressV2"
+    private static let legacyMigrationKey = "maxpuzzles.profiles.storyProgressLegacyMigrated"
+
+    private let storageKey: String
+    private let defaults: UserDefaults
+    private var cloudObserver: NSObjectProtocol?
 
     @Published private(set) var data: StoryProgressData {
         didSet {
@@ -36,13 +41,49 @@ class StoryProgress: ObservableObject {
         }
     }
 
-    init() {
-        // Load from UserDefaults
-        if let stored = UserDefaults.standard.data(forKey: storageKey),
+    init(profileID: UUID? = nil, defaults: UserDefaults = .standard) {
+        self.defaults = defaults
+        if let profileID {
+            storageKey = "maxpuzzles.profile.\(profileID.uuidString).storyProgressV2"
+        } else {
+            storageKey = Self.legacyStorageKey
+        }
+
+        if let stored = defaults.data(forKey: storageKey),
            let decoded = try? JSONDecoder().decode(StoryProgressData.self, from: stored) {
             self.data = decoded
+            if profileID != nil {
+                defaults.set(true, forKey: Self.legacyMigrationKey)
+            }
+        } else if profileID != nil,
+                  !defaults.bool(forKey: Self.legacyMigrationKey),
+                  let legacyData = defaults.data(forKey: Self.legacyStorageKey),
+                  let decoded = try? JSONDecoder().decode(
+                    StoryProgressData.self,
+                    from: legacyData
+                  ) {
+            self.data = decoded
+            defaults.set(legacyData, forKey: storageKey)
+            defaults.set(true, forKey: Self.legacyMigrationKey)
         } else {
             self.data = StoryProgressData()
+            if profileID != nil {
+                defaults.set(true, forKey: Self.legacyMigrationKey)
+            }
+        }
+
+        cloudObserver = NotificationCenter.default.addObserver(
+            forName: .maxPuzzlesCloudProgressDidChange,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.reloadAfterCloudSync()
+        }
+    }
+
+    deinit {
+        if let cloudObserver {
+            NotificationCenter.default.removeObserver(cloudObserver)
         }
     }
 
@@ -199,8 +240,17 @@ class StoryProgress: ObservableObject {
     // MARK: - Persistence
 
     private func save() {
-        if let encoded = try? JSONEncoder().encode(data) {
-            UserDefaults.standard.set(encoded, forKey: storageKey)
+        guard let encoded = try? JSONEncoder().encode(data),
+              defaults.data(forKey: storageKey) != encoded else { return }
+        defaults.set(encoded, forKey: storageKey)
+        NotificationCenter.default.post(name: .maxPuzzlesProgressDidChange, object: self)
+    }
+
+    private func reloadAfterCloudSync() {
+        guard let stored = defaults.data(forKey: storageKey),
+              let decoded = try? JSONDecoder().decode(StoryProgressData.self, from: stored) else {
+            return
         }
+        data = decoded
     }
 }

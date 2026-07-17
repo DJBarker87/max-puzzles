@@ -11,6 +11,7 @@ struct LevelSelectView: View {
     let alien: ChapterAlien
     @EnvironmentObject var appState: AppState
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var progress: StoryProgress { appState.storyProgress }
 
@@ -22,6 +23,7 @@ struct LevelSelectView: View {
     @State private var glowIntensity: CGFloat = 0  // 0 to 1, controls glow opacity
     @State private var isExtendingConnectors: Bool = false
     @State private var extensionProgress: CGFloat = 0
+    @State private var unlockTask: Task<Void, Never>?
 
     var body: some View {
         GeometryReader { geometry in
@@ -58,6 +60,11 @@ struct LevelSelectView: View {
         .onAppear {
             OrientationManager.shared.unlockAll()
             checkCenterUnlockAnimation()
+        }
+        .onDisappear {
+            unlockTask?.cancel()
+            unlockTask = nil
+            finishUnlockAnimation()
         }
         .navigationTitle("Chapter \(chapter)")
         .navigationBarTitleDisplayMode(.inline)
@@ -96,8 +103,17 @@ struct LevelSelectView: View {
 
         // Only animate if level 6 just became completed (wasn't completed before)
         if level6NowCompleted && !previousLevel6Completed {
+            if reduceMotion {
+                finishUnlockAnimation()
+                previousLevel6Completed = level6NowCompleted
+                return
+            }
+
+            unlockTask?.cancel()
             // Phase 1: Start extension animation (lines grow from outer toward center)
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            unlockTask = Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 300_000_000)
+                guard !Task.isCancelled else { return }
                 isExtendingConnectors = true
                 extensionProgress = 0
                 showCenterUnlockAnimation = true
@@ -106,38 +122,42 @@ struct LevelSelectView: View {
                 withAnimation(.easeInOut(duration: 1.2)) {
                     extensionProgress = 1.0
                 }
-            }
-
-            // Phase 2: Huge green glow when energy reaches center (after extension completes)
-            // Crescendo: build up intensity over 1s
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                try? await Task.sleep(nanoseconds: 1_200_000_000)
+                guard !Task.isCancelled else { return }
                 showFullScreenGlow = true
                 glowIntensity = 0
                 withAnimation(.easeIn(duration: 1.0)) {
                     glowIntensity = 1.0  // Crescendo to full intensity
                 }
-            }
-
-            // Phase 3: Hold at peak briefly, then fade out
-            DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+                try? await Task.sleep(nanoseconds: 1_500_000_000)
+                guard !Task.isCancelled else { return }
                 withAnimation(.easeOut(duration: 0.8)) {
                     glowIntensity = 0  // Fade out
                 }
-            }
-
-            // Phase 3b: Hide glow view after fade completes
-            DispatchQueue.main.asyncAfter(deadline: .now() + 3.8) {
+                try? await Task.sleep(nanoseconds: 800_000_000)
+                guard !Task.isCancelled else { return }
                 showFullScreenGlow = false
                 // End extending state, start normal pulsing
                 isExtendingConnectors = false
-            }
-
-            // Phase 4: End initial unlock animation flag
-            DispatchQueue.main.asyncAfter(deadline: .now() + 4.5) {
+                try? await Task.sleep(nanoseconds: 700_000_000)
+                guard !Task.isCancelled else { return }
                 showCenterUnlockAnimation = false
+                unlockTask = nil
             }
         }
         previousLevel6Completed = level6NowCompleted
+    }
+
+    private func finishUnlockAnimation() {
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+        withTransaction(transaction) {
+            showCenterUnlockAnimation = false
+            showFullScreenGlow = false
+            glowIntensity = 0
+            isExtendingConnectors = false
+            extensionProgress = centerUnlocked ? 1 : 0
+        }
     }
 
     // MARK: - Portrait Layout
@@ -213,7 +233,7 @@ struct LevelSelectView: View {
 
             // Stats
             Text("\((1...7).filter { isLevelCompleted($0) }.count) of 7 levels completed")
-                .font(.system(size: 14))
+                .font(.scaledSystem(size: 14))
                 .foregroundColor(AppTheme.textSecondary)
                 .padding(.bottom, 16)
         }
@@ -240,15 +260,15 @@ struct LevelSelectView: View {
                     .frame(height: alienSize)
 
                 Text(alien.name)
-                    .font(.system(size: 18, weight: .heavy, design: .rounded))
+                    .font(.scaledSystem(size: 18, weight: .heavy, design: .rounded))
                     .foregroundColor(.white)
 
                 HStack(spacing: 4) {
                     Image(systemName: "star.fill")
-                        .font(.system(size: 12))
+                        .font(.scaledSystem(size: 12))
                         .foregroundColor(AppTheme.accentTertiary)
                     Text("\(progress.starsInChapter(chapter))/21")
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(.scaledSystem(size: 13, weight: .semibold))
                         .foregroundColor(.white)
                 }
             }
@@ -320,10 +340,10 @@ struct LevelSelectView: View {
 
             VStack(alignment: .leading, spacing: 4) {
                 Text("Chapter \(chapter)")
-                    .font(.system(size: 12, weight: .medium))
+                    .font(.scaledSystem(size: 12, weight: .medium))
                     .foregroundColor(AppTheme.textSecondary)
                 Text(alien.name)
-                    .font(.system(size: 24, weight: .heavy, design: .rounded))
+                    .font(.scaledSystem(size: 24, weight: .heavy, design: .rounded))
                     .foregroundColor(.white)
             }
 
@@ -331,10 +351,10 @@ struct LevelSelectView: View {
 
             HStack(spacing: 4) {
                 Image(systemName: "star.fill")
-                    .font(.system(size: 14))
+                    .font(.scaledSystem(size: 14))
                     .foregroundColor(AppTheme.accentTertiary)
                 Text("\(progress.starsInChapter(chapter))/21")
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(.scaledSystem(size: 15, weight: .semibold))
                     .foregroundColor(.white)
             }
         }
@@ -452,6 +472,8 @@ struct LevelSelectView: View {
 // MARK: - Large Hex Tile
 
 struct LargeHexTile: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     let level: Int
     let chapter: Int
     let isUnlocked: Bool
@@ -468,9 +490,9 @@ struct LargeHexTile: View {
     @State private var glowOpacity: CGFloat = 0.5
     @State private var shadowGlow: CGFloat = 0.4  // For pulsing shadow effect
 
-    // Show glow animation for current level OR completed level
+    // Completed levels remain visibly energised but static; only the current choice pulses.
     private var shouldPulse: Bool {
-        isCurrent || isCompleted
+        isCurrent
     }
 
     /// Format seconds into MM:SS display
@@ -638,21 +660,32 @@ struct LargeHexTile: View {
         .shadow(color: shouldPulse ? Color(hex: "00ffc8").opacity(shadowGlow) : .clear, radius: 15)
         .shadow(color: shouldPulse ? Color(hex: "00ffc8").opacity(shadowGlow * 0.5) : .clear, radius: 30)
         .onAppear {
-            if shouldPulse {
-                withAnimation(.linear(duration: 0.8).repeatForever(autoreverses: false)) {
-                    flowPhase1 = -36
-                }
-                withAnimation(.linear(duration: 1.2).repeatForever(autoreverses: false)) {
-                    flowPhase2 = -36
-                }
-                withAnimation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true)) {
-                    glowOpacity = 0.8
-                }
-                // Shadow glow pulse
-                withAnimation(.easeInOut(duration: 1.0).repeatForever(autoreverses: true)) {
-                    shadowGlow = 1.0
-                }
-            }
+            startPulse()
+        }
+        .onChange(of: reduceMotion) { newValue in
+            if newValue { resetPulse() } else if shouldPulse { startPulse() }
+        }
+        .onDisappear(perform: resetPulse)
+        .accessibilityLabel("Level \(level)\(isCompleted ? ", completed" : "")\(isUnlocked ? "" : ", locked")")
+        .accessibilityHint(isUnlocked ? "Double tap to play" : "Complete the previous level to unlock")
+    }
+
+    private func startPulse() {
+        guard shouldPulse else { return }
+        flowPhase1 = 0
+        flowPhase2 = 0
+        glowOpacity = 0.7
+        shadowGlow = 0.65
+    }
+
+    private func resetPulse() {
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+        withTransaction(transaction) {
+            flowPhase1 = 0
+            flowPhase2 = 0
+            glowOpacity = 0.6
+            shadowGlow = 0.5
         }
     }
 
@@ -698,6 +731,8 @@ struct LargeHexTile: View {
 // MARK: - Center Alien Hex Tile
 
 struct CenterAlienHexTile: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     let alien: ChapterAlien
     let level: Int
     let chapter: Int
@@ -717,7 +752,7 @@ struct CenterAlienHexTile: View {
     @State private var shadowGlow: CGFloat = 0.4  // For pulsing shadow effect
 
     private var shouldPulse: Bool {
-        isUnlocked  // Always pulse when center tile is unlocked
+        isUnlocked && isCurrent
     }
 
     private var borderScale: CGFloat {
@@ -841,19 +876,27 @@ struct CenterAlienHexTile: View {
         .shadow(color: shouldPulse ? Color(hex: "00ffc8").opacity(shadowGlow) : .clear, radius: 15)
         .shadow(color: shouldPulse ? Color(hex: "00ffc8").opacity(shadowGlow * 0.5) : .clear, radius: 30)
         .onAppear {
-            if shouldPulse {
-                startPulseAnimations()
-            }
+            startPulseAnimations()
+            startUnlockGlowIfNeeded()
         }
         .onChange(of: showUnlockAnimation) { newValue in
-            if newValue {
-                withAnimation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true)) {
-                    unlockGlow = 0.9
-                }
+            if newValue && !reduceMotion {
+                withAnimation(.easeInOut(duration: 0.35)) { unlockGlow = 0.8 }
             } else {
                 unlockGlow = 0
             }
         }
+        .onChange(of: reduceMotion) { newValue in
+            if newValue {
+                resetPulseAnimations()
+            } else {
+                startPulseAnimations()
+                startUnlockGlowIfNeeded()
+            }
+        }
+        .onDisappear(perform: resetPulseAnimations)
+        .accessibilityLabel("Hidden level 7\(isCompleted ? ", completed" : "")\(isUnlocked ? "" : ", locked")")
+        .accessibilityHint(isUnlocked ? "Double tap to play" : "Complete levels 1 to 6 to unlock")
     }
 
     private var electricGlowLayers: some View {
@@ -900,18 +943,27 @@ struct CenterAlienHexTile: View {
     }
 
     private func startPulseAnimations() {
-        withAnimation(.linear(duration: 0.8).repeatForever(autoreverses: false)) {
-            flowPhase1 = -36
-        }
-        withAnimation(.linear(duration: 1.2).repeatForever(autoreverses: false)) {
-            flowPhase2 = -36
-        }
-        withAnimation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true)) {
-            glowOpacity = 0.8
-        }
-        // Shadow glow pulse
-        withAnimation(.easeInOut(duration: 1.0).repeatForever(autoreverses: true)) {
-            shadowGlow = 1.0
+        guard shouldPulse else { return }
+        flowPhase1 = 0
+        flowPhase2 = 0
+        glowOpacity = 0.7
+        shadowGlow = 0.65
+    }
+
+    private func startUnlockGlowIfNeeded() {
+        guard showUnlockAnimation else { return }
+        withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.35)) { unlockGlow = 0.8 }
+    }
+
+    private func resetPulseAnimations() {
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+        withTransaction(transaction) {
+            flowPhase1 = 0
+            flowPhase2 = 0
+            glowOpacity = 0.6
+            unlockGlow = 0
+            shadowGlow = 0.5
         }
     }
 
@@ -963,10 +1015,6 @@ struct EdgeLevelConnector: View {
     let isActive: Bool
     let isPulsing: Bool
 
-    @State private var flowPhase1: CGFloat = 0
-    @State private var flowPhase2: CGFloat = 0
-    @State private var glowOpacity: CGFloat = 0.5
-
     private var borderScale: CGFloat {
         #if os(iOS)
         return UIDevice.current.userInterfaceIdiom == .pad ? 1.5 : 1.0
@@ -999,7 +1047,7 @@ struct EdgeLevelConnector: View {
             if isPulsing {
                 // Glow
                 LevelConnectorLine(from: shortenedFrom, to: shortenedTo)
-                    .stroke(Color(hex: "00ff88").opacity(glowOpacity), style: StrokeStyle(lineWidth: 18 * borderScale, lineCap: .round))
+                    .stroke(Color(hex: "00ff88").opacity(0.65), style: StrokeStyle(lineWidth: 18 * borderScale, lineCap: .round))
                     .blur(radius: 6)
 
                 // Main line
@@ -1010,14 +1058,14 @@ struct EdgeLevelConnector: View {
                 LevelConnectorLine(from: shortenedFrom, to: shortenedTo)
                     .stroke(
                         Color(hex: "88ffcc"),
-                        style: StrokeStyle(lineWidth: 6 * borderScale, lineCap: .round, dash: [6, 30], dashPhase: flowPhase2)
+                        style: StrokeStyle(lineWidth: 6 * borderScale, lineCap: .round, dash: [6, 30], dashPhase: 0)
                     )
 
                 // Energy fast
                 LevelConnectorLine(from: shortenedFrom, to: shortenedTo)
                     .stroke(
                         Color.white,
-                        style: StrokeStyle(lineWidth: 4 * borderScale, lineCap: .round, dash: [4, 20], dashPhase: flowPhase1)
+                        style: StrokeStyle(lineWidth: 4 * borderScale, lineCap: .round, dash: [4, 20], dashPhase: 0)
                     )
 
                 // Core
@@ -1029,19 +1077,6 @@ struct EdgeLevelConnector: View {
             } else {
                 LevelConnectorLine(from: shortenedFrom, to: shortenedTo)
                     .stroke(AppTheme.connectorDefault, style: StrokeStyle(lineWidth: 8, lineCap: .round))
-            }
-        }
-        .onAppear {
-            if isPulsing {
-                withAnimation(.linear(duration: 0.8).repeatForever(autoreverses: false)) {
-                    flowPhase1 = -36
-                }
-                withAnimation(.linear(duration: 1.2).repeatForever(autoreverses: false)) {
-                    flowPhase2 = -36
-                }
-                withAnimation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true)) {
-                    glowOpacity = 0.8
-                }
             }
         }
     }
@@ -1057,10 +1092,6 @@ struct RadialLevelConnector: View {
     let isActive: Bool
     let isExtending: Bool  // True during the initial extension animation
     let extensionProgress: CGFloat  // 0 = at outer, 1 = reached center
-
-    @State private var flowPhase1: CGFloat = 0
-    @State private var flowPhase2: CGFloat = 0
-    @State private var glowOpacity: CGFloat = 0.5
 
     private var borderScale: CGFloat {
         #if os(iOS)
@@ -1106,7 +1137,7 @@ struct RadialLevelConnector: View {
 
                 // Glow
                 LevelConnectorLine(from: shortenedFrom, to: toPoint)
-                    .stroke(Color(hex: "00ff88").opacity(glowOpacity), style: StrokeStyle(lineWidth: 18 * borderScale, lineCap: .round))
+                    .stroke(Color(hex: "00ff88").opacity(isExtending ? 0.8 : 0.65), style: StrokeStyle(lineWidth: 18 * borderScale, lineCap: .round))
                     .blur(radius: 6)
 
                 // Main line
@@ -1117,14 +1148,14 @@ struct RadialLevelConnector: View {
                 LevelConnectorLine(from: shortenedFrom, to: toPoint)
                     .stroke(
                         Color(hex: "88ffcc"),
-                        style: StrokeStyle(lineWidth: 6 * borderScale, lineCap: .round, dash: [6, 30], dashPhase: flowPhase2)
+                        style: StrokeStyle(lineWidth: 6 * borderScale, lineCap: .round, dash: [6, 30], dashPhase: 0)
                     )
 
                 // Energy fast - INWARD flow (positive dashPhase)
                 LevelConnectorLine(from: shortenedFrom, to: toPoint)
                     .stroke(
                         Color.white,
-                        style: StrokeStyle(lineWidth: 4 * borderScale, lineCap: .round, dash: [4, 20], dashPhase: flowPhase1)
+                        style: StrokeStyle(lineWidth: 4 * borderScale, lineCap: .round, dash: [4, 20], dashPhase: 0)
                     )
 
                 // Core
@@ -1138,20 +1169,6 @@ struct RadialLevelConnector: View {
 
                 LevelConnectorLine(from: shortenedFrom, to: shortenedTo)
                     .stroke(Color(hex: "00dd77"), style: StrokeStyle(lineWidth: 8 * borderScale, lineCap: .round))
-            }
-        }
-        .onAppear {
-            if isPulsing {
-                // INWARD flow: positive dashPhase
-                withAnimation(.linear(duration: 0.8).repeatForever(autoreverses: false)) {
-                    flowPhase1 = 36  // Positive = inward
-                }
-                withAnimation(.linear(duration: 1.2).repeatForever(autoreverses: false)) {
-                    flowPhase2 = 36  // Positive = inward
-                }
-                withAnimation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true)) {
-                    glowOpacity = 0.8
-                }
             }
         }
     }
@@ -1219,10 +1236,12 @@ struct StoryGameScreenView: View {
     let alien: ChapterAlien
     let onExitToChapterSelect: (() -> Void)?
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var showIntro = true
     @State private var introScale: CGFloat = 0.5
     @State private var introOpacity: Double = 0
+    @State private var introTask: Task<Void, Never>?
 
     var body: some View {
         ZStack {
@@ -1238,7 +1257,8 @@ struct StoryGameScreenView: View {
                 onExitToChapterSelect: {
                     // First dismiss this view, then call parent's callback
                     dismiss()
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    Task { @MainActor in
+                        await Task.yield()
                         onExitToChapterSelect?()
                     }
                 }
@@ -1256,17 +1276,22 @@ struct StoryGameScreenView: View {
         }
         .onAppear {
             // Animate intro in
-            withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) {
+            withAnimation(reduceMotion ? nil : .spring(response: 0.5, dampingFraction: 0.7)) {
                 introScale = 1.0
                 introOpacity = 1.0
             }
 
             // Auto-dismiss after delay
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
-                if showIntro {
-                    dismissIntro()
-                }
+            introTask?.cancel()
+            introTask = Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 2_500_000_000)
+                guard !Task.isCancelled, showIntro else { return }
+                dismissIntro()
             }
+        }
+        .onDisappear {
+            introTask?.cancel()
+            introTask = nil
         }
     }
 
@@ -1288,7 +1313,7 @@ struct StoryGameScreenView: View {
                 // Speech bubble with intro message (pointing up to alien)
                 SpeechBubble(pointsUp: true) {
                     Text(introMessage)
-                        .font(.system(size: 18, weight: .medium))
+                        .font(AppTypography.bodyLarge.weight(.medium))
                         .foregroundColor(AppTheme.backgroundDark)
                         .multilineTextAlignment(.center)
                 }
@@ -1296,18 +1321,23 @@ struct StoryGameScreenView: View {
 
                 // Level info - use alien name + level number
                 Text("\(alien.name) \(level)")
-                    .font(.system(size: 24, weight: .bold))
+                    .font(AppTypography.titleMedium)
                     .foregroundColor(.white)
 
                 Spacer()
 
                 // Tap to continue hint
                 Text("Tap to start")
-                    .font(.system(size: 14))
+                    .font(AppTypography.bodySmall)
                     .foregroundColor(AppTheme.textSecondary)
                     .padding(.bottom, 40)
             }
         }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(alien.name), level \(level). \(introMessage)")
+        .accessibilityHint("Double tap to start")
+        .accessibilityAddTraits(.isButton)
+        .accessibilityAction { dismissIntro() }
     }
 
     private var introMessage: String {
@@ -1321,12 +1351,21 @@ struct StoryGameScreenView: View {
     }
 
     private func dismissIntro() {
+        introTask?.cancel()
+        introTask = nil
+        guard !reduceMotion else {
+            showIntro = false
+            return
+        }
         withAnimation(.easeOut(duration: 0.3)) {
             introOpacity = 0
             introScale = 1.2
         }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+        introTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 300_000_000)
+            guard !Task.isCancelled else { return }
             showIntro = false
+            introTask = nil
         }
     }
 }
@@ -1335,6 +1374,8 @@ struct StoryGameScreenView: View {
 
 /// Boxing/Top Trumps style character card for the chapter alien
 struct AlienTopTrumpsCard: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     let alien: ChapterAlien
     let chapter: Int
 
@@ -1381,7 +1422,7 @@ struct AlienTopTrumpsCard: View {
             VStack(alignment: .leading, spacing: 4) {
                 // Chapter badge
                 Text("CHAPTER \(chapter)")
-                    .font(.system(size: 9, weight: .bold))
+                    .font(.scaledSystem(size: 9, weight: .bold))
                     .foregroundColor(accentColor)
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)
@@ -1390,7 +1431,7 @@ struct AlienTopTrumpsCard: View {
 
                 // Alien name
                 Text(alien.name.uppercased())
-                    .font(.system(size: 24, weight: .black, design: .rounded))
+                    .font(.scaledSystem(size: 24, weight: .black, design: .rounded))
                     .foregroundColor(.white)
                     .shadow(color: accentColor.opacity(0.8), radius: 6)
                     .shadow(color: accentColor.opacity(0.5), radius: 3)
@@ -1399,7 +1440,7 @@ struct AlienTopTrumpsCard: View {
                 HStack(spacing: 4) {
                     ForEach(alien.words, id: \.self) { word in
                         Text(word)
-                            .font(.system(size: 10, weight: .semibold))
+                            .font(.scaledSystem(size: 10, weight: .semibold))
                             .foregroundColor(.white)
                             .padding(.horizontal, 6)
                             .padding(.vertical, 3)
@@ -1423,10 +1464,24 @@ struct AlienTopTrumpsCard: View {
         )
         .shadow(color: accentColor.opacity(0.3), radius: 12)
         .onAppear {
-            withAnimation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true)) {
-                glowPhase = 0.8
+            glowPhase = 0.65
+        }
+        .onChange(of: reduceMotion) { newValue in
+            if newValue {
+                resetGlow()
+            } else {
+                glowPhase = 0.65
             }
         }
+        .onDisappear(perform: resetGlow)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Chapter \(chapter), \(alien.name). \(alien.words.joined(separator: ", "))")
+    }
+
+    private func resetGlow() {
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+        withTransaction(transaction) { glowPhase = 0.5 }
     }
 }
 

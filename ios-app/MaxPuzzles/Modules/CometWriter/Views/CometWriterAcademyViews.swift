@@ -212,6 +212,7 @@ struct CometFlightSchoolView: View {
     @State private var latestReward: CometReward?
     @State private var sessionRewards: [CometReward] = []
     @State private var correctionShake: CGFloat = 0
+    @State private var showsExitConfirmation = false
 
     var body: some View {
         ZStack {
@@ -239,6 +240,12 @@ struct CometFlightSchoolView: View {
         .onChange(of: viewModel.isShapeComplete) { completed in
             if completed { awardShape() }
         }
+        .alert("Leave Flight School?", isPresented: $showsExitConfirmation) {
+            Button("Keep practising", role: .cancel) {}
+            Button("Leave session", role: .destructive) { dismiss() }
+        } message: {
+            Text("Completed routes are saved, but this unfinished route will reset.")
+        }
         .accessibilityIdentifier("comet-flight-school")
     }
 
@@ -246,7 +253,7 @@ struct CometFlightSchoolView: View {
         HStack(spacing: 12) {
             PremiumIconButton(
                 icon: "chevron.left",
-                action: { dismiss() },
+                action: requestExit,
                 size: 48,
                 accessibilityLabelText: "Back to Comet Writer"
             )
@@ -271,7 +278,7 @@ struct CometFlightSchoolView: View {
     private var prompt: some View {
         HStack(spacing: 14) {
             Text(viewModel.shape.symbol)
-                .font(.system(size: 42, weight: .bold, design: .rounded))
+                    .font(.system(.largeTitle, design: .rounded, weight: .bold))
                 .foregroundColor(AppTheme.cometCyan)
                 .frame(width: 58)
             VStack(alignment: .leading, spacing: 3) {
@@ -400,7 +407,7 @@ struct CometFlightSchoolView: View {
             .overlay {
                 VStack(spacing: AppSpacing.md) {
                     Text("🚀")
-                        .font(.system(size: 54))
+                .font(.system(.largeTitle))
                         .accessibilityHidden(true)
                     Text("Flight School complete")
                         .font(AppTypography.titleMedium)
@@ -457,6 +464,15 @@ struct CometFlightSchoolView: View {
         }
         FeedbackManager.shared.haptic(.soft)
         SoundEffectsService.shared.play(.wrongMove)
+    }
+
+    private func requestExit() {
+        guard !viewModel.isSessionComplete else {
+            dismiss()
+            return
+        }
+        viewModel.cancel()
+        showsExitConfirmation = true
     }
 
     private func drawPad(context: inout GraphicsContext, size: CGSize) {
@@ -519,6 +535,7 @@ struct CometPaperTransferView: View {
     @State private var rewards: [CometReward] = []
     @State private var isComplete = false
     @State private var requiredAudioToken: UUID?
+    @State private var showsExitConfirmation = false
 
     init() {
         let recommended = CometLearningStore.shared.recommendedCharacters(
@@ -566,12 +583,18 @@ struct CometPaperTransferView: View {
                 self.requiredAudioToken = nil
             }
         }
+        .alert("Leave Paper Mission?", isPresented: $showsExitConfirmation) {
+            Button("Keep practising", role: .cancel) {}
+            Button("Leave session", role: .destructive) { dismiss() }
+        } message: {
+            Text("Completed self-checks are saved, but this unfinished paper step will reset.")
+        }
         .accessibilityIdentifier("comet-paper-transfer")
     }
 
     private var header: some View {
         HStack(spacing: 12) {
-            PremiumIconButton(icon: "chevron.left", action: { dismiss() }, size: 48, accessibilityLabelText: "Back to Comet Writer")
+            PremiumIconButton(icon: "chevron.left", action: requestExit, size: 48, accessibilityLabelText: "Back to Comet Writer")
             VStack(alignment: .leading, spacing: 2) {
                 Text("Paper Mission")
                     .font(AppTypography.titleSmall)
@@ -750,6 +773,14 @@ struct CometPaperTransferView: View {
             LetterSpeechService.shared.speak(glyph)
         }
     }
+
+    private func requestExit() {
+        guard !isComplete else {
+            dismiss()
+            return
+        }
+        showsExitConfirmation = true
+    }
 }
 
 private struct PaperGlyphPreview: View {
@@ -895,7 +926,7 @@ struct CometConstellationView: View {
                                 .foregroundColor(starColor(mastery))
                         }
                         Text(glyph.character)
-                            .font(.system(size: 16, weight: .heavy, design: .rounded))
+                            .font(.system(.headline, design: .rounded, weight: .heavy))
                             .foregroundColor(mastery >= .secure ? AppTheme.backgroundDark : AppTheme.textPrimary)
                     }
                 }
@@ -912,7 +943,7 @@ struct CometConstellationView: View {
         let mastery = store.mastery(for: glyph.character)
         return HStack(spacing: 16) {
             Text(glyph.character)
-                .font(.system(size: 52, weight: .heavy, design: .rounded))
+                        .font(.system(.largeTitle, design: .rounded, weight: .heavy))
                 .foregroundColor(starColor(mastery))
                 .frame(width: 70)
             VStack(alignment: .leading, spacing: 4) {
@@ -987,6 +1018,8 @@ struct CometDailyMissionView: View {
     @AppStorage("maxpuzzles.cometWriter.dailyBonusKeys") private var dailyBonusKeys = ""
 
     @State private var destination: Stage?
+    @State private var showsExitConfirmation = false
+    @State private var hasStarted = false
 
     private enum Stage: Int, CaseIterable, Hashable {
         case warmup
@@ -1009,7 +1042,7 @@ struct CometDailyMissionView: View {
             switch self {
             case .warmup: return "Flight School route"
             case .guided: return "Three levels of help"
-            case .sound: return "Three sound clues"
+            case .sound: return "Three letter clues"
             case .word: return "Two words on one line"
             case .paper: return "Real-pencil transfer"
             }
@@ -1054,16 +1087,25 @@ struct CometDailyMissionView: View {
         ) {
             if let destination { destinationView(destination) }
         }
-        .onAppear { awardDailyBonusIfNeeded() }
+        .onAppear {
+            hasStarted = !completedStages.isEmpty
+            awardDailyBonusIfNeeded()
+        }
         .onChange(of: isComplete) { completed in
             if completed { awardDailyBonusIfNeeded() }
+        }
+        .alert("Leave today’s mission?", isPresented: $showsExitConfirmation) {
+            Button("Keep going", role: .cancel) {}
+            Button("Leave mission", role: .destructive) { dismiss() }
+        } message: {
+            Text("Completed stages are saved, so you can continue later.")
         }
         .accessibilityIdentifier("comet-daily-mission")
     }
 
     private var header: some View {
         HStack(spacing: AppSpacing.md) {
-            PremiumIconButton(icon: "chevron.left", action: { dismiss() }, size: 48, accessibilityLabelText: "Back to Comet Writer")
+            PremiumIconButton(icon: "chevron.left", action: requestExit, size: 48, accessibilityLabelText: "Back to Comet Writer")
             VStack(alignment: .leading, spacing: 2) {
                 Text("Today’s Comet Mission")
                     .font(AppTypography.titleMedium)
@@ -1112,7 +1154,10 @@ struct CometDailyMissionView: View {
         let completed = stageIsComplete(stage)
         let available = stage == nextStage || completed || isComplete
         return Button {
-            if available { destination = stage }
+            if available {
+                hasStarted = true
+                destination = stage
+            }
         } label: {
             HStack(spacing: 14) {
                 ZStack {
@@ -1165,6 +1210,14 @@ struct CometDailyMissionView: View {
         }
         .padding(AppSpacing.md)
         .cometChildPanel()
+    }
+
+    private func requestExit() {
+        guard hasStarted, !isComplete else {
+            dismiss()
+            return
+        }
+        showsExitConfirmation = true
     }
 
     @ViewBuilder
@@ -1358,9 +1411,9 @@ struct CometQuickPracticeView: View {
                     Button { launch(glyph) } label: {
                         VStack(spacing: 2) {
                             Text(glyph.character)
-                                .font(.system(size: 28, weight: .heavy, design: .rounded))
+                            .font(.system(.title2, design: .rounded, weight: .heavy))
                             Text(store.mastery(for: glyph.character).title)
-                                .font(.system(size: 9, weight: .semibold, design: .rounded))
+                            .font(.system(.caption2, design: .rounded, weight: .semibold))
                         }
                         .foregroundColor(AppTheme.textPrimary)
                         .frame(maxWidth: .infinity, minHeight: 66)
@@ -1380,10 +1433,10 @@ struct CometQuickPracticeView: View {
         return Button { launch(glyph) } label: {
             VStack(spacing: 1) {
                 Text(glyph.character)
-                    .font(.system(size: 22, weight: .heavy, design: .rounded))
+                        .font(.system(.title3, design: .rounded, weight: .heavy))
                 if let score = store.bestScore(for: glyph.character) {
                     Text("\(score)")
-                        .font(.system(size: 9, weight: .bold, design: .rounded))
+                            .font(.system(.caption2, design: .rounded, weight: .bold))
                 }
             }
             .foregroundColor(mastery == .mastered ? AppTheme.backgroundDark : AppTheme.textPrimary)

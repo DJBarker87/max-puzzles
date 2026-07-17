@@ -40,20 +40,16 @@ final class MaxPuzzlesTests: XCTestCase {
         XCTAssertNotNil(shortHex, "Color should be created from 3-char hex")
     }
 
-    func testDotToDotCatalogContainsClassicAndDownloadedReferencePacks() throws {
+    func testDotToDotCatalogContainsOnlyTheAuditedDownloadedPack() throws {
         let puzzles = DotPuzzleCatalog.all
-        XCTAssertEqual(DotPuzzleCatalog.classicPuzzles.count, 100)
         XCTAssertEqual(DotPuzzleCatalog.downloadedReferencePuzzles.count, 84)
-        XCTAssertEqual(puzzles.count, 184)
-        XCTAssertEqual(Set(puzzles.map(\.id)).count, 184, "Every picture needs a durable unique ID")
+        XCTAssertEqual(puzzles.count, 84)
+        XCTAssertEqual(Set(puzzles.map(\.id)).count, 84, "Every picture needs a durable unique ID")
+        XCTAssertEqual(puzzles.map(\.id), DotPuzzleCatalog.downloadedReferencePuzzles.map(\.id))
+        XCTAssertEqual(Set(DotPuzzleCatalog.availableTiers), Set(DotToDotTier.allCases))
 
         let referenceSheets = Set(DotPuzzleCatalog.downloadedReferencePuzzles.compactMap(\.sourceSheet))
         XCTAssertEqual(referenceSheets, ["D1/D2", "D3", "D4", "D5", "D6", "D7"])
-        XCTAssertEqual(
-            Array(puzzles.prefix(DotPuzzleCatalog.downloadedReferencePuzzles.count)).map(\.id),
-            DotPuzzleCatalog.downloadedReferencePuzzles.map(\.id),
-            "The newly requested pictures should be discoverable before the classic catalogue"
-        )
 
         for puzzle in puzzles {
             XCTAssertFalse(puzzle.title.isEmpty, puzzle.id)
@@ -93,19 +89,10 @@ final class MaxPuzzlesTests: XCTestCase {
         XCTAssertEqual(Set(artTiles).count, 84, "Every downloaded picture must use its own atlas tile")
     }
 
-    func testEveryDotPictureHasAChildFriendlyPaintByNumberPlan() {
-        for puzzle in DotPuzzleCatalog.all {
-            let count = DotPaintingPlan.regionCount(for: puzzle)
-            let swatches = DotPaintingPlan.swatches(for: puzzle)
-            XCTAssertTrue((3...5).contains(count), puzzle.id)
-            XCTAssertEqual(swatches.map(\.id), Array(1...count), puzzle.id)
-            XCTAssertEqual(Set(swatches.map(\.id)).count, count, puzzle.id)
-
-            for region in 1...count {
-                let anchor = DotPaintingPlan.labelPoint(for: region, puzzle: puzzle)
-                XCTAssertEqual(DotPaintingPlan.region(at: anchor, for: puzzle), region, puzzle.id)
-            }
-        }
+    func testDotCatalogueIgnoresRemovedLegacyProgress() throws {
+        let currentID = try XCTUnwrap(DotPuzzleCatalog.all.first?.id)
+        let sanitized = DotPuzzleCatalog.sanitizedCompletedIDs([currentID, "rocket", "unicorn"])
+        XCTAssertEqual(sanitized, [currentID])
     }
 
     func testEveryDownloadedPictureHasAnAuthoredSemanticColourPlan() throws {
@@ -244,6 +231,8 @@ final class MaxPuzzlesTests: XCTestCase {
         let defaults = UserDefaults(suiteName: suiteName)!
         defer { defaults.removePersistentDomain(forName: suiteName) }
         let storage = StorageService(defaults: defaults)
+        let profile = UUID()
+        storage.activateProfile(profile)
 
         let firstThree = Array(plan.swatches.prefix(3).map(\.id))
         for id in firstThree {
@@ -286,16 +275,28 @@ final class MaxPuzzlesTests: XCTestCase {
         XCTAssertFalse(progress.recordTap(in: 99), "Unknown regions cannot award progress")
         XCTAssertEqual(progress.completedCount, 1)
 
-        XCTAssertTrue(progress.recordStroke(in: 2))
-        XCTAssertFalse(progress.recordStroke(in: 2), "Many drag samples in one region count once")
         XCTAssertFalse(
-            progress.recordStroke(in: 1),
+            progress.recordStroke(
+                in: 2,
+                coverage: DotColourCoverageEvaluator.completionThreshold - 0.001
+            ),
+            "A tiny stroke must not complete an entire semantic region"
+        )
+        XCTAssertTrue(
+            progress.recordStroke(in: 2, coverage: DotColourCoverageEvaluator.completionThreshold)
+        )
+        XCTAssertFalse(
+            progress.recordStroke(in: 2, coverage: 1),
+            "Many drag samples in one region count once"
+        )
+        XCTAssertFalse(
+            progress.recordStroke(in: 1, coverage: 1),
             "Shading a region already tap-filled cannot award another mark"
         )
         XCTAssertEqual(progress.completedRegionIDs, [1, 2])
         XCTAssertFalse(progress.isComplete)
 
-        XCTAssertTrue(progress.recordStroke(in: 3))
+        XCTAssertTrue(progress.recordStroke(in: 3, coverage: 1))
         XCTAssertTrue(progress.recordTap(in: 4))
         XCTAssertEqual(progress.completedCount, progress.requiredCount)
         XCTAssertTrue(progress.isComplete, "Tap fills and genuine pencil strokes should combine")
@@ -361,16 +362,76 @@ final class MaxPuzzlesTests: XCTestCase {
         XCTAssertFalse(
             DotColouringInteractionPolicy.isMeaningfulStroke(
                 inMaskSampleCount: 3,
-                cumulativeInMaskDistance: 0.019
+                cumulativeInMaskDistance: 0.011
             ),
-            "Tiny accidental movement must not complete a colour"
+            "Tiny accidental movement must not be stored as shading"
         )
         XCTAssertTrue(
             DotColouringInteractionPolicy.isMeaningfulStroke(
                 inMaskSampleCount: 3,
-                cumulativeInMaskDistance: 0.02
+                cumulativeInMaskDistance: 0.012
             )
         )
+    }
+
+    func testPencilCoverageAndPersistenceAreBounded() throws {
+        let plan = try XCTUnwrap(DownloadedDotPuzzleColourArtwork.plan(sheet: "D1/D2", slot: 1))
+        let swatch = try XCTUnwrap(plan.swatches.first)
+        let atlas = try XCTUnwrap(UIImage(named: swatch.maskArt.assetName)?.cgImage)
+        let cropped = try XCTUnwrap(DotSemanticMaskHitTester.croppedImage(for: swatch.maskArt)?.cgImage)
+        XCTAssertEqual(cropped.width, atlas.width / swatch.maskArt.columns)
+        XCTAssertEqual(cropped.height, atlas.height / swatch.maskArt.rows)
+        XCTAssertLessThan(cropped.width, atlas.width, "Runtime should retain a tile, not the full atlas")
+        XCTAssertLessThanOrEqual(DotSemanticMaskHitTester.maximumCacheCostBytes, 24 * 1_024 * 1_024)
+        XCTAssertTrue(DotSemanticMaskHitTester.hasCachedImage(for: swatch.maskArt))
+        DotSemanticMaskHitTester.release(plan, referenceArt: nil)
+        XCTAssertFalse(DotSemanticMaskHitTester.hasCachedImage(for: swatch.maskArt))
+
+        let anchor = try XCTUnwrap(swatch.labelPoints.first)
+        let tinyStroke = DotColourStroke(
+            regionID: swatch.id,
+            swatchID: swatch.id,
+            points: [anchor, CGPoint(x: anchor.x + 0.015, y: anchor.y)]
+        )
+        XCTAssertLessThan(
+            DotColourCoverageEvaluator.coverage(of: [tinyStroke], in: swatch.maskArt),
+            DotColourCoverageEvaluator.completionThreshold,
+            "One small mark must not fill the whole colour group"
+        )
+
+        var sampled = DotColourStroke(regionID: 1, swatchID: 1, points: [.zero])
+        for index in 1...2_000 {
+            let point = CGPoint(
+                x: CGFloat(index % 101) / 100,
+                y: CGFloat((index * 7) % 101) / 100
+            )
+            _ = DotColourStrokeSampler.append(point, to: &sampled)
+        }
+        XCTAssertLessThanOrEqual(sampled.points.count, DotColourStrokeSampler.maximumPointsPerStroke)
+
+        let suiteName = "MaxPuzzlesTests.dotColourSnapshot.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let store = DotColouringSnapshotStore(defaults: defaults)
+        let profile = UUID()
+        let snapshot = DotColouringSnapshot(tapFilledRegionIDs: [2], strokes: [tinyStroke, sampled])
+        store.save(snapshot, puzzleID: "picture", profileID: profile)
+        XCTAssertEqual(store.load(puzzleID: "picture", profileID: profile), snapshot)
+        XCTAssertEqual(store.load(puzzleID: "picture", profileID: UUID()), .empty)
+
+        let backgroundSnapshot = DotColouringSnapshot(
+            tapFilledRegionIDs: [2, 3],
+            strokes: [tinyStroke]
+        )
+        store.saveInBackground(backgroundSnapshot, puzzleID: "picture", profileID: profile)
+        XCTAssertEqual(
+            store.load(puzzleID: "picture", profileID: profile),
+            backgroundSnapshot,
+            "A read must wait for any earlier background snapshot write"
+        )
+
+        store.reset(puzzleID: "picture", profileID: profile)
+        XCTAssertEqual(store.load(puzzleID: "picture", profileID: profile), .empty)
     }
 
     func testSubitizingBonusUsesDistinctChoicesAndStandardOneToFivePatterns() {
@@ -381,6 +442,156 @@ final class MaxPuzzlesTests: XCTestCase {
             XCTAssertTrue(choices.contains(quantity))
             XCTAssertEqual(SubitizingChallenge.pattern(for: quantity).count, quantity)
         }
+    }
+
+    func testDotToDotProgressAndPlayStyleStaySeparatePerProfile() {
+        let suiteName = "MaxPuzzlesTests.dotProfiles.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let storage = StorageService(defaults: defaults)
+        let mia = UUID()
+        let leo = UUID()
+        let miaPuzzle = DotPuzzleCatalog.all[0]
+        let leoPuzzle = DotPuzzleCatalog.all[1]
+
+        storage.activateProfile(mia)
+        XCTAssertTrue(storage.markDotToDotPuzzleCompleted(miaPuzzle.id))
+        XCTAssertFalse(storage.markDotToDotPuzzleCompleted(miaPuzzle.id), "A replay is not a new milestone")
+        storage.setDotToDotInteractionMode(.trace)
+        storage.colorDotToDotRegion(1, for: miaPuzzle.id)
+        storage.colorDotToDotRegion(2, for: miaPuzzle.id)
+
+        storage.activateProfile(leo)
+        XCTAssertTrue(storage.dotToDotCompletedPuzzles.isEmpty)
+        XCTAssertEqual(storage.dotToDotInteractionMode, .tap)
+        XCTAssertTrue(storage.coloredDotToDotRegions(for: miaPuzzle.id).isEmpty)
+        XCTAssertTrue(storage.markDotToDotPuzzleCompleted(leoPuzzle.id))
+        storage.colorDotToDotRegion(1, for: leoPuzzle.id)
+
+        storage.activateProfile(mia)
+        XCTAssertEqual(storage.dotToDotCompletedPuzzles, [miaPuzzle.id])
+        XCTAssertEqual(storage.dotToDotInteractionMode, .trace)
+        XCTAssertEqual(storage.coloredDotToDotRegions(for: miaPuzzle.id), [1, 2])
+        XCTAssertTrue(storage.coloredDotToDotRegions(for: leoPuzzle.id).isEmpty)
+    }
+
+    func testCloudMergeKeepsTheStrongestProgressFromBothDevices() {
+        let profileID = UUID()
+        let older = CometChildProfile(
+            id: profileID,
+            name: "Mia",
+            writingHand: .right,
+            createdAt: Date(timeIntervalSince1970: 100)
+        )
+        var renamed = older
+        renamed.name = "Mia Rose"
+
+        var localProgress = CloudProfileProgress()
+        localProgress.dotToDotCompletedPuzzles = ["rocket", "star"]
+        localProgress.dotToDotColoredRegions = ["rocket": [1, 2]]
+        localProgress.cometWriterCompletedLetters = ["a"]
+        localProgress.cometWriterBestScores = ["a": 82]
+        localProgress.storyLevels["1-1"] = CloudLevelProgress(
+            completed: true, stars: 2, bestTimeSeconds: 42, attempts: 3
+        )
+
+        var remoteProgress = CloudProfileProgress()
+        remoteProgress.dotToDotCompletedPuzzles = ["star", "fish"]
+        remoteProgress.dotToDotColoredRegions = ["rocket": [2, 3], "fish": [1]]
+        remoteProgress.cometWriterCompletedLetters = ["b"]
+        remoteProgress.cometWriterBestScores = ["a": 94, "b": 76]
+        remoteProgress.storyLevels["1-1"] = CloudLevelProgress(
+            completed: true, stars: 3, bestTimeSeconds: 38, attempts: 2
+        )
+
+        let local = CloudProgressEnvelope(
+            profiles: [older],
+            profileModifiedAt: [profileID.uuidString: Date(timeIntervalSince1970: 200)],
+            deletedProfileAt: [:],
+            progressByProfile: [profileID.uuidString: localProgress]
+        )
+        let remote = CloudProgressEnvelope(
+            profiles: [renamed],
+            profileModifiedAt: [profileID.uuidString: Date(timeIntervalSince1970: 300)],
+            deletedProfileAt: [:],
+            progressByProfile: [profileID.uuidString: remoteProgress]
+        )
+
+        let merged = CloudProgressMerger.merge(local: local, remote: remote)
+        XCTAssertEqual(merged.profiles.first?.name, "Mia Rose")
+        let progress = try! XCTUnwrap(merged.progressByProfile[profileID.uuidString])
+        XCTAssertEqual(Set(progress.dotToDotCompletedPuzzles), ["rocket", "star", "fish"])
+        XCTAssertEqual(progress.dotToDotColoredRegions?["rocket"], [1, 2, 3])
+        XCTAssertEqual(progress.dotToDotColoredRegions?["fish"], [1])
+        XCTAssertEqual(Set(progress.cometWriterCompletedLetters), ["a", "b"])
+        XCTAssertEqual(progress.cometWriterBestScores["a"], 94)
+        XCTAssertEqual(progress.storyLevels["1-1"]?.stars, 3)
+        XCTAssertEqual(progress.storyLevels["1-1"]?.bestTimeSeconds, 38)
+        XCTAssertEqual(progress.storyLevels["1-1"]?.attempts, 3)
+    }
+
+    func testCloudProfileDeletionWinsOnlyWhenItIsNewerThanTheProfile() {
+        let profile = CometChildProfile(
+            id: UUID(),
+            name: "Leo",
+            createdAt: Date(timeIntervalSince1970: 100)
+        )
+        let id = profile.id.uuidString
+        let local = CloudProgressEnvelope(
+            profiles: [profile],
+            profileModifiedAt: [id: Date(timeIntervalSince1970: 200)],
+            deletedProfileAt: [:],
+            progressByProfile: [id: CloudProfileProgress()]
+        )
+        let remote = CloudProgressEnvelope(
+            profiles: [],
+            profileModifiedAt: [:],
+            deletedProfileAt: [id: Date(timeIntervalSince1970: 300)],
+            progressByProfile: [:]
+        )
+
+        // The merger's last-profile guard keeps one usable child even under a concurrent delete.
+        let merged = CloudProgressMerger.merge(local: local, remote: remote)
+        XCTAssertEqual(merged.profiles.count, 1)
+        XCTAssertNil(merged.deletedProfileAt[id])
+    }
+
+    func testNewerCloudResetCannotBeUndoneByStaleDeviceProgress() {
+        let oldProfile = CometChildProfile(
+            id: UUID(),
+            name: "Old progress",
+            createdAt: Date(timeIntervalSince1970: 100)
+        )
+        let freshProfile = CometChildProfile(
+            id: UUID(),
+            name: "Fresh start",
+            createdAt: Date(timeIntervalSince1970: 400)
+        )
+        var oldProgress = CloudProfileProgress()
+        oldProgress.dotToDotCompletedPuzzles = ["rocket"]
+        let stale = CloudProgressEnvelope(
+            resetAt: nil,
+            profiles: [oldProfile],
+            profileModifiedAt: [oldProfile.id.uuidString: Date(timeIntervalSince1970: 300)],
+            deletedProfileAt: [:],
+            progressByProfile: [oldProfile.id.uuidString: oldProgress]
+        )
+        let reset = CloudProgressEnvelope(
+            resetAt: Date(timeIntervalSince1970: 500),
+            profiles: [freshProfile],
+            profileModifiedAt: [freshProfile.id.uuidString: Date(timeIntervalSince1970: 500)],
+            deletedProfileAt: [:],
+            progressByProfile: [freshProfile.id.uuidString: CloudProfileProgress()]
+        )
+
+        let resetWinsAsRemote = CloudProgressMerger.merge(local: stale, remote: reset)
+        let resetWinsAsLocal = CloudProgressMerger.merge(local: reset, remote: stale)
+        XCTAssertEqual(resetWinsAsRemote.profiles.map(\.id), [freshProfile.id])
+        XCTAssertEqual(resetWinsAsLocal.profiles.map(\.id), [freshProfile.id])
+        XCTAssertTrue(
+            resetWinsAsRemote.progressByProfile[freshProfile.id.uuidString]?
+                .dotToDotCompletedPuzzles.isEmpty == true
+        )
     }
 
     private func semanticSwatch(

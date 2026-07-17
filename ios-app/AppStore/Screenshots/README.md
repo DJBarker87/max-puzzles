@@ -5,7 +5,14 @@
 - `Upload-Ready/iPhone-6.9`: 8 opaque JPEGs, 1320×2868 pixels.
 - `Upload-Ready/iPad-13`: 8 opaque JPEGs, 2048×2732 pixels.
 
-Both sizes are accepted by App Store Connect as of 14 July 2026. Upload one to ten images per device family. The recommended order is recorded in `../../APP_STORE_LISTING.md`.
+Both sizes are accepted by App Store Connect as of 14 July 2026. Upload one to ten images per device family. The recommended order is recorded in `../APP_STORE_LISTING.md`.
+
+## Version 1.4 prepared sets
+
+- `Prepared-1.4/iPhone-6.9`: 8 opaque JPEGs, 1320×2868 pixels.
+- `Prepared-1.4/iPad-13`: 8 opaque JPEGs, 2048×2732 pixels.
+
+These were recaptured from version 1.4 build 6 on 17 July 2026. They lead with the real Dot-to-Dot numeral trail and the menu showing both Tap dots and Trace lines. The matching PNG capture masters are in `Prepared-1.4-Raw` and are not for upload.
 
 ## Capture provenance
 
@@ -20,6 +27,6 @@ Both sizes are accepted by App Store Connect as of 14 July 2026. Upload one to t
 - `iPhone-6.9`: raw Simulator PNGs. They contain alpha and are retained only as capture masters.
 - `iPad-13-fullscreen`: raw full-screen iPad PNGs. They contain alpha and are retained only as capture masters.
 - `iPad-13`: iPadOS 26 resizable-window audit captures. They include the Home Screen and Dock and must not be submitted.
+- `Prepared-1.4-Raw`: version 1.4 PNG capture masters. They retain alpha and must not be submitted.
 
 Apple does not accept screenshot files with alpha channels. Use only the JPEGs under `Upload-Ready`.
-

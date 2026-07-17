@@ -2,6 +2,7 @@ import SwiftUI
 
 struct CometWriterMenuView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @ObservedObject private var storage = StorageService.shared
     @ObservedObject private var learningStore = CometLearningStore.shared
     @AppStorage("maxpuzzles.cometWriter.cometPoints") private var cometPoints = 0
@@ -9,6 +10,7 @@ struct CometWriterMenuView: View {
     @State private var destination: Destination?
     @State private var showsRecallPicker = false
     @State private var selectedRecallLetters = LetterRecallCatalog.allLetters
+    @State private var showsMorePractice = false
 
     private enum Destination: Hashable {
         case lesson(LetterGlyph)
@@ -31,11 +33,9 @@ struct CometWriterMenuView: View {
                 ScrollView {
                     VStack(spacing: AppSpacing.lg) {
                         header
+                        stylusNote
                         missionHero
-                        launchpad
-                        advancedMissions
-                        moreWaysToLearn
-                        familyGrid
+                        morePracticeDisclosure
                         grownUpTools
                     }
                     .frame(maxWidth: 920)
@@ -143,6 +143,31 @@ struct CometWriterMenuView: View {
         .accessibilityLabel("\(practisedCount) of \(LetterLibrary.all.count) symbols practised, \(displayedPoints) Comet Points")
     }
 
+    private var stylusNote: some View {
+        Label {
+            Text("Comet Writer is best played with a capacitive stylus.")
+                .font(AppTypography.bodySmall)
+                .foregroundColor(AppTheme.textPrimary)
+                .fixedSize(horizontal: false, vertical: true)
+        } icon: {
+            Image(systemName: "pencil.tip.crop.circle.fill")
+                .font(.system(size: 24, weight: .semibold))
+                .foregroundColor(AppTheme.cometCyan)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, AppSpacing.md)
+        .frame(minHeight: 56)
+        .background(
+            RoundedRectangle(cornerRadius: 18)
+                .fill(AppTheme.cometPurple.opacity(0.16))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 18)
+                .stroke(AppTheme.cometCyan.opacity(0.38), lineWidth: 1)
+        )
+        .accessibilityIdentifier("comet-writer-stylus-note")
+    }
+
     private var missionHero: some View {
         HStack(spacing: AppSpacing.md) {
             Image("alien_nova")
@@ -152,7 +177,7 @@ struct CometWriterMenuView: View {
                 .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: AppSpacing.sm) {
-                Text(storage.cometWriterCompletedLetters.isEmpty ? "Ready for launch?" : "Continue your mission")
+                Text(practisedCount == 0 ? "Ready for launch?" : "Continue your mission")
                     .font(AppTypography.titleSmall)
                     .foregroundColor(AppTheme.textPrimary)
 
@@ -172,7 +197,7 @@ struct CometWriterMenuView: View {
                         }
                         .accessibilityIdentifier("comet-writer-continue")
 
-                        SecondaryButton("Quick pick", icon: "hand.tap.fill") {
+                        SecondaryButton("Choose practice", icon: "hand.tap.fill") {
                             destination = .quickPractice
                         }
                         .accessibilityIdentifier("comet-writer-quick-practice")
@@ -186,7 +211,7 @@ struct CometWriterMenuView: View {
                         ) {
                             destination = .lesson(continueGlyph)
                         }
-                        SecondaryButton("Quick pick", icon: "hand.tap.fill") {
+                        SecondaryButton("Choose practice", icon: "hand.tap.fill") {
                             destination = .quickPractice
                         }
                     }
@@ -205,24 +230,58 @@ struct CometWriterMenuView: View {
         )
     }
 
-    private var launchpad: some View {
+    private var morePracticeDisclosure: some View {
         VStack(alignment: .leading, spacing: AppSpacing.md) {
-            Text("Launchpad")
-                .font(AppTypography.titleSmall)
-                .foregroundColor(AppTheme.textPrimary)
+            Button {
+                if reduceMotion {
+                    showsMorePractice.toggle()
+                } else {
+                    withAnimation(.easeInOut(duration: 0.20)) {
+                        showsMorePractice.toggle()
+                    }
+                }
+            } label: {
+                HStack(spacing: 12) {
+                    Image(systemName: "square.grid.2x2.fill")
+                        .font(.system(size: 23, weight: .bold))
+                        .foregroundColor(AppTheme.cometPurple)
+                        .frame(width: 44, height: 44)
+                        .background(Circle().fill(AppTheme.cometPurple.opacity(0.18)))
 
-            LazyVGrid(
-                columns: [GridItem(.adaptive(minimum: 280), spacing: AppSpacing.md)],
-                spacing: AppSpacing.md
-            ) {
-                featureCard(
-                    title: "Quick Practice",
-                    detail: "Pick any lowercase, capital or number and begin in one tap.",
-                    icon: "hand.tap.fill",
-                    color: AppTheme.cometCyan,
-                    destination: .quickPractice,
-                    identifier: "comet-writer-quick-practice-card"
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("More Practice")
+                            .font(AppTypography.titleSmall)
+                            .foregroundColor(AppTheme.textPrimary)
+                        Text("Sounds, words, pencil control and every letter family")
+                            .font(AppTypography.bodySmall)
+                            .foregroundColor(AppTheme.textSecondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+
+                    Spacer(minLength: 0)
+                    Image(systemName: showsMorePractice ? "chevron.up" : "chevron.down")
+                        .font(.system(size: 18, weight: .bold))
+                        .foregroundColor(AppTheme.cometCyan)
+                        .accessibilityHidden(true)
+                }
+                .padding(AppSpacing.md)
+                .frame(maxWidth: .infinity, minHeight: 72, alignment: .leading)
+                .background(
+                    RoundedRectangle(cornerRadius: 20)
+                        .fill(AppTheme.backgroundMid.opacity(0.88))
                 )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 20)
+                        .stroke(AppTheme.cometPurple.opacity(0.34), lineWidth: 1)
+                )
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("More Practice")
+            .accessibilityValue(showsMorePractice ? "Expanded" : "Collapsed")
+            .accessibilityHint(showsMorePractice ? "Hides additional practice" : "Shows additional practice")
+            .accessibilityIdentifier("comet-writer-more-practice")
+
+            if showsMorePractice {
                 featureCard(
                     title: "Today’s Comet Mission",
                     detail: "A balanced warm-up, formation, sound, word and paper journey.",
@@ -231,6 +290,10 @@ struct CometWriterMenuView: View {
                     destination: .dailyMission,
                     identifier: "comet-writer-daily-mission"
                 )
+
+                advancedMissions
+                moreWaysToLearn
+                familyGrid
             }
         }
     }
@@ -272,10 +335,10 @@ struct CometWriterMenuView: View {
                 )
                 advancedMissionCard(
                     mission: .phonics,
-                    title: "Sound Mission",
-                    detail: "Hear a letter sound, remember it, then write it.",
+                    title: "Letter Name Mission",
+                    detail: "Hear a letter name, remember it, then write it.",
                     icon: "waveform.and.mic",
-                    reward: "5 adaptive sounds"
+                    reward: "5 adaptive letters"
                 )
                 advancedMissionCard(
                     mission: .alienMail,
@@ -414,7 +477,7 @@ struct CometWriterMenuView: View {
                 Text("For grown-ups")
                     .font(AppTypography.titleSmall)
                     .foregroundColor(AppTheme.textPrimary)
-                Text("Protected by a grown-up check. All information remains on this device.")
+                Text("Protected by a grown-up check. Compact progress may sync privately with Apple iCloud; detailed attempts and recordings stay local.")
                     .font(AppTypography.bodySmall)
                     .foregroundColor(AppTheme.textSecondary)
             }
@@ -527,10 +590,10 @@ struct CometWriterMenuView: View {
                     } label: {
                         VStack(spacing: 0) {
                             Text(glyph.character)
-                                .font(.system(size: 18, weight: .bold, design: .rounded))
+                    .font(.system(.headline, design: .rounded, weight: .bold))
                             if let bestScore {
                                 Text("\(bestScore)")
-                                    .font(.system(size: 9, weight: .heavy, design: .rounded))
+                        .font(.system(.caption2, design: .rounded, weight: .heavy))
                             }
                         }
                         .foregroundColor(
@@ -752,7 +815,7 @@ private struct LetterRecallPickerView: View {
             FeedbackManager.shared.haptic(.light)
         } label: {
             Text(letter)
-                .font(.system(size: 21, weight: .heavy, design: .rounded))
+                                .font(.system(.title3, design: .rounded, weight: .heavy))
                 .foregroundColor(isSelected ? AppTheme.backgroundDark : AppTheme.textPrimary)
                 .frame(maxWidth: .infinity, minHeight: 48)
                 .background(

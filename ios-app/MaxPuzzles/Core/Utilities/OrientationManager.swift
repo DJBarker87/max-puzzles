@@ -5,17 +5,33 @@ import UIKit
 
 /// Manages device orientation locking for different screens
 /// Game screens lock to landscape, hub/menus allow all orientations
-final class OrientationManager: ObservableObject {
+@MainActor
+final class OrientationManager: NSObject, ObservableObject {
     static let shared = OrientationManager()
 
     /// Current allowed orientations - default to all for menus
     @Published var allowedOrientations: UIInterfaceOrientationMask = .all
+    private var requestedOrientations: UIInterfaceOrientationMask = .all
 
-    private init() {}
+    private override init() {
+        super.init()
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(temporarilyAllowAllOrientations),
+            name: UIApplication.willResignActiveNotification,
+            object: nil
+        )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(restoreRequestedOrientations),
+            name: UIApplication.didBecomeActiveNotification,
+            object: nil
+        )
+    }
 
     /// Lock to landscape only (for game screens)
     func lockLandscape() {
-        allowedOrientations = .landscape
+        apply(.landscape)
 
         // Force rotation to landscape if currently in portrait
         if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
@@ -28,14 +44,11 @@ final class OrientationManager: ObservableObject {
             }
         }
 
-        // Also set the orientation mask
-        setNeedsOrientationUpdate()
     }
 
     /// Lock to portrait only (for hub screens)
     func lockPortrait() {
-        allowedOrientations = .portrait
-        setNeedsOrientationUpdate()
+        apply(.portrait)
 
         // Force rotation to portrait if currently in landscape
         DispatchQueue.main.async { [weak self] in
@@ -50,7 +63,24 @@ final class OrientationManager: ObservableObject {
 
     /// Allow all orientations
     func unlockAll() {
+        apply(.all)
+    }
+
+    private func apply(_ orientations: UIInterfaceOrientationMask) {
+        requestedOrientations = orientations
+        allowedOrientations = orientations
+        setNeedsOrientationUpdate()
+    }
+
+    /// Avoid retaining a forced geometry while the app is backgrounded. If the game is still
+    /// visible when the app becomes active, its requested orientation is restored.
+    @objc private func temporarilyAllowAllOrientations() {
         allowedOrientations = .all
+        setNeedsOrientationUpdate()
+    }
+
+    @objc private func restoreRequestedOrientations() {
+        allowedOrientations = requestedOrientations
         setNeedsOrientationUpdate()
     }
 
@@ -78,12 +108,14 @@ class AppDelegate: NSObject, UIApplicationDelegate {
 // MARK: - View Modifier for Landscape Lock
 
 /// View modifier that locks the screen to landscape orientation
-/// Does NOT restore on disappear - let the next screen set its own orientation
 struct LandscapeLockModifier: ViewModifier {
     func body(content: Content) -> some View {
         content
             .onAppear {
                 OrientationManager.shared.lockLandscape()
+            }
+            .onDisappear {
+                OrientationManager.shared.unlockAll()
             }
     }
 }
@@ -95,11 +127,13 @@ struct PortraitLockModifier: ViewModifier {
             .onAppear {
                 OrientationManager.shared.lockPortrait()
             }
+            .onDisappear {
+                OrientationManager.shared.unlockAll()
+            }
     }
 }
 
 /// View modifier that locks portrait on iPhone only (iPad stays unrestricted)
-/// Does NOT unlock on disappear - let the next screen set its own orientation
 struct PortraitOnPhoneModifier: ViewModifier {
     func body(content: Content) -> some View {
         content
@@ -107,6 +141,11 @@ struct PortraitOnPhoneModifier: ViewModifier {
                 // Only lock portrait on iPhones, let iPads use any orientation
                 if UIDevice.current.userInterfaceIdiom == .phone {
                     OrientationManager.shared.lockPortrait()
+                }
+            }
+            .onDisappear {
+                if UIDevice.current.userInterfaceIdiom == .phone {
+                    OrientationManager.shared.unlockAll()
                 }
             }
     }

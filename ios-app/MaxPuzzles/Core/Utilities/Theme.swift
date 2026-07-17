@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 // MARK: - Color Extension
 
@@ -29,6 +30,39 @@ extension Color {
     }
 }
 
+// MARK: - Dynamic Type System Fonts
+
+extension Font {
+    /// Preserves an explicitly designed system-font size while scaling it with the user's
+    /// preferred content size. Use semantic `AppTypography` styles where possible; this helper
+    /// is for layouts whose hierarchy relies on distinct custom sizes.
+    static func scaledSystem(
+        size: CGFloat,
+        weight: Font.Weight = .regular,
+        design: Font.Design = .default,
+        relativeTo textStyle: UIFont.TextStyle? = nil,
+        maximumScale: CGFloat? = nil
+    ) -> Font {
+        let metricsStyle = textStyle ?? inferredTextStyle(for: size)
+        let scaledSize = UIFontMetrics(forTextStyle: metricsStyle).scaledValue(for: size)
+        let effectiveScale = maximumScale ?? (size >= 17 ? 3.0 : 2.4)
+        let boundedSize = min(scaledSize, size * effectiveScale)
+        return .system(size: boundedSize, weight: weight, design: design)
+    }
+
+    private static func inferredTextStyle(for size: CGFloat) -> UIFont.TextStyle {
+        switch size {
+        case 30...: return .largeTitle
+        case 24...: return .title1
+        case 20...: return .title2
+        case 17...: return .body
+        case 15...: return .callout
+        case 13...: return .subheadline
+        default: return .caption1
+        }
+    }
+}
+
 // MARK: - App Theme
 
 /// Central theme configuration matching the web app exactly
@@ -37,11 +71,12 @@ struct AppTheme {
     static let backgroundDark = Color(hex: "0f0f23")
     static let backgroundMid = Color(hex: "1a1a3e")
     static let accentPrimary = Color(hex: "22c55e")      // Success green
-    static let accentSecondary = Color(hex: "e94560")    // Accent pink/red
+    // These brighter reds keep small text above WCAG AA contrast on backgroundMid.
+    static let accentSecondary = Color(hex: "fb7185")    // Accent pink/red
     static let accentTertiary = Color(hex: "fbbf24")     // Coins gold
     static let textPrimary = Color.white
     static let textSecondary = Color(hex: "a1a1aa")
-    static let error = Color(hex: "ef4444")
+    static let error = Color(hex: "f87171")
 
     // MARK: Comet Writer
     static let cometCyan = Color(hex: "67e8f9")
@@ -183,29 +218,25 @@ enum CellState {
 // MARK: - Typography
 
 struct AppTypography {
-    // Premium rounded titles for playful kid-friendly feel
-    static let titleLarge = Font.system(size: 32, weight: .bold, design: .rounded)
-    static let titleMedium = Font.system(size: 24, weight: .bold, design: .rounded)
-    static let titleSmall = Font.system(size: 20, weight: .semibold, design: .rounded)
+    // Relative text styles preserve the playful typography while following Dynamic Type.
+    static let titleLarge = Font.system(.largeTitle, design: .rounded, weight: .bold)
+    static let titleMedium = Font.system(.title2, design: .rounded, weight: .bold)
+    static let titleSmall = Font.system(.title3, design: .rounded, weight: .semibold)
 
-    // Heavy display font for big impact text
-    static let displayLarge = Font.system(size: 48, weight: .heavy, design: .rounded)
-    static let displayMedium = Font.system(size: 36, weight: .heavy, design: .rounded)
+    static let displayLarge = Font.system(.largeTitle, design: .rounded, weight: .heavy)
+    static let displayMedium = Font.system(.title, design: .rounded, weight: .heavy)
 
-    // Body text with rounded design for consistency
-    static let bodyLarge = Font.system(size: 18, weight: .regular, design: .rounded)
-    static let bodyMedium = Font.system(size: 16, weight: .regular, design: .rounded)
-    static let bodySmall = Font.system(size: 14, weight: .regular, design: .rounded)
-    static let caption = Font.system(size: 12, weight: .regular, design: .rounded)
+    static let bodyLarge = Font.system(.body, design: .rounded)
+    static let bodyMedium = Font.system(.callout, design: .rounded)
+    static let bodySmall = Font.system(.subheadline, design: .rounded)
+    static let caption = Font.system(.caption, design: .rounded)
 
-    // Game-specific fonts
-    static let cellExpression = Font.system(size: 14, weight: .bold, design: .rounded)
-    static let connectorBadge = Font.system(size: 14, weight: .bold, design: .monospaced)
+    static let cellExpression = Font.system(.subheadline, design: .rounded, weight: .bold)
+    static let connectorBadge = Font.system(.subheadline, design: .monospaced, weight: .bold)
 
-    // Button text
-    static let buttonLarge = Font.system(size: 18, weight: .semibold, design: .rounded)
-    static let buttonMedium = Font.system(size: 16, weight: .semibold, design: .rounded)
-    static let buttonSmall = Font.system(size: 14, weight: .semibold, design: .rounded)
+    static let buttonLarge = Font.system(.headline, design: .rounded, weight: .semibold)
+    static let buttonMedium = Font.system(.callout, design: .rounded, weight: .semibold)
+    static let buttonSmall = Font.system(.subheadline, design: .rounded, weight: .semibold)
 }
 
 // MARK: - Spacing

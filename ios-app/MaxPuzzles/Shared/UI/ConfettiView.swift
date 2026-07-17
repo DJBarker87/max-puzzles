@@ -288,6 +288,8 @@ struct Triangle: Shape {
 
 /// Brief screen flash for victory moment
 struct VictoryFlashView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     @State private var opacity: Double = 0
 
     var body: some View {
@@ -296,6 +298,7 @@ struct VictoryFlashView: View {
             .ignoresSafeArea()
             .allowsHitTesting(false)
             .onAppear {
+                guard !reduceMotion else { return }
                 // Quick flash
                 withAnimation(.easeOut(duration: 0.1)) {
                     opacity = 0.6
@@ -304,6 +307,7 @@ struct VictoryFlashView: View {
                     opacity = 0
                 }
             }
+            .onDisappear { opacity = 0 }
     }
 }
 
@@ -311,6 +315,8 @@ struct VictoryFlashView: View {
 
 /// Individual star with pop animation for star reveals
 struct StarPopView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     let filled: Bool
     let delay: TimeInterval
     let size: CGFloat
@@ -318,6 +324,7 @@ struct StarPopView: View {
     @State private var scale: CGFloat = 0
     @State private var rotation: Double = -30
     @State private var glowOpacity: Double = 0
+    @State private var hapticTask: Task<Void, Never>?
 
     var body: some View {
         ZStack {
@@ -339,6 +346,13 @@ struct StarPopView: View {
         .scaleEffect(scale)
         .rotationEffect(.degrees(rotation))
         .onAppear {
+            if reduceMotion {
+                scale = 1
+                rotation = 0
+                glowOpacity = filled ? 0.4 : 0
+                if filled { FeedbackManager.shared.haptic(.starReveal) }
+                return
+            }
             withAnimation(
                 .spring(response: 0.4, dampingFraction: 0.5)
                 .delay(delay)
@@ -356,10 +370,19 @@ struct StarPopView: View {
                 }
 
                 // Haptic only (sounds removed)
-                DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+                hapticTask = Task { @MainActor in
+                    if delay > 0 {
+                        try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+                    }
+                    guard !Task.isCancelled else { return }
                     FeedbackManager.shared.haptic(.starReveal)
+                    hapticTask = nil
                 }
             }
+        }
+        .onDisappear {
+            hapticTask?.cancel()
+            hapticTask = nil
         }
     }
 }

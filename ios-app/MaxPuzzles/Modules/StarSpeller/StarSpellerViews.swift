@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 /// A curriculum-aligned starter pool for England Year 1.
 ///
@@ -34,10 +35,194 @@ enum StarSpellerWordLibrary {
         + englandYearOneCommonExceptionWords
         + englandYearOnePatternWords
 
+    static let starterPhonicsWords = [
+        "off", "well", "miss", "buzz", "back", "bank", "think", "pocket", "rabbit",
+        "catch", "fetch", "have", "give", "cats", "dogs", "catches", "hunting", "hunted",
+        "hunter", "quicker", "quickest", "kit", "happy", "funny"
+    ]
+
+    static let soundPatternWords = englandYearOnePatternWords.filter {
+        !starterPhonicsWords.contains($0)
+    }
+
+    /// Every built-in word has an authored sentence. Besides making the prompt more meaningful,
+    /// this distinguishes sound-alike words such as there/their, no/know and night/knight.
+    static let contextSentences: [String: String] = [
+        "monday": "We go back to school on Monday.",
+        "tuesday": "Swimming club is on Tuesday.",
+        "wednesday": "We visit the library on Wednesday.",
+        "thursday": "Our class plants seeds on Thursday.",
+        "friday": "Friday is the last school day of the week.",
+        "saturday": "We play in the park on Saturday.",
+        "sunday": "Our family has lunch together on Sunday.",
+        "the": "The moon is bright tonight.",
+        "a": "I saw a red kite.",
+        "do": "Please do your best.",
+        "to": "We went to the park.",
+        "today": "We will paint today.",
+        "of": "I ate a slice of cake.",
+        "said": "Mum said it was time to go.",
+        "says": "The sign says stop.",
+        "are": "We are ready to begin.",
+        "were": "They were in the garden.",
+        "was": "The puppy was asleep.",
+        "is": "The cat is under the chair.",
+        "his": "That blue hat is his.",
+        "has": "She has a new book.",
+        "i": "I can hop on one foot.",
+        "you": "You can choose the game.",
+        "your": "Please bring your coat.",
+        "they": "They are building a den.",
+        "be": "Be kind to your friend.",
+        "he": "He can kick the ball.",
+        "me": "Please read the story to me.",
+        "she": "She drew a rocket.",
+        "we": "We are going home.",
+        "no": "No, thank you, I am full.",
+        "go": "It is time to go outside.",
+        "so": "The box was so heavy.",
+        "by": "Sit by the window.",
+        "my": "This is my pencil.",
+        "here": "Put your school bag here.",
+        "there": "The red ball is over there.",
+        "where": "Where is my other shoe?",
+        "love": "I love reading with Dad.",
+        "come": "Please come and sit down.",
+        "some": "Would you like some grapes?",
+        "one": "I have one green apple.",
+        "once": "We read that story once before.",
+        "ask": "Please ask before you borrow it.",
+        "friend": "My friend helped me today.",
+        "school": "We walk to school together.",
+        "put": "Put the cup on the table.",
+        "push": "Push the door to open it.",
+        "pull": "Pull the drawer towards you.",
+        "full": "The basket is full of toys.",
+        "house": "Our house has a red door.",
+        "our": "Our class has a small garden.",
+        "off": "Turn the bedroom light off.",
+        "well": "You read that sentence well.",
+        "miss": "I miss my friend when she is away.",
+        "buzz": "Bees buzz around the flowers.",
+        "back": "Please put the book back.",
+        "bank": "The ducks stood on the river bank.",
+        "think": "Stop and think before you answer.",
+        "pocket": "The coin is in my pocket.",
+        "rabbit": "A rabbit hopped across the grass.",
+        "catch": "Can you catch the red ball?",
+        "fetch": "The dog will fetch the stick.",
+        "have": "I have a yellow pencil.",
+        "give": "Please give the note to Mum.",
+        "cats": "The cats are sleeping together.",
+        "dogs": "The dogs ran around the field.",
+        "catches": "She catches the beanbag safely.",
+        "hunting": "The owl is hunting for food.",
+        "hunted": "The cat hunted for its toy.",
+        "hunter": "The hunter followed the animal tracks.",
+        "quicker": "A bicycle is quicker than walking.",
+        "quickest": "Sam found the quickest way home.",
+        "rain": "The rain tapped on the window.",
+        "coin": "I found a shiny coin.",
+        "play": "We play football after school.",
+        "toy": "The toy train is on the floor.",
+        "home": "We went home before tea.",
+        "five": "There are five frogs in the pond.",
+        "blue": "The clear sky is blue.",
+        "night": "The stars shine at night.",
+        "food": "The rabbit needs fresh food.",
+        "book": "Choose a book from the shelf.",
+        "boat": "The little boat sailed across the lake.",
+        "out": "We went out into the sunshine.",
+        "now": "Please put your pencil down now.",
+        "snow": "The snow covered the playground.",
+        "chief": "The fire chief checked the engine.",
+        "short": "The blue ribbon is short.",
+        "fair": "The fair has rides and games.",
+        "year": "My birthday comes once each year.",
+        "happy": "The puppy looked happy.",
+        "funny": "The clown wore a funny hat.",
+        "phonics": "We practise phonics at school.",
+        "which": "Which book would you like?",
+        "kit": "My football kit is in the bag.",
+        "unhappy": "The wet cat looked unhappy.",
+        "football": "We kicked the football into the goal.",
+        "bedroom": "My bedroom has a cosy lamp.",
+        "farmyard": "The hens wandered around the farmyard."
+    ]
+
     static func displayForm(for word: String) -> String {
         let normalized = word.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         let isDay = englandYearOneDays.contains { $0.lowercased() == normalized }
         return isDay ? word.uppercased() : word
+    }
+
+    static func contextSentence(for word: String) -> String? {
+        contextSentences[CometLearningStore.normalizedCustomWord(word)]
+    }
+
+    static func spokenPrompt(
+        for word: String,
+        contextSentence customContext: String? = nil
+    ) -> String {
+        if let context = customContext ?? Self.contextSentence(for: word) {
+            return "Spell the word \(word). \(context)"
+        }
+        return "Spell the word \(word)."
+    }
+}
+
+enum StarSpellerPracticeGroup: String, CaseIterable, Identifiable {
+    case starterPhonics
+    case soundPatterns
+    case trickyWords
+    case daysOfWeek
+    case mixed
+    case custom
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .starterPhonics: return "Starter sounds"
+        case .soundPatterns: return "Sound patterns"
+        case .trickyWords: return "Tricky words"
+        case .daysOfWeek: return "Days of the week"
+        case .mixed: return "Mixed challenge"
+        case .custom: return "My words"
+        }
+    }
+
+    var difficulty: String {
+        switch self {
+        case .starterPhonics: return "Phonics · Start here"
+        case .soundPatterns: return "Phonics · Growing"
+        case .trickyWords: return "Exception words · Challenge"
+        case .daysOfWeek: return "Calendar words · Challenge"
+        case .mixed: return "All Year 1 · Adaptive"
+        case .custom: return "Grown-up list · Adaptive"
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .starterPhonics: return "mouth.fill"
+        case .soundPatterns: return "waveform"
+        case .trickyWords: return "brain.head.profile"
+        case .daysOfWeek: return "calendar"
+        case .mixed: return "shuffle"
+        case .custom: return "person.text.rectangle"
+        }
+    }
+
+    func words(customWords: [String]) -> [String] {
+        switch self {
+        case .starterPhonics: return StarSpellerWordLibrary.starterPhonicsWords
+        case .soundPatterns: return StarSpellerWordLibrary.soundPatternWords
+        case .trickyWords: return StarSpellerWordLibrary.englandYearOneCommonExceptionWords
+        case .daysOfWeek: return StarSpellerWordLibrary.englandYearOneDays
+        case .mixed: return StarSpellerWordLibrary.englandYearOne
+        case .custom: return customWords
+        }
     }
 }
 
@@ -71,35 +256,63 @@ enum StarSpellerHintKeyboard {
 enum StarSpellerScoring {
     static let pointsPerWord = 100
     static let pointsPerHint = 10
-    static let minimumPointsPerWord = 40
+    static let maximumHintUses = pointsPerWord / pointsPerHint
 
     static func points(forHintUses hintUses: Int) -> Int {
         max(
-            minimumPointsPerWord,
+            0,
             pointsPerWord - max(0, hintUses) * pointsPerHint
         )
+    }
+
+    static func canUseAnotherHint(after hintUses: Int) -> Bool {
+        hintUses < maximumHintUses
+    }
+}
+
+enum StarSpellerAccessibilityPolicy {
+    static func shouldUseAppPromptAudio(isVoiceOverRunning: Bool) -> Bool {
+        !isVoiceOverRunning
+    }
+
+    static func shouldAutomaticallyFocusInput(isVoiceOverRunning: Bool) -> Bool {
+        !isVoiceOverRunning
     }
 }
 
 struct StarSpellerMenuView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @EnvironmentObject private var musicService: MusicService
     @ObservedObject private var storage = StorageService.shared
     @ObservedObject private var wordStore = CometLearningStore.shared
 
     @State private var destination: Destination?
     @State private var sessionWords: [String] = []
+    @State private var sessionStartIndex = 0
+    @State private var sessionStartingScore = 0
+    @State private var sessionStartsReadyToWrite = false
+    @State private var selectedGroup: StarSpellerPracticeGroup
+    @State private var sessionLength = 5
+    @State private var showsReplaceSessionConfirmation = false
+
+    init() {
+        _selectedGroup = State(
+            initialValue: CometLearningStore.shared.activeCustomWords.isEmpty
+                ? .starterPhonics
+                : .custom
+        )
+    }
 
     private enum Destination: Hashable {
         case game
         case words
+        case progress
     }
 
     private var practiceWords: [String] {
         let customWords = wordStore.activeCustomWords.map(\.text)
-        let selectedWords = customWords.isEmpty
-            ? StarSpellerWordLibrary.englandYearOne
-            : customWords
+        let selectedWords = selectedGroup.words(customWords: customWords)
 
         return selectedWords
             .filter { word in
@@ -113,21 +326,26 @@ struct StarSpellerMenuView: View {
         !practiceWords.isEmpty && storage.isVoiceEnabled
     }
 
-    private var isUsingStarterList: Bool {
-        wordStore.activeCustomWords.isEmpty
+    private var availableGroups: [StarSpellerPracticeGroup] {
+        StarSpellerPracticeGroup.allCases.filter {
+            $0 != .custom || !wordStore.activeCustomWords.isEmpty
+        }
     }
 
     var body: some View {
         NavigationStack {
             ZStack {
                 AppTheme.backgroundDark.ignoresSafeArea()
-                StarryBackground(starCount: 32, animateStars: true)
+                StarryBackground(starCount: 32, animateStars: !reduceMotion)
 
                 ScrollView {
                     VStack(spacing: AppSpacing.lg) {
                         header
                         hero
                         howToPlay
+                        if let resumeSession = wordStore.activeSpellingSession {
+                            resumeCard(resumeSession)
+                        }
                         launchCard
                     }
                     .frame(maxWidth: 860)
@@ -146,9 +364,16 @@ struct StarSpellerMenuView: View {
                 if let destination {
                     switch destination {
                     case .game:
-                        StarSpellerGameView(words: sessionWords)
+                        StarSpellerGameView(
+                            words: sessionWords,
+                            startingIndex: sessionStartIndex,
+                            startingScore: sessionStartingScore,
+                            startsReadyToWrite: sessionStartsReadyToWrite
+                        )
                     case .words:
                         CometCustomWordsView()
+                    case .progress:
+                        CometMissionControlView()
                     }
                 }
             }
@@ -157,6 +382,19 @@ struct StarSpellerMenuView: View {
             if !musicService.isPlaying {
                 musicService.play(track: .hub)
             }
+        }
+        .onChange(of: wordStore.activeCustomWords.isEmpty) { customWordsAreEmpty in
+            if customWordsAreEmpty && selectedGroup == .custom {
+                selectedGroup = .starterPhonics
+            }
+        }
+        .alert("Start a new spelling mission?", isPresented: $showsReplaceSessionConfirmation) {
+            Button("Keep current mission", role: .cancel) {}
+            Button("Start new mission", role: .destructive) {
+                startGame()
+            }
+        } message: {
+            Text("The saved place in the unfinished mission will be replaced.")
         }
         .accessibilityIdentifier("star-speller-menu")
     }
@@ -208,7 +446,7 @@ struct StarSpellerMenuView: View {
                     .font(AppTypography.titleMedium)
                     .foregroundColor(AppTheme.textPrimary)
 
-                Text("Every correct keyboard spelling launches the same handwriting tool used by Comet Writer.")
+                Text("Every correct keyboard spelling unlocks the same handwriting tool used by Comet Writer.")
                     .font(AppTypography.bodyMedium)
                     .foregroundColor(AppTheme.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -275,7 +513,7 @@ struct StarSpellerMenuView: View {
                     .background(Circle().fill(AppTheme.cometPaperTop))
 
                 Text(number)
-                    .font(.system(size: 10, weight: .heavy, design: .rounded))
+                    .font(.system(.caption2, design: .rounded, weight: .heavy))
                     .foregroundColor(AppTheme.backgroundDark)
                     .frame(width: 20, height: 20)
                     .background(Circle().fill(AppTheme.cometGold))
@@ -307,22 +545,18 @@ struct StarSpellerMenuView: View {
 
     private var launchCard: some View {
         VStack(alignment: .leading, spacing: AppSpacing.md) {
-            HStack(alignment: .firstTextBaseline) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(isUsingStarterList ? "England Year 1 starter list" : "Custom spelling list")
-                        .font(AppTypography.titleSmall)
-                        .foregroundColor(AppTheme.textPrimary)
-                    Text(
-                        isUsingStarterList
-                            ? "100 curriculum-aligned starter words are ready. A mission uses up to 10 words."
-                            : "Using the words saved for \(wordStore.activeProfile.name). A mission uses up to 10 words."
-                    )
-                        .font(AppTypography.bodySmall)
-                        .foregroundColor(AppTheme.textSecondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                Spacer(minLength: 0)
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Choose today’s practice")
+                    .font(AppTypography.titleSmall)
+                    .foregroundColor(AppTheme.textPrimary)
+                Text("Start with a phonics level or let adaptive practice revisit words that needed help.")
+                    .font(AppTypography.bodySmall)
+                    .foregroundColor(AppTheme.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
+
+            groupPicker
+            sessionLengthPicker
 
             if practiceWords.isEmpty {
                 Label(
@@ -364,10 +598,7 @@ struct StarSpellerMenuView: View {
                 Button {
                     destination = .words
                 } label: {
-                    Label(
-                        isUsingStarterList ? "Use my own words" : "Manage words",
-                        systemImage: "doc.badge.plus"
-                    )
+                    Label("Manage words", systemImage: "doc.badge.plus")
                     .font(AppTypography.buttonMedium)
                     .foregroundColor(AppTheme.textPrimary)
                     .frame(maxWidth: .infinity, minHeight: 52)
@@ -384,9 +615,9 @@ struct StarSpellerMenuView: View {
                 .accessibilityIdentifier("star-speller-manage-words")
 
                 Button {
-                    startGame()
+                    requestStartGame()
                 } label: {
-                    Label("Start", systemImage: "play.fill")
+                    Label("Start \(sessionLength) words", systemImage: "play.fill")
                         .font(AppTypography.buttonLarge)
                         .foregroundColor(AppTheme.backgroundDark)
                         .frame(maxWidth: .infinity, minHeight: 52)
@@ -405,6 +636,35 @@ struct StarSpellerMenuView: View {
                 )
                 .accessibilityIdentifier("star-speller-start")
             }
+
+            Button {
+                destination = .progress
+            } label: {
+                HStack(spacing: 10) {
+                    Image(systemName: "chart.bar.fill")
+                        .foregroundColor(AppTheme.cometGold)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Grown-up spelling summary")
+                            .font(AppTypography.buttonMedium)
+                            .foregroundColor(AppTheme.textPrimary)
+                        Text("Attempts, errors, hints and word mastery for \(wordStore.activeProfile.name)")
+                            .font(AppTypography.caption)
+                            .foregroundColor(AppTheme.textSecondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    Spacer(minLength: 0)
+                    Image(systemName: "lock.fill")
+                        .foregroundColor(AppTheme.textSecondary)
+                }
+                .padding(.horizontal, AppSpacing.md)
+                .frame(maxWidth: .infinity, minHeight: 60, alignment: .leading)
+                .background(
+                    RoundedRectangle(cornerRadius: 14)
+                        .fill(AppTheme.backgroundDark.opacity(0.62))
+                )
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("star-speller-grown-up-summary")
         }
         .padding(AppSpacing.lg)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -420,7 +680,7 @@ struct StarSpellerMenuView: View {
 
     private var wordPreview: some View {
         VStack(alignment: .leading, spacing: AppSpacing.sm) {
-            Text(isUsingStarterList ? "Includes every day of the week" : "Your words")
+            Text("\(selectedGroup.title) · \(practiceWords.count) words")
                 .font(AppTypography.caption)
                 .foregroundColor(AppTheme.textSecondary)
                 .textCase(.uppercase)
@@ -435,9 +695,160 @@ struct StarSpellerMenuView: View {
         }
     }
 
+    private var groupPicker: some View {
+        LazyVGrid(
+            columns: [GridItem(.adaptive(minimum: 190), spacing: AppSpacing.sm)],
+            spacing: AppSpacing.sm
+        ) {
+            ForEach(availableGroups) { group in
+                let isSelected = selectedGroup == group
+                Button {
+                    selectedGroup = group
+                    FeedbackManager.shared.haptic(.light)
+                } label: {
+                    HStack(spacing: 10) {
+                        Image(systemName: group.icon)
+                            .font(.system(size: 20, weight: .semibold))
+                            .foregroundColor(isSelected ? AppTheme.backgroundDark : AppTheme.cometCyan)
+                            .frame(width: 30)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(group.title)
+                                .font(AppTypography.buttonSmall)
+                                .foregroundColor(isSelected ? AppTheme.backgroundDark : AppTheme.textPrimary)
+                            Text(group.difficulty)
+                                .font(AppTypography.caption)
+                                .foregroundColor(
+                                    isSelected
+                                        ? AppTheme.backgroundDark.opacity(0.78)
+                                        : AppTheme.textSecondary
+                                )
+                                .lineLimit(2)
+                        }
+                        Spacer(minLength: 0)
+                        if isSelected {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundColor(AppTheme.backgroundDark)
+                        }
+                    }
+                    .padding(.horizontal, 12)
+                    .frame(maxWidth: .infinity, minHeight: 62, alignment: .leading)
+                    .background(
+                        RoundedRectangle(cornerRadius: 14)
+                            .fill(isSelected ? AppTheme.cometCyan : AppTheme.cometPaperTop)
+                    )
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("\(group.title), \(group.difficulty)")
+                .accessibilityValue(isSelected ? "Selected" : "Not selected")
+                .accessibilityAddTraits(isSelected ? .isSelected : [])
+                .accessibilityIdentifier("star-speller-group-\(group.rawValue)")
+            }
+        }
+        .accessibilityElement(children: .contain)
+    }
+
+    private var sessionLengthPicker: some View {
+        VStack(alignment: .leading, spacing: AppSpacing.sm) {
+            Text("Mission length")
+                .font(AppTypography.buttonMedium)
+                .foregroundColor(AppTheme.textPrimary)
+
+            HStack(spacing: AppSpacing.sm) {
+                ForEach([3, 5, 10], id: \.self) { length in
+                    let isSelected = sessionLength == length
+                    Button {
+                        sessionLength = length
+                        FeedbackManager.shared.haptic(.light)
+                    } label: {
+                        Text("\(length) words")
+                            .font(AppTypography.buttonSmall)
+                            .foregroundColor(isSelected ? AppTheme.backgroundDark : AppTheme.textPrimary)
+                            .frame(maxWidth: .infinity, minHeight: 48)
+                            .background(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(isSelected ? AppTheme.accentPrimary : AppTheme.cometPaperTop)
+                            )
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityValue(isSelected ? "Selected" : "Not selected")
+                    .accessibilityAddTraits(isSelected ? .isSelected : [])
+                    .accessibilityIdentifier("star-speller-length-\(length)")
+                }
+            }
+        }
+    }
+
+    private func resumeCard(_ session: StarSpellerSessionSnapshot) -> some View {
+        HStack(spacing: AppSpacing.md) {
+            Image(systemName: "bookmark.fill")
+                .font(.system(size: 28, weight: .bold))
+                .foregroundColor(AppTheme.cometGold)
+                .accessibilityHidden(true)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text("Mission saved")
+                    .font(AppTypography.titleSmall)
+                    .foregroundColor(AppTheme.textPrimary)
+                Text("Resume word \(session.currentIndex + 1) of \(session.words.count).")
+                    .font(AppTypography.bodySmall)
+                    .foregroundColor(AppTheme.textSecondary)
+            }
+
+            Spacer(minLength: 0)
+
+            Button("Resume") {
+                resumeGame(session)
+            }
+            .font(AppTypography.buttonMedium)
+            .foregroundColor(AppTheme.backgroundDark)
+            .padding(.horizontal, AppSpacing.md)
+            .frame(minHeight: 48)
+            .background(Capsule().fill(AppTheme.cometGold))
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("star-speller-resume")
+        }
+        .padding(AppSpacing.md)
+        .frame(maxWidth: .infinity, minHeight: 80)
+        .background(
+            RoundedRectangle(cornerRadius: 20)
+                .fill(AppTheme.cometGold.opacity(0.12))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 20)
+                .stroke(AppTheme.cometGold.opacity(0.42), lineWidth: 1)
+        )
+    }
+
+    private func requestStartGame() {
+        guard canStart else { return }
+        if wordStore.activeSpellingSession != nil {
+            showsReplaceSessionConfirmation = true
+        } else {
+            startGame()
+        }
+    }
+
     private func startGame() {
         guard canStart else { return }
-        sessionWords = Array(practiceWords.shuffled().prefix(10))
+        sessionWords = wordStore.adaptiveSpellingWords(
+            from: practiceWords,
+            count: sessionLength
+        )
+        sessionStartIndex = 0
+        sessionStartingScore = 0
+        sessionStartsReadyToWrite = false
+        wordStore.clearActiveSpellingSession()
+        wordStore.saveSpellingSession(words: sessionWords, currentIndex: 0)
+        FeedbackManager.shared.haptic(.buttonRelease)
+        destination = .game
+    }
+
+    private func resumeGame(_ session: StarSpellerSessionSnapshot) {
+        guard storage.isVoiceEnabled else { return }
+        sessionWords = session.words
+        sessionStartIndex = session.currentIndex
+        sessionStartingScore = session.score ?? 0
+        sessionStartsReadyToWrite = session.currentWordIsReadyToWrite ?? false
         FeedbackManager.shared.haptic(.buttonRelease)
         destination = .game
     }
@@ -474,15 +885,16 @@ private enum StarSpellerStage: Equatable {
 struct StarSpellerGameView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.accessibilityVoiceOverEnabled) private var voiceOverEnabled
     @EnvironmentObject private var musicService: MusicService
     @ObservedObject private var wordStore = CometLearningStore.shared
 
     let words: [String]
 
-    @State private var currentIndex = 0
+    @State private var currentIndex: Int
     @State private var typedWord = ""
-    @State private var stage: StarSpellerStage = .typing
-    @State private var feedbackMessage = "Listen carefully, then type the word."
+    @State private var stage: StarSpellerStage
+    @State private var feedbackMessage: String
     @State private var showsCorrection = false
     @State private var showsHandwriting = false
     @State private var handwritingCompleted = false
@@ -490,15 +902,40 @@ struct StarSpellerGameView: View {
     @State private var incorrectWordIndices = Set<Int>()
     @State private var hintLetters: Set<String> = []
     @State private var currentWordHintUses = 0
-    @State private var score = 0
-    @State private var launchTask: Task<Void, Never>?
+    @State private var currentWordCheckAttempts = 0
+    @State private var currentWordErrorCount = 0
+    @State private var didRecordCurrentWord: Bool
+    @State private var score: Int
+    @State private var showsExitConfirmation = false
+    @State private var isVoiceOverAlternativeActive = false
     @State private var promptTask: Task<Void, Never>?
     @State private var focusTask: Task<Void, Never>?
     @State private var requiredAudioToken: UUID?
     @FocusState private var spellingFieldFocused: Bool
+    @AccessibilityFocusState private var handwritingActionFocused: Bool
+    @AccessibilityFocusState private var voiceOverAlternativeDoneFocused: Bool
 
     private let speech = LetterSpeechService.shared
     private let customAudio = CustomPromptAudioService.shared
+
+    init(
+        words: [String],
+        startingIndex: Int = 0,
+        startingScore: Int = 0,
+        startsReadyToWrite: Bool = false
+    ) {
+        self.words = words
+        let safeIndex = words.isEmpty ? 0 : min(max(0, startingIndex), words.count - 1)
+        _currentIndex = State(initialValue: safeIndex)
+        _score = State(initialValue: max(0, startingScore))
+        _stage = State(initialValue: startsReadyToWrite ? .readyToWrite : .typing)
+        _feedbackMessage = State(
+            initialValue: startsReadyToWrite
+                ? "Correct. Handwrite the word when you are ready."
+                : "Listen carefully, then type the word."
+        )
+        _didRecordCurrentWord = State(initialValue: startsReadyToWrite)
+    }
 
     private var currentWord: String {
         guard words.indices.contains(currentIndex) else { return "" }
@@ -512,6 +949,18 @@ struct StarSpellerGameView: View {
 
     private var displayedCurrentWord: String {
         StarSpellerWordLibrary.displayForm(for: currentWord)
+    }
+
+    private var isVoiceOverRunning: Bool {
+        voiceOverEnabled || UIAccessibility.isVoiceOverRunning
+    }
+
+    private var accessibilitySpellingPrompt: String {
+        StarSpellerWordLibrary.spokenPrompt(
+            for: currentWord,
+            contextSentence: wordStore.contextSentence(forWord: currentWord)
+                ?? StarSpellerWordLibrary.contextSentence(for: currentWord)
+        )
     }
 
     var body: some View {
@@ -578,11 +1027,20 @@ struct StarSpellerGameView: View {
             }
             guard !hasAppeared else { return }
             hasAppeared = true
-            speakCurrentWord(after: 0.35)
-            focusSpellingField(after: 0.55)
+            wordStore.saveSpellingSession(
+                words: words,
+                currentIndex: currentIndex,
+                score: score,
+                currentWordIsReadyToWrite: stage == .readyToWrite
+            )
+            if stage == .readyToWrite {
+                announceHandwritingStep()
+            } else {
+                speakCurrentWord(after: 0.35)
+                focusSpellingField(after: 0.55)
+            }
         }
         .onDisappear {
-            launchTask?.cancel()
             promptTask?.cancel()
             focusTask?.cancel()
             guard !showsHandwriting else { return }
@@ -607,6 +1065,21 @@ struct StarSpellerGameView: View {
                 feedbackMessage = "Make your changes, then check the word again."
             }
         }
+        .alert("Leave spelling mission?", isPresented: $showsExitConfirmation) {
+            Button("Keep playing", role: .cancel) {}
+            Button("Leave mission", role: .destructive) {
+                recordAbandonedAttemptIfNeeded()
+                wordStore.saveSpellingSession(
+                    words: words,
+                    currentIndex: currentIndex,
+                    score: score,
+                    currentWordIsReadyToWrite: stage == .readyToWrite
+                )
+                dismiss()
+            }
+        } message: {
+            Text("Your place is saved, so you can continue this word when you return.")
+        }
         .accessibilityIdentifier("star-speller-game")
     }
 
@@ -615,7 +1088,7 @@ struct StarSpellerGameView: View {
             HStack(spacing: AppSpacing.md) {
                 PremiumIconButton(
                     icon: "chevron.left",
-                    action: { dismiss() },
+                    action: requestExit,
                     size: 48,
                     accessibilityLabelText: "Back to Star Speller"
                 )
@@ -666,7 +1139,7 @@ struct StarSpellerGameView: View {
             }
 
             Button {
-                speakCurrentWord()
+                speakCurrentWord(announceForVoiceOver: true)
                 FeedbackManager.shared.haptic(.light)
             } label: {
                 ZStack {
@@ -683,8 +1156,16 @@ struct StarSpellerGameView: View {
             }
             .buttonStyle(.plain)
             .frame(minWidth: 116, minHeight: 116)
-            .accessibilityLabel("Hear the spelling word again")
-            .accessibilityHint("Plays the hidden word")
+            .accessibilityLabel(
+                isVoiceOverRunning
+                    ? accessibilitySpellingPrompt
+                    : "Hear the spelling word again"
+            )
+            .accessibilityHint(
+                isVoiceOverRunning
+                    ? "Double-tap to hear this prompt again"
+                    : "Plays the hidden word"
+            )
             .accessibilityIdentifier("star-speller-hear-word")
 
             HStack(spacing: 7) {
@@ -756,7 +1237,7 @@ struct StarSpellerGameView: View {
                 .keyboardType(.alphabet)
                 .submitLabel(.done)
                 .onSubmit(checkSpelling)
-                .font(.system(size: 30, weight: .heavy, design: .rounded))
+                .font(.system(.title2, design: .rounded, weight: .heavy))
                 .foregroundColor(AppTheme.textPrimary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, AppSpacing.md)
@@ -863,7 +1344,7 @@ struct StarSpellerGameView: View {
                     .font(AppTypography.titleMedium)
                     .foregroundColor(AppTheme.textPrimary)
                 Text(displayedCurrentWord)
-                    .font(.system(size: 36, weight: .heavy, design: .rounded))
+                    .font(.system(.largeTitle, design: .rounded, weight: .heavy))
                     .foregroundColor(AppTheme.cometCyan)
                 Text("Now handwrite the whole word in Comet Writer.")
                     .font(AppTypography.bodyMedium)
@@ -886,6 +1367,51 @@ struct StarSpellerGameView: View {
             .buttonStyle(.plain)
             .accessibilityHint("Opens the Comet Writer handwriting surface")
             .accessibilityIdentifier("star-speller-open-handwriting")
+            .accessibilityFocused($handwritingActionFocused)
+
+            if voiceOverEnabled {
+                if isVoiceOverAlternativeActive {
+                    VStack(spacing: AppSpacing.sm) {
+                        Text("Spell each letter aloud, then mark this step complete.")
+                            .font(AppTypography.bodySmall)
+                            .foregroundColor(AppTheme.textSecondary)
+                            .multilineTextAlignment(.center)
+
+                        Button {
+                            completeVoiceOverAlternative()
+                        } label: {
+                            Label("Done spelling aloud", systemImage: "checkmark.circle.fill")
+                                .font(AppTypography.buttonLarge)
+                                .foregroundColor(AppTheme.backgroundDark)
+                                .frame(maxWidth: 460, minHeight: 52)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 14)
+                                        .fill(AppTheme.accentPrimary)
+                                )
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityHint("Completes the accessible alternative to drawing")
+                        .accessibilityIdentifier("star-speller-voiceover-done")
+                        .accessibilityFocused($voiceOverAlternativeDoneFocused)
+                    }
+                } else {
+                    Button {
+                        activateVoiceOverAlternative()
+                    } label: {
+                        Label("Spell aloud instead", systemImage: "waveform.and.mic")
+                            .font(AppTypography.buttonMedium)
+                            .foregroundColor(AppTheme.cometCyan)
+                            .frame(maxWidth: 460, minHeight: 48)
+                            .background(
+                                RoundedRectangle(cornerRadius: 14)
+                                    .fill(AppTheme.cometPaperTop)
+                            )
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityHint("Provides a VoiceOver alternative to handwriting")
+                    .accessibilityIdentifier("star-speller-voiceover-alternative")
+                }
+            }
         }
         .accessibilityElement(children: .contain)
     }
@@ -904,7 +1430,7 @@ struct StarSpellerGameView: View {
                     .font(AppTypography.displayMedium)
                     .foregroundColor(AppTheme.textPrimary)
                     .multilineTextAlignment(.center)
-                Text("You spelled and handwrote every word.")
+                Text("You completed every spelling and writing step.")
                     .font(AppTypography.bodyLarge)
                     .foregroundColor(AppTheme.textSecondary)
                     .multilineTextAlignment(.center)
@@ -957,7 +1483,7 @@ struct StarSpellerGameView: View {
                 .font(.system(size: 22, weight: .semibold))
                 .foregroundColor(AppTheme.cometCyan)
             Text(value)
-                .font(.system(size: 30, weight: .heavy, design: .rounded))
+                .font(.system(.title2, design: .rounded, weight: .heavy))
                 .foregroundColor(AppTheme.textPrimary)
             Text(label)
                 .font(AppTypography.bodySmall)
@@ -1008,7 +1534,9 @@ struct StarSpellerGameView: View {
     }
 
     private var canUseHint: Bool {
-        stage == .typing && typedCharacterCount < currentWord.count
+        stage == .typing
+            && typedCharacterCount < currentWord.count
+            && StarSpellerScoring.canUseAnotherHint(after: currentWordHintUses)
     }
 
     private var hintKeyboard: some View {
@@ -1030,7 +1558,7 @@ struct StarSpellerGameView: View {
                         chooseHintLetter(letter)
                     } label: {
                         Text(isVisible ? letter.uppercased() : " ")
-                            .font(.system(size: 19, weight: .heavy, design: .rounded))
+                            .font(.system(.title3, design: .rounded, weight: .heavy))
                             .foregroundColor(AppTheme.backgroundDark)
                             .frame(maxWidth: .infinity, minHeight: 44)
                             .background(
@@ -1098,24 +1626,36 @@ struct StarSpellerGameView: View {
         let answer = CometLearningStore.normalizedCustomWord(typedWord)
         let expectedAnswer = CometLearningStore.normalizedCustomWord(currentWord)
         guard !answer.isEmpty else { return }
+        currentWordCheckAttempts += 1
 
         if answer == expectedAnswer {
             spellingFieldFocused = false
             showsCorrection = false
             hintLetters = []
-            score += StarSpellerScoring.points(forHintUses: currentWordHintUses)
+            let wordPoints = StarSpellerScoring.points(forHintUses: currentWordHintUses)
+            score += wordPoints
             stage = .readyToWrite
             feedbackMessage = "Correct. Now handwrite the word."
+            wordStore.recordSpellingAttempt(
+                word: currentWord,
+                checkAttempts: currentWordCheckAttempts,
+                errorCount: currentWordErrorCount,
+                hintUses: currentWordHintUses,
+                wasSuccessful: true,
+                pointsEarned: wordPoints
+            )
+            didRecordCurrentWord = true
+            wordStore.saveSpellingSession(
+                words: words,
+                currentIndex: currentIndex,
+                score: score,
+                currentWordIsReadyToWrite: true
+            )
             SoundEffectsService.shared.play(.correctMove)
             FeedbackManager.shared.haptic(.success)
-
-            launchTask?.cancel()
-            launchTask = Task { @MainActor in
-                try? await Task.sleep(nanoseconds: reduceMotion ? 250_000_000 : 700_000_000)
-                guard !Task.isCancelled, stage == .readyToWrite else { return }
-                openHandwriting()
-            }
+            announceHandwritingStep()
         } else {
+            currentWordErrorCount += 1
             incorrectWordIndices.insert(currentIndex)
             hintLetters = []
             showsCorrection = true
@@ -1127,9 +1667,26 @@ struct StarSpellerGameView: View {
         }
     }
 
-    private func speakCurrentWord(after delay: TimeInterval = 0) {
+    private func speakCurrentWord(
+        after delay: TimeInterval = 0,
+        announceForVoiceOver: Bool = false
+    ) {
         guard !currentWord.isEmpty else { return }
         promptTask?.cancel()
+
+        guard StarSpellerAccessibilityPolicy.shouldUseAppPromptAudio(
+            isVoiceOverRunning: isVoiceOverRunning
+        ) else {
+            speech.stop()
+            customAudio.stopPlayback()
+            if announceForVoiceOver {
+                UIAccessibility.post(
+                    notification: .announcement,
+                    argument: accessibilitySpellingPrompt
+                )
+            }
+            return
+        }
 
         let action = {
             speech.stop()
@@ -1137,7 +1694,10 @@ struct StarSpellerGameView: View {
             if let filename = wordStore.recordingFilename(forWord: currentWord) {
                 customAudio.play(filename: filename)
             } else {
-                speech.speak("Listen carefully. Spell the word. \(currentWord).")
+                speech.speakSpellingPrompt(
+                    for: currentWord,
+                    contextSentence: wordStore.contextSentence(forWord: currentWord)
+                )
             }
         }
 
@@ -1146,7 +1706,11 @@ struct StarSpellerGameView: View {
         } else {
             promptTask = Task { @MainActor in
                 try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
-                guard !Task.isCancelled, stage == .typing else { return }
+                guard !Task.isCancelled,
+                      stage == .typing,
+                      StarSpellerAccessibilityPolicy.shouldUseAppPromptAudio(
+                        isVoiceOverRunning: isVoiceOverRunning
+                      ) else { return }
                 action()
             }
         }
@@ -1154,15 +1718,24 @@ struct StarSpellerGameView: View {
 
     private func focusSpellingField(after delay: TimeInterval) {
         focusTask?.cancel()
+        guard StarSpellerAccessibilityPolicy.shouldAutomaticallyFocusInput(
+            isVoiceOverRunning: isVoiceOverRunning
+        ) else {
+            spellingFieldFocused = false
+            return
+        }
         focusTask = Task { @MainActor in
             try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
-            guard !Task.isCancelled, stage == .typing else { return }
+            guard !Task.isCancelled,
+                  stage == .typing,
+                  StarSpellerAccessibilityPolicy.shouldAutomaticallyFocusInput(
+                    isVoiceOverRunning: isVoiceOverRunning
+                  ) else { return }
             spellingFieldFocused = true
         }
     }
 
     private func openHandwriting() {
-        launchTask?.cancel()
         promptTask?.cancel()
         focusTask?.cancel()
         speech.stop()
@@ -1176,24 +1749,38 @@ struct StarSpellerGameView: View {
         showsCorrection = false
         hintLetters = []
         currentWordHintUses = 0
+        currentWordCheckAttempts = 0
+        currentWordErrorCount = 0
+        didRecordCurrentWord = false
+        isVoiceOverAlternativeActive = false
 
         if currentIndex + 1 >= words.count {
             stage = .sessionComplete
             feedbackMessage = "Mission complete."
+            wordStore.clearActiveSpellingSession()
             SoundEffectsService.shared.play(.levelComplete)
             FeedbackManager.shared.haptic(.success)
+            UIAccessibility.post(
+                notification: .announcement,
+                argument: "Spelling mission complete."
+            )
             return
         }
 
         currentIndex += 1
         stage = .typing
         feedbackMessage = "Listen carefully, then type the word."
+        wordStore.saveSpellingSession(
+            words: words,
+            currentIndex: currentIndex,
+            score: score,
+            currentWordIsReadyToWrite: false
+        )
         speakCurrentWord(after: 0.45)
         focusSpellingField(after: 0.65)
     }
 
     private func resetSession() {
-        launchTask?.cancel()
         promptTask?.cancel()
         focusTask?.cancel()
         currentIndex = 0
@@ -1205,9 +1792,71 @@ struct StarSpellerGameView: View {
         incorrectWordIndices = []
         hintLetters = []
         currentWordHintUses = 0
+        currentWordCheckAttempts = 0
+        currentWordErrorCount = 0
+        didRecordCurrentWord = false
+        isVoiceOverAlternativeActive = false
         score = 0
+        wordStore.saveSpellingSession(
+            words: words,
+            currentIndex: 0,
+            score: 0,
+            currentWordIsReadyToWrite: false
+        )
         speakCurrentWord(after: 0.35)
         focusSpellingField(after: 0.55)
+    }
+
+    private func requestExit() {
+        guard stage != .sessionComplete, !words.isEmpty else {
+            dismiss()
+            return
+        }
+        spellingFieldFocused = false
+        showsExitConfirmation = true
+    }
+
+    private func recordAbandonedAttemptIfNeeded() {
+        guard !didRecordCurrentWord,
+              currentWordCheckAttempts > 0 || currentWordHintUses > 0 else { return }
+        wordStore.recordSpellingAttempt(
+            word: currentWord,
+            checkAttempts: max(1, currentWordCheckAttempts),
+            errorCount: currentWordErrorCount,
+            hintUses: currentWordHintUses,
+            wasSuccessful: false,
+            pointsEarned: 0
+        )
+        didRecordCurrentWord = true
+    }
+
+    private func announceHandwritingStep() {
+        let message = "Correct. \(displayedCurrentWord). Choose Handwrite to continue."
+        UIAccessibility.post(notification: .announcement, argument: message)
+        Task { @MainActor in
+            await Task.yield()
+            handwritingActionFocused = true
+        }
+    }
+
+    private func activateVoiceOverAlternative() {
+        isVoiceOverAlternativeActive = true
+        let letters = CometLearningStore.normalizedCustomWord(currentWord)
+            .map { String($0).uppercased() }
+            .joined(separator: ", ")
+        UIAccessibility.post(
+            notification: .announcement,
+            argument: "Spell \(displayedCurrentWord) aloud, letter by letter: \(letters)."
+        )
+        Task { @MainActor in
+            await Task.yield()
+            voiceOverAlternativeDoneFocused = true
+        }
+    }
+
+    private func completeVoiceOverAlternative() {
+        handwritingCompleted = true
+        advanceAfterHandwriting()
     }
 }
 

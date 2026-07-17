@@ -1,5 +1,15 @@
 import Foundation
 
+/// UserDefaults documents thread-safe access. This narrow wrapper makes that guarantee explicit
+/// when immutable learning snapshots are encoded and stored on the serial persistence queue.
+private final class CometPersistenceDefaults: @unchecked Sendable {
+    let value: UserDefaults
+
+    init(_ value: UserDefaults) {
+        self.value = value
+    }
+}
+
 enum WritingHand: String, Codable, CaseIterable, Identifiable, Sendable {
     case right
     case left
@@ -23,7 +33,7 @@ enum CometActivityMode: String, Codable, CaseIterable, Sendable {
         case .guided: return "Guided practice"
         case .recall: return "Letter recall"
         case .word: return "Word mission"
-        case .phonics: return "Sound mission"
+        case .phonics: return "Letter name mission"
         case .alienMail: return "Alien Mail"
         case .flightSchool: return "Flight School"
         case .paperTransfer: return "Paper transfer"
@@ -55,6 +65,7 @@ struct CometCustomWord: Codable, Hashable, Identifiable, Sendable {
     let id: UUID
     let profileID: UUID
     var text: String
+    var contextSentence: String?
     var recordingFilename: String?
     let createdAt: Date
 
@@ -62,12 +73,14 @@ struct CometCustomWord: Codable, Hashable, Identifiable, Sendable {
         id: UUID = UUID(),
         profileID: UUID,
         text: String,
+        contextSentence: String? = nil,
         recordingFilename: String? = nil,
         createdAt: Date = Date()
     ) {
         self.id = id
         self.profileID = profileID
         self.text = text
+        self.contextSentence = contextSentence
         self.recordingFilename = recordingFilename
         self.createdAt = createdAt
     }
@@ -113,6 +126,76 @@ struct CometAttemptRecord: Codable, Hashable, Identifiable, Sendable {
     let traces: [[StoredLetterPoint]]
 }
 
+struct StarSpellerAttemptRecord: Codable, Hashable, Identifiable, Sendable {
+    let id: UUID
+    let profileID: UUID
+    let word: String
+    let checkAttempts: Int
+    let errorCount: Int
+    let hintUses: Int
+    let wasSuccessful: Bool
+    let pointsEarned: Int
+    let timestamp: Date
+}
+
+struct StarSpellerSessionSnapshot: Codable, Hashable, Identifiable, Sendable {
+    let id: UUID
+    let profileID: UUID
+    let words: [String]
+    var currentIndex: Int
+    var score: Int?
+    var currentWordIsReadyToWrite: Bool?
+    let startedAt: Date
+
+    init(
+        id: UUID = UUID(),
+        profileID: UUID,
+        words: [String],
+        currentIndex: Int,
+        score: Int = 0,
+        currentWordIsReadyToWrite: Bool = false,
+        startedAt: Date = Date()
+    ) {
+        self.id = id
+        self.profileID = profileID
+        self.words = words
+        self.currentIndex = currentIndex
+        self.score = score
+        self.currentWordIsReadyToWrite = currentWordIsReadyToWrite
+        self.startedAt = startedAt
+    }
+}
+
+struct StarSpellerWordProgress: Identifiable, Sendable {
+    let word: String
+    let mastery: CometMasteryLevel
+    let attempts: Int
+    let successes: Int
+    let errors: Int
+    let hints: Int
+    let lastPractisedAt: Date
+
+    var id: String { word }
+}
+
+struct StarSpellerProfileSummary: Sendable {
+    let totalAttempts: Int
+    let successfulAttempts: Int
+    let firstTrySuccesses: Int
+    let totalErrors: Int
+    let totalHints: Int
+    let practisedWords: Int
+    let secureWords: Int
+    let masteredWords: Int
+
+    var firstTryPercentage: Int {
+        guard successfulAttempts > 0 else { return 0 }
+        return Int(
+            (Double(firstTrySuccesses) / Double(successfulAttempts) * 100).rounded()
+        )
+    }
+}
+
 enum CometMasteryLevel: Int, Comparable, Sendable {
     case new
     case practising
@@ -140,11 +223,14 @@ final class CometLearningStore: ObservableObject {
     static let shared = CometLearningStore()
     static let maximumCustomWords = 100
     static let maximumCustomWordLength = 10
+    nonisolated static let maximumContextSentenceLength = 160
 
     @Published private(set) var profiles: [CometChildProfile]
     @Published private(set) var activeProfileID: UUID
     @Published private(set) var customWords: [CometCustomWord]
     @Published private(set) var attempts: [CometAttemptRecord]
+    @Published private(set) var spellingAttempts: [StarSpellerAttemptRecord]
+    @Published private(set) var spellingSessions: [StarSpellerSessionSnapshot]
 
     static let coreWords = [
         "a", "I", "am", "an", "as", "at", "be", "by", "go", "he", "in", "is", "it", "me",
@@ -159,14 +245,22 @@ final class CometLearningStore: ObservableObject {
         static let activeProfileID = "maxpuzzles.cometWriter.activeProfileID"
         static let customWords = "maxpuzzles.cometWriter.customWords"
         static let attempts = "maxpuzzles.cometWriter.attempts"
+        static let spellingAttempts = "maxpuzzles.starSpeller.attempts"
+        static let spellingSessions = "maxpuzzles.starSpeller.sessions"
     }
 
     private let defaults: UserDefaults
+    private let persistenceDefaults: CometPersistenceDefaults
     private let encoder = JSONEncoder()
     private let decoder = JSONDecoder()
+    private let attemptPersistenceQueue = DispatchQueue(
+        label: "com.maxpuzzles.learning-attempt-persistence",
+        qos: .utility
+    )
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
+        persistenceDefaults = CometPersistenceDefaults(defaults)
 
         let decodedProfiles: [CometChildProfile] = Self.decode(
             [CometChildProfile].self,
@@ -200,6 +294,16 @@ final class CometLearningStore: ObservableObject {
             from: defaults.data(forKey: Keys.attempts),
             using: decoder
         ) ?? []
+        spellingAttempts = Self.decode(
+            [StarSpellerAttemptRecord].self,
+            from: defaults.data(forKey: Keys.spellingAttempts),
+            using: decoder
+        ) ?? []
+        spellingSessions = Self.decode(
+            [StarSpellerSessionSnapshot].self,
+            from: defaults.data(forKey: Keys.spellingSessions),
+            using: decoder
+        ) ?? []
 
         persistProfiles()
     }
@@ -218,6 +322,14 @@ final class CometLearningStore: ObservableObject {
 
     var activeAttempts: [CometAttemptRecord] {
         attempts.filter { $0.profileID == activeProfileID }
+    }
+
+    var activeSpellingAttempts: [StarSpellerAttemptRecord] {
+        spellingAttempts.filter { $0.profileID == activeProfileID }
+    }
+
+    var activeSpellingSession: StarSpellerSessionSnapshot? {
+        spellingSessions.first { $0.profileID == activeProfileID }
     }
 
     var activePoints: Int {
@@ -253,6 +365,7 @@ final class CometLearningStore: ObservableObject {
             writingHand: writingHand
         )
         profiles.append(profile)
+        markProfileModified(profile.id)
         setActiveProfile(profile.id)
         persistProfiles()
     }
@@ -262,12 +375,14 @@ final class CometLearningStore: ObservableObject {
         activeProfileID = id
         defaults.set(id.uuidString, forKey: Keys.activeProfileID)
         StorageService.shared.setPlayerName(profile.name == "Explorer" ? "" : profile.name)
+        notifyProgressChanged()
     }
 
     func renameActiveProfile(_ name: String) {
         guard let index = profiles.firstIndex(where: { $0.id == activeProfileID }) else { return }
         let cleaned = Self.cleanName(name)
         profiles[index].name = cleaned.isEmpty ? "Explorer" : cleaned
+        markProfileModified(activeProfileID)
         StorageService.shared.setPlayerName(cleaned)
         persistProfiles()
     }
@@ -275,20 +390,28 @@ final class CometLearningStore: ObservableObject {
     func setWritingHand(_ hand: WritingHand) {
         guard let index = profiles.firstIndex(where: { $0.id == activeProfileID }) else { return }
         profiles[index].writingHand = hand
+        markProfileModified(activeProfileID)
         persistProfiles()
     }
 
     func deleteProfile(_ id: UUID) {
         guard profiles.count > 1, let index = profiles.firstIndex(where: { $0.id == id }) else { return }
+        markProfileDeleted(id)
+        StorageService.shared.deleteProgress(for: id)
         profiles.remove(at: index)
         customWords.removeAll { $0.profileID == id }
         attempts.removeAll { $0.profileID == id }
+        spellingAttempts.removeAll { $0.profileID == id }
+        spellingSessions.removeAll { $0.profileID == id }
         if activeProfileID == id { setActiveProfile(profiles[0].id) }
         persistAll()
     }
 
     @discardableResult
-    func addCustomWord(_ word: String) -> CometCustomWord? {
+    func addCustomWord(
+        _ word: String,
+        contextSentence: String? = nil
+    ) -> CometCustomWord? {
         let cleaned = Self.normalizedCustomWord(word)
         guard (1...Self.maximumCustomWordLength).contains(cleaned.count),
               activeCustomWords.count < Self.maximumCustomWords,
@@ -296,7 +419,11 @@ final class CometLearningStore: ObservableObject {
             return nil
         }
 
-        let customWord = CometCustomWord(profileID: activeProfileID, text: cleaned)
+        let customWord = CometCustomWord(
+            profileID: activeProfileID,
+            text: cleaned,
+            contextSentence: Self.cleanedContextSentence(contextSentence)
+        )
         customWords.append(customWord)
         persistCustomWords()
         return customWord
@@ -306,16 +433,7 @@ final class CometLearningStore: ObservableObject {
     /// child profile and use the same constraints as words entered individually.
     @discardableResult
     func importCustomWords(from rawList: String) -> CometCustomWordImportResult {
-        let separators = CharacterSet.whitespacesAndNewlines
-            .union(CharacterSet(charactersIn: ",;|"))
-        var candidates = rawList
-            .components(separatedBy: separators)
-            .filter { !$0.isEmpty }
-
-        if let first = candidates.first,
-           ["word", "words"].contains(Self.normalizedCustomWord(first)) {
-            candidates.removeFirst()
-        }
+        let candidates = Self.customWordImportCandidates(from: rawList)
 
         let existingWordCount = activeCustomWords.count
         var seen = Set(activeCustomWords.map(\.text))
@@ -325,7 +443,7 @@ final class CometLearningStore: ObservableObject {
         var overflowCount = 0
 
         for candidate in candidates {
-            let cleaned = Self.normalizedCustomWord(candidate)
+            let cleaned = Self.normalizedCustomWord(candidate.word)
             guard (1...Self.maximumCustomWordLength).contains(cleaned.count) else {
                 invalidCount += 1
                 continue
@@ -340,7 +458,11 @@ final class CometLearningStore: ObservableObject {
             }
 
             customWords.append(
-                CometCustomWord(profileID: activeProfileID, text: cleaned)
+                CometCustomWord(
+                    profileID: activeProfileID,
+                    text: cleaned,
+                    contextSentence: Self.cleanedContextSentence(candidate.contextSentence)
+                )
             )
             addedWords.append(cleaned)
         }
@@ -363,6 +485,12 @@ final class CometLearningStore: ObservableObject {
         persistCustomWords()
     }
 
+    func setContextSentence(_ sentence: String?, for wordID: UUID) {
+        guard let index = customWords.firstIndex(where: { $0.id == wordID }) else { return }
+        customWords[index].contextSentence = Self.cleanedContextSentence(sentence)
+        persistCustomWords()
+    }
+
     func deleteCustomWord(_ id: UUID) -> String? {
         guard let index = customWords.firstIndex(where: { $0.id == id }) else { return nil }
         let filename = customWords[index].recordingFilename
@@ -373,6 +501,13 @@ final class CometLearningStore: ObservableObject {
 
     func recordingFilename(forWord word: String) -> String? {
         activeCustomWords.first(where: { $0.text == word.lowercased() })?.recordingFilename
+    }
+
+    func contextSentence(forWord word: String) -> String? {
+        let normalizedWord = Self.normalizedCustomWord(word)
+        return activeCustomWords
+            .first(where: { $0.text == normalizedWord })?
+            .contextSentence
     }
 
     func recordingFilenames(for profileID: UUID) -> [String] {
@@ -421,6 +556,219 @@ final class CometLearningStore: ObservableObject {
         persistAttempts()
     }
 
+    func recordSpellingAttempt(
+        word: String,
+        checkAttempts: Int,
+        errorCount: Int,
+        hintUses: Int,
+        wasSuccessful: Bool,
+        pointsEarned: Int
+    ) {
+        let normalizedWord = Self.normalizedCustomWord(word)
+        guard !normalizedWord.isEmpty else { return }
+
+        spellingAttempts.append(
+            StarSpellerAttemptRecord(
+                id: UUID(),
+                profileID: activeProfileID,
+                word: normalizedWord,
+                checkAttempts: max(1, checkAttempts),
+                errorCount: max(0, errorCount),
+                hintUses: max(0, hintUses),
+                wasSuccessful: wasSuccessful,
+                pointsEarned: max(0, pointsEarned),
+                timestamp: Date()
+            )
+        )
+
+        let activeIndices = spellingAttempts.indices.filter {
+            spellingAttempts[$0].profileID == activeProfileID
+        }
+        if activeIndices.count > 500 {
+            for index in activeIndices.prefix(activeIndices.count - 500).reversed() {
+                spellingAttempts.remove(at: index)
+            }
+        }
+        persistSpellingAttempts()
+    }
+
+    func spellingMastery(for word: String) -> CometMasteryLevel {
+        let normalizedWord = Self.normalizedCustomWord(word)
+        let recent = activeSpellingAttempts
+            .filter { $0.word == normalizedWord }
+            .sorted { $0.timestamp > $1.timestamp }
+
+        guard !recent.isEmpty else { return .new }
+        let latestThree = Array(recent.prefix(3))
+        if latestThree.count == 3,
+           latestThree.allSatisfy({
+               $0.wasSuccessful && $0.errorCount == 0 && $0.hintUses == 0
+           }) {
+            return .mastered
+        }
+
+        let successfulCount = latestThree.filter(\.wasSuccessful).count
+        let supportCount = latestThree.reduce(0) { partial, attempt in
+            partial + attempt.errorCount + attempt.hintUses
+        }
+        if successfulCount >= 2 && supportCount <= 1 { return .secure }
+        return .practising
+    }
+
+    func adaptiveSpellingWords(from allowed: [String], count: Int) -> [String] {
+        var seen = Set<String>()
+        let uniqueWords = allowed.filter { word in
+            let normalized = Self.normalizedCustomWord(word)
+            return !normalized.isEmpty && seen.insert(normalized).inserted
+        }
+        guard !uniqueWords.isEmpty else { return [] }
+
+        let rotation = activeSpellingAttempts.count % uniqueWords.count
+        let rotated = Array(uniqueWords[rotation...]) + Array(uniqueWords[..<rotation])
+        let sourceOrder = Dictionary(
+            uniqueKeysWithValues: rotated.enumerated().map {
+                (Self.normalizedCustomWord($0.element), $0.offset)
+            }
+        )
+
+        let ranked = rotated.sorted { left, right in
+            let leftMastery = spellingMastery(for: left)
+            let rightMastery = spellingMastery(for: right)
+            let leftPriority = Self.spellingPracticePriority(leftMastery)
+            let rightPriority = Self.spellingPracticePriority(rightMastery)
+            if leftPriority != rightPriority { return leftPriority < rightPriority }
+
+            let leftRecords = activeSpellingAttempts.filter {
+                $0.word == Self.normalizedCustomWord(left)
+            }
+            let rightRecords = activeSpellingAttempts.filter {
+                $0.word == Self.normalizedCustomWord(right)
+            }
+            let leftSupport = leftRecords.suffix(3).reduce(0) {
+                $0 + $1.errorCount * 2 + $1.hintUses + ($1.wasSuccessful ? 0 : 3)
+            }
+            let rightSupport = rightRecords.suffix(3).reduce(0) {
+                $0 + $1.errorCount * 2 + $1.hintUses + ($1.wasSuccessful ? 0 : 3)
+            }
+            if leftSupport != rightSupport { return leftSupport > rightSupport }
+
+            let leftDate = leftRecords.map(\.timestamp).max() ?? .distantPast
+            let rightDate = rightRecords.map(\.timestamp).max() ?? .distantPast
+            if leftDate != rightDate { return leftDate < rightDate }
+
+            return sourceOrder[Self.normalizedCustomWord(left), default: 0]
+                < sourceOrder[Self.normalizedCustomWord(right), default: 0]
+        }
+        let targetCount = max(1, count)
+        if ranked.count >= targetCount {
+            return Array(ranked.prefix(targetCount))
+        }
+
+        var repeated = ranked
+        while repeated.count < targetCount {
+            repeated.append(ranked[repeated.count % ranked.count])
+        }
+        return repeated
+    }
+
+    func spellingProgress(limit: Int? = nil) -> [StarSpellerWordProgress] {
+        let grouped = Dictionary(grouping: activeSpellingAttempts, by: \.word)
+        let progress = grouped.compactMap { word, records -> StarSpellerWordProgress? in
+            guard let lastPractisedAt = records.map(\.timestamp).max() else { return nil }
+            return StarSpellerWordProgress(
+                word: word,
+                mastery: spellingMastery(for: word),
+                attempts: records.count,
+                successes: records.filter(\.wasSuccessful).count,
+                errors: records.reduce(0) { $0 + $1.errorCount },
+                hints: records.reduce(0) { $0 + $1.hintUses },
+                lastPractisedAt: lastPractisedAt
+            )
+        }
+        .sorted { left, right in
+            if left.mastery != right.mastery { return left.mastery < right.mastery }
+            let leftSupport = left.errors + left.hints
+            let rightSupport = right.errors + right.hints
+            if leftSupport != rightSupport { return leftSupport > rightSupport }
+            return left.lastPractisedAt > right.lastPractisedAt
+        }
+
+        guard let limit else { return progress }
+        return Array(progress.prefix(max(0, limit)))
+    }
+
+    var activeSpellingSummary: StarSpellerProfileSummary {
+        let records = activeSpellingAttempts
+        let words = Set(records.map(\.word))
+        return StarSpellerProfileSummary(
+            totalAttempts: records.count,
+            successfulAttempts: records.filter(\.wasSuccessful).count,
+            firstTrySuccesses: records.filter {
+                $0.wasSuccessful && $0.errorCount == 0 && $0.hintUses == 0
+            }.count,
+            totalErrors: records.reduce(0) { $0 + $1.errorCount },
+            totalHints: records.reduce(0) { $0 + $1.hintUses },
+            practisedWords: words.count,
+            secureWords: words.filter { spellingMastery(for: $0) >= .secure }.count,
+            masteredWords: words.filter { spellingMastery(for: $0) == .mastered }.count
+        )
+    }
+
+    func saveSpellingSession(
+        words: [String],
+        currentIndex: Int,
+        score: Int = 0,
+        currentWordIsReadyToWrite: Bool = false
+    ) {
+        guard !words.isEmpty else { return }
+        let safeIndex = min(max(0, currentIndex), words.count - 1)
+        if let index = spellingSessions.firstIndex(where: { $0.profileID == activeProfileID }) {
+            let existing = spellingSessions[index]
+            spellingSessions[index] = StarSpellerSessionSnapshot(
+                id: existing.id,
+                profileID: activeProfileID,
+                words: words,
+                currentIndex: safeIndex,
+                score: score,
+                currentWordIsReadyToWrite: currentWordIsReadyToWrite,
+                startedAt: existing.startedAt
+            )
+        } else {
+            spellingSessions.append(
+                StarSpellerSessionSnapshot(
+                    profileID: activeProfileID,
+                    words: words,
+                    currentIndex: safeIndex,
+                    score: score,
+                    currentWordIsReadyToWrite: currentWordIsReadyToWrite
+                )
+            )
+        }
+        persistSpellingSessions()
+    }
+
+    func clearActiveSpellingSession() {
+        spellingSessions.removeAll { $0.profileID == activeProfileID }
+        persistSpellingSessions()
+    }
+
+    /// Waits until every detailed-attempt snapshot already queued for disk has finished writing.
+    /// Normal play never blocks the main thread on JSON work; tests and app lifecycle hand-off can
+    /// await this barrier when they need a deterministic durability point.
+    func waitForPendingAttemptPersistence() async {
+        await withCheckedContinuation { continuation in
+            attemptPersistenceQueue.async {
+                continuation.resume()
+            }
+        }
+    }
+
+    /// Scene suspension has a very small execution window, so finish any JSON write already
+    /// queued before returning control to iOS. The queue is private and never targets MainActor.
+    func flushPendingAttemptPersistence() {
+        attemptPersistenceQueue.sync {}
+    }
+
     func mastery(for character: String) -> CometMasteryLevel {
         let records = activeAttempts.filter { $0.character == character }
         guard !records.isEmpty else { return .new }
@@ -458,18 +806,39 @@ final class CometLearningStore: ObservableObject {
         activeProfileID = profile.id
         customWords = []
         attempts = []
+        spellingAttempts = []
+        spellingSessions = []
         persistAll()
+    }
+
+    /// Refreshes observable profile state after the iCloud service has merged a remote family.
+    /// Active play remains on the same child whenever that profile still exists.
+    func reloadProfilesFromDiskAfterCloudSync() {
+        guard let decoded: [CometChildProfile] = Self.decode(
+            [CometChildProfile].self,
+            from: defaults.data(forKey: Keys.profiles),
+            using: decoder
+        ), !decoded.isEmpty else { return }
+
+        profiles = decoded
+        if !decoded.contains(where: { $0.id == activeProfileID }) {
+            activeProfileID = decoded[0].id
+            defaults.set(activeProfileID.uuidString, forKey: Keys.activeProfileID)
+        }
     }
 
     private func persistAll() {
         persistProfiles()
         persistCustomWords()
         persistAttempts()
+        persistSpellingAttempts()
+        persistSpellingSessions()
     }
 
     private func persistProfiles() {
         defaults.set(try? encoder.encode(profiles), forKey: Keys.profiles)
         defaults.set(activeProfileID.uuidString, forKey: Keys.activeProfileID)
+        notifyProgressChanged()
     }
 
     private func persistCustomWords() {
@@ -477,7 +846,48 @@ final class CometLearningStore: ObservableObject {
     }
 
     private func persistAttempts() {
-        defaults.set(try? encoder.encode(attempts), forKey: Keys.attempts)
+        let snapshot = attempts
+        let targetDefaults = persistenceDefaults
+        attemptPersistenceQueue.async {
+            guard let data = try? JSONEncoder().encode(snapshot) else { return }
+            targetDefaults.value.set(data, forKey: Keys.attempts)
+        }
+    }
+
+    private func persistSpellingAttempts() {
+        let snapshot = spellingAttempts
+        let targetDefaults = persistenceDefaults
+        attemptPersistenceQueue.async {
+            guard let data = try? JSONEncoder().encode(snapshot) else { return }
+            targetDefaults.value.set(data, forKey: Keys.spellingAttempts)
+        }
+    }
+
+    private func persistSpellingSessions() {
+        defaults.set(try? encoder.encode(spellingSessions), forKey: Keys.spellingSessions)
+    }
+
+    private func notifyProgressChanged() {
+        NotificationCenter.default.post(
+            name: .maxPuzzlesProgressDidChange,
+            object: nil
+        )
+    }
+
+    private func markProfileModified(_ id: UUID, at date: Date = Date()) {
+        var raw = defaults.dictionary(
+            forKey: ICloudProgressSyncService.profileModifiedAtKey
+        ) as? [String: Double] ?? [:]
+        raw[id.uuidString] = date.timeIntervalSince1970
+        defaults.set(raw, forKey: ICloudProgressSyncService.profileModifiedAtKey)
+    }
+
+    private func markProfileDeleted(_ id: UUID, at date: Date = Date()) {
+        var raw = defaults.dictionary(
+            forKey: ICloudProgressSyncService.deletedProfileAtKey
+        ) as? [String: Double] ?? [:]
+        raw[id.uuidString] = date.timeIntervalSince1970
+        defaults.set(raw, forKey: ICloudProgressSyncService.deletedProfileAtKey)
     }
 
     private static func decode<Value: Decodable>(
@@ -493,12 +903,111 @@ final class CometLearningStore: ObservableObject {
         String(name.trimmingCharacters(in: .whitespacesAndNewlines).prefix(24))
     }
 
-    static func normalizedCustomWord(_ word: String) -> String {
+    nonisolated static func normalizedCustomWord(_ word: String) -> String {
         String(
             word.lowercased().unicodeScalars.filter { scalar in
                 (97...122).contains(Int(scalar.value))
             }.map(Character.init)
         )
+    }
+
+    nonisolated private static func cleanedContextSentence(
+        _ sentence: String?
+    ) -> String? {
+        guard let sentence else { return nil }
+        let cleaned = sentence
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
+        guard !cleaned.isEmpty else { return nil }
+        return String(cleaned.prefix(maximumContextSentenceLength))
+    }
+
+    nonisolated private static func customWordImportCandidates(
+        from rawList: String
+    ) -> [(word: String, contextSentence: String?)] {
+        var lines = rawList
+            .components(separatedBy: .newlines)
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+
+        if let first = lines.first {
+            let headerColumns = first
+                .split(separator: ",", omittingEmptySubsequences: false)
+                .map { normalizedCustomWord(String($0)) }
+            if headerColumns.first.map({ ["word", "words"].contains($0) }) == true,
+               headerColumns.dropFirst().contains(where: {
+                   ["context", "sentence", "example", "examplesentence"].contains($0)
+               }) {
+                lines.removeFirst()
+                return lines.compactMap {
+                    line -> (word: String, contextSentence: String?)? in
+                    let columns = line.split(
+                        separator: ",",
+                        maxSplits: 1,
+                        omittingEmptySubsequences: false
+                    )
+                    guard let word = columns.first else { return nil }
+                    let context = columns.count > 1 ? String(columns[1]) : nil
+                    return (
+                        trimmingImportQuotes(String(word)) ?? "",
+                        trimmingImportQuotes(context)
+                    )
+                }
+            }
+        }
+
+        var candidates: [(word: String, contextSentence: String?)] = []
+        for line in lines {
+            if let range = line.range(of: " :: ") {
+                candidates.append((
+                    String(line[..<range.lowerBound]),
+                    String(line[range.upperBound...])
+                ))
+                continue
+            }
+            if let tabIndex = line.firstIndex(of: "\t") {
+                candidates.append((
+                    String(line[..<tabIndex]),
+                    String(line[line.index(after: tabIndex)...])
+                ))
+                continue
+            }
+
+            let separators = CharacterSet.whitespacesAndNewlines
+                .union(CharacterSet(charactersIn: ",;|"))
+            candidates.append(
+                contentsOf: line
+                    .components(separatedBy: separators)
+                    .filter { !$0.isEmpty }
+                    .map { ($0, nil) }
+            )
+        }
+
+        if let first = candidates.first,
+           ["word", "words"].contains(normalizedCustomWord(first.word)) {
+            candidates.removeFirst()
+        }
+        return candidates
+    }
+
+    nonisolated private static func trimmingImportQuotes(_ value: String?) -> String? {
+        guard let value else { return nil }
+        return value.trimmingCharacters(
+            in: CharacterSet.whitespacesAndNewlines.union(
+                CharacterSet(charactersIn: "\"")
+            )
+        )
+    }
+
+    nonisolated private static func spellingPracticePriority(
+        _ mastery: CometMasteryLevel
+    ) -> Int {
+        switch mastery {
+        case .practising: return 0
+        case .new: return 1
+        case .secure: return 2
+        case .mastered: return 3
+        }
     }
 
     private static func downsample(_ trace: [LetterPoint]) -> [LetterPoint] {

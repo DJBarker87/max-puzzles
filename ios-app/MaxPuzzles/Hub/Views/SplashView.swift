@@ -19,6 +19,8 @@ struct SplashView: View {
     @State private var titleOpacity: Double = 0
     @State private var subtitleOpacity: Double = 0
     @State private var energyRingRotation: Double = 0
+    @State private var animationTask: Task<Void, Never>?
+    @State private var initializationTask: Task<Void, Never>?
 
     enum SplashPhase {
         case initial
@@ -48,7 +50,7 @@ struct SplashView: View {
 
                 // Title with premium typography
                 Text("Maxi's Mighty\nMindgames")
-                    .font(.system(size: 42, weight: .heavy, design: .rounded))
+                    .font(AppTypography.displayLarge)
                     .multilineTextAlignment(.center)
                     .foregroundColor(.white)
                     .shadow(color: .black.opacity(0.8), radius: 4, x: 0, y: 2)
@@ -57,7 +59,7 @@ struct SplashView: View {
 
                 // Subtitle
                 Text("Brain Training for Kids")
-                    .font(.system(size: 18, weight: .semibold, design: .rounded))
+                    .font(AppTypography.bodyLarge.weight(.semibold))
                     .foregroundColor(.white.opacity(0.95))
                     .shadow(color: .black.opacity(0.7), radius: 3, x: 0, y: 1)
                     .opacity(subtitleOpacity)
@@ -77,6 +79,10 @@ struct SplashView: View {
             }
             initializeApp()
         }
+        .onDisappear {
+            animationTask?.cancel()
+            initializationTask?.cancel()
+        }
     }
 
     // MARK: - Premium Animation Sequence
@@ -89,11 +95,13 @@ struct SplashView: View {
             particleProgress = 1
         }
 
-        // Phase 2: Energy ring expands (0.3s - 0.8s)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+        animationTask?.cancel()
+        animationTask = Task { @MainActor in
+            // Phase 2: Energy ring expands (0.3s - 0.8s)
+            try? await Task.sleep(nanoseconds: 300_000_000)
+            guard !Task.isCancelled else { return }
             phase = .revealing
 
-            // Energy ring expands
             withAnimation(.easeOut(duration: 0.6)) {
                 ringScale = 3
                 ringOpacity = 0.5
@@ -101,23 +109,23 @@ struct SplashView: View {
             withAnimation(.easeOut(duration: 0.8).delay(0.2)) {
                 ringOpacity = 0
             }
-        }
 
-        // Phase 3: Haptic feedback (0.5s)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            FeedbackManager.shared.haptic(.medium)
-            SoundEffectsService.shared.play(.unlock)
-        }
-
-        // Phase 4: Title appears (0.4s - 0.8s)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+            // Phase 3: Title appears (0.4s - 0.8s)
+            try? await Task.sleep(nanoseconds: 100_000_000)
+            guard !Task.isCancelled else { return }
             withAnimation(.easeOut(duration: 0.5)) {
                 titleOpacity = 1
             }
-        }
 
-        // Phase 5: Subtitle appears (0.7s - 1.0s)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.7) {
+            // Phase 4: Haptic feedback (0.5s)
+            try? await Task.sleep(nanoseconds: 100_000_000)
+            guard !Task.isCancelled else { return }
+            FeedbackManager.shared.haptic(.medium)
+            SoundEffectsService.shared.play(.unlock)
+
+            // Phase 5: Subtitle appears (0.7s - 1.0s)
+            try? await Task.sleep(nanoseconds: 200_000_000)
+            guard !Task.isCancelled else { return }
             withAnimation(.easeOut(duration: 0.4)) {
                 subtitleOpacity = 1
             }
@@ -133,9 +141,8 @@ struct SplashView: View {
         let storage = StorageService.shared
         _ = storage.ensureGuestSession()
 
-        // Use Task for @MainActor isolation compliance
-        // This ensures proper actor isolation when calling MusicService methods
-        Task { @MainActor in
+        initializationTask?.cancel()
+        initializationTask = Task { @MainActor in
             if reduceMotion {
                 appState.completeLoading()
                 musicService.play(track: .hub)
@@ -145,9 +152,11 @@ struct SplashView: View {
             // Preserve a brief branded hand-off without making returning children wait through
             // the entire decorative animation on every launch.
             try? await Task.sleep(nanoseconds: 100_000_000)
+            guard !Task.isCancelled else { return }
             musicService.play(track: .hub)
 
             try? await Task.sleep(nanoseconds: 200_000_000)
+            guard !Task.isCancelled else { return }
             appState.completeLoading()
         }
     }

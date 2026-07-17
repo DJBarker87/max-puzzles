@@ -29,12 +29,16 @@ final class SoundEffectsService {
     private var audioEngine: AVAudioEngine?
     private var playerNode: AVAudioPlayerNode?
     private var audioBuffers: [SoundEffect: AVAudioPCMBuffer] = [:]
+    private var delayedTasks: [UUID: Task<Void, Never>] = [:]
+    private var activePlaybackID: UUID?
 
     var isEnabled: Bool {
         get { storage.isSoundEnabled }
         set {
             storage.setSoundEnabled(newValue)
-            if !newValue { playerNode?.stop() }
+            if !newValue {
+                suspend()
+            }
         }
     }
 
@@ -59,15 +63,43 @@ final class SoundEffectsService {
             return
         }
 
+        activePlaybackID = nil
         node.stop()
-        node.scheduleBuffer(buffer, at: nil, options: .interrupts)
+        let playbackID = UUID()
+        activePlaybackID = playbackID
+        node.scheduleBuffer(buffer, at: nil, options: .interrupts) { [weak self] in
+            Task { @MainActor [weak self] in
+                self?.finishPlayback(playbackID)
+            }
+        }
         node.play()
+    }
+
+    /// Stops scheduled and active effects and releases the running render graph. The prepared
+    /// buffers remain cached, so the next enabled effect can restart without regenerating audio.
+    func suspend() {
+        cancelScheduledEffects()
+        activePlaybackID = nil
+        playerNode?.stop()
+        audioEngine?.stop()
     }
 
     func play(_ effect: SoundEffect, delay: TimeInterval) {
         guard isEnabled else { return }
-        DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+        guard delay > 0 else {
+            play(effect)
+            return
+        }
+        let id = UUID()
+        delayedTasks[id] = Task { @MainActor [weak self] in
+            do {
+                try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+            } catch {
+                return
+            }
+            guard !Task.isCancelled else { return }
             self?.play(effect)
+            self?.delayedTasks[id] = nil
         }
     }
 
@@ -79,11 +111,10 @@ final class SoundEffectsService {
     }
 
     private func ensureAudioEngine() -> Bool {
+        guard AppAudioSessionCoordinator.shared.prepareForSoundEffects() else { return false }
         if let engine = audioEngine, engine.isRunning { return true }
 
         if audioEngine == nil {
-            guard configureAudioSession() else { return false }
-
             let engine = AVAudioEngine()
             let node = AVAudioPlayerNode()
             guard let format = AVAudioFormat(
@@ -114,15 +145,18 @@ final class SoundEffectsService {
         }
     }
 
-    private func configureAudioSession() -> Bool {
-        do {
-            let session = AVAudioSession.sharedInstance()
-            try session.setCategory(.ambient, mode: .default, options: [.mixWithOthers])
-            try session.setActive(true)
-            return true
-        } catch {
-            return false
+    private func cancelScheduledEffects() {
+        for task in delayedTasks.values {
+            task.cancel()
         }
+        delayedTasks.removeAll()
+    }
+
+    private func finishPlayback(_ playbackID: UUID) {
+        guard activePlaybackID == playbackID else { return }
+        activePlaybackID = nil
+        playerNode?.stop()
+        audioEngine?.stop()
     }
 
     private struct Tone {
