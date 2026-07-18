@@ -240,11 +240,8 @@ class GameViewModel: ObservableObject {
 
         case .revealHiddenResults:
             guard let results = newState.hiddenModeResults else { break }
-            let earnedCoins = results.correctCount * 10
-            let penaltyCoins = results.mistakeCount * 30
-            let finalCoins = max(0, earnedCoins - penaltyCoins)
             newState.status = .won
-            newState.puzzleCoins = finalCoins
+            newState.puzzleCoins = CircuitReward.points(correctMoves: results.correctCount)
 
         case .clearCoinAnimation(let id):
             newState.coinAnimations.removeAll { $0.id == id }
@@ -326,8 +323,15 @@ class GameViewModel: ObservableObject {
             // Standard mode
             if result.correct {
                 // Correct move
-                let newPuzzleCoins = state.puzzleCoins + 10
-                let coinAnim = CoinAnimation(value: 10, type: .earn, timestamp: Date())
+                let newPuzzleCoins = CircuitReward.points(
+                    afterMoveIsCorrect: true,
+                    current: state.puzzleCoins
+                )
+                let coinAnim = CoinAnimation(
+                    value: CircuitReward.pointsPerCorrectMove,
+                    type: .earn,
+                    timestamp: Date()
+                )
 
                 newState.currentPosition = targetCoord
                 newState.visitedCells.append(targetCoord)
@@ -349,13 +353,12 @@ class GameViewModel: ObservableObject {
             } else {
                 // Wrong move
                 let newLives = state.lives - 1
-                let newPuzzleCoins = max(0, state.puzzleCoins - 30) // Clamp to 0
-                let coinAnim = CoinAnimation(value: -30, type: .penalty, timestamp: Date())
-
                 newState.lives = newLives
                 newState.moveHistory.append(moveResult)
-                newState.puzzleCoins = newPuzzleCoins
-                newState.coinAnimations.append(coinAnim)
+                newState.puzzleCoins = CircuitReward.points(
+                    afterMoveIsCorrect: false,
+                    current: state.puzzleCoins
+                )
 
                 // Add wrong move visuals
                 newState.wrongMoves.append(targetCoord)
@@ -363,8 +366,6 @@ class GameViewModel: ObservableObject {
                     TraversedConnector(cellA: state.currentPosition, cellB: targetCoord)
                 )
 
-                // Schedule animation cleanup
-                scheduleCoinAnimationCleanup(id: coinAnim.id)
                 scheduleWrongMoveCleanup()
 
                 if newLives <= 0 {

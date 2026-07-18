@@ -374,7 +374,7 @@ final class MaxPuzzlesTests: XCTestCase {
         )
     }
 
-    func testPencilCoverageAndPersistenceAreBounded() throws {
+    func testPencilCoverageAndPersistenceAreBounded() async throws {
         let plan = try XCTUnwrap(DownloadedDotPuzzleColourArtwork.plan(sheet: "D1/D2", slot: 1))
         let swatch = try XCTUnwrap(plan.swatches.first)
         let atlas = try XCTUnwrap(UIImage(named: swatch.maskArt.assetName)?.cgImage)
@@ -415,23 +415,407 @@ final class MaxPuzzlesTests: XCTestCase {
         let store = DotColouringSnapshotStore(defaults: defaults)
         let profile = UUID()
         let snapshot = DotColouringSnapshot(tapFilledRegionIDs: [2], strokes: [tinyStroke, sampled])
-        store.save(snapshot, puzzleID: "picture", profileID: profile)
-        XCTAssertEqual(store.load(puzzleID: "picture", profileID: profile), snapshot)
-        XCTAssertEqual(store.load(puzzleID: "picture", profileID: UUID()), .empty)
+        let session = await store.beginSession(puzzleID: "picture", profileID: profile)
+        let savedInitialSnapshot = await store.save(
+            snapshot,
+            puzzleID: "picture",
+            profileID: profile,
+            sessionToken: session.token,
+            revision: 1
+        )
+        XCTAssertTrue(savedInitialSnapshot)
+        let reloaded = await DotColouringSnapshotStore(defaults: defaults)
+            .beginSession(puzzleID: "picture", profileID: profile)
+        assertColouringSnapshot(reloaded.snapshot, equals: snapshot)
+        let otherProfile = await store.beginSession(puzzleID: "picture", profileID: UUID())
+        XCTAssertEqual(otherProfile.snapshot, .empty)
 
         let backgroundSnapshot = DotColouringSnapshot(
             tapFilledRegionIDs: [2, 3],
             strokes: [tinyStroke]
         )
-        store.saveInBackground(backgroundSnapshot, puzzleID: "picture", profileID: profile)
-        XCTAssertEqual(
-            store.load(puzzleID: "picture", profileID: profile),
+        let savedBackgroundSnapshot = await store.save(
             backgroundSnapshot,
-            "A read must wait for any earlier background snapshot write"
+            puzzleID: "picture",
+            profileID: profile,
+            sessionToken: reloaded.token,
+            revision: 1
+        )
+        XCTAssertTrue(savedBackgroundSnapshot)
+        let resetSnapshot = await store.reset(
+            puzzleID: "picture",
+            profileID: profile,
+            sessionToken: reloaded.token,
+            revision: 2
+        )
+        XCTAssertTrue(resetSnapshot)
+        let acceptedStaleSnapshot = await store.save(
+            backgroundSnapshot,
+            puzzleID: "picture",
+            profileID: profile,
+            sessionToken: reloaded.token,
+            revision: 1
+        )
+        XCTAssertFalse(acceptedStaleSnapshot, "A delayed pre-reset save must not restore erased colouring")
+        let afterReset = await store.beginSession(puzzleID: "picture", profileID: profile)
+        XCTAssertEqual(afterReset.snapshot, .empty)
+
+        let legacyProfile = UUID()
+        let legacyKey = "maxpuzzles.profile.\(legacyProfile.uuidString).dotToDot.colouringSnapshot.v1.picture"
+        defaults.set(try JSONEncoder().encode(snapshot), forKey: legacyKey)
+        let migrated = await store.beginSession(puzzleID: "picture", profileID: legacyProfile)
+        assertColouringSnapshot(migrated.snapshot, equals: snapshot)
+        XCTAssertNil(defaults.data(forKey: legacyKey))
+
+        let corruptProfile = UUID()
+        let corruptKey = "maxpuzzles.profile.\(corruptProfile.uuidString).dotToDot.colouringSnapshot.v2.picture"
+        defaults.set(Data("not-json".utf8), forKey: corruptKey)
+        let recovered = await store.beginSession(puzzleID: "picture", profileID: corruptProfile)
+        XCTAssertTrue(recovered.recoveredFromCorruptData)
+        XCTAssertEqual(recovered.snapshot, .empty)
+    }
+
+    func testDotToDotConnectionProgressPersistsByProfilePuzzleAndPlayStyle() async throws {
+        let suiteName = "MaxPuzzlesTests.dotConnectionProgress.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let profile = UUID()
+        let otherProfile = UUID()
+        let store = DotToDotProgressStore(defaults: defaults)
+
+        let tapSession = await store.beginSession(
+            puzzleID: "rocket",
+            profileID: profile,
+            interactionMode: .tap,
+            pointCount: 20
+        )
+        let savedTapProgress = await store.save(
+            currentIndex: 7,
+            puzzleID: "rocket",
+            profileID: profile,
+            interactionMode: .tap,
+            pointCount: 20,
+            sessionToken: tapSession.token
+        )
+        XCTAssertTrue(savedTapProgress)
+        let acceptedOlderProgress = await store.save(
+            currentIndex: 3,
+            puzzleID: "rocket",
+            profileID: profile,
+            interactionMode: .tap,
+            pointCount: 20,
+            sessionToken: tapSession.token
+        )
+        XCTAssertTrue(acceptedOlderProgress)
+
+        // A new actor represents a genuine relaunch rather than an in-memory cache hit.
+        let relaunchedStore = DotToDotProgressStore(defaults: defaults)
+        let restoredTap = await relaunchedStore.beginSession(
+            puzzleID: "rocket",
+            profileID: profile,
+            interactionMode: .tap,
+            pointCount: 20
+        )
+        XCTAssertEqual(restoredTap.currentIndex, 7)
+
+        let trace = await relaunchedStore.beginSession(
+            puzzleID: "rocket",
+            profileID: profile,
+            interactionMode: .trace,
+            pointCount: 20
+        )
+        XCTAssertEqual(trace.currentIndex, 0)
+        let differentPuzzle = await relaunchedStore.beginSession(
+            puzzleID: "moon",
+            profileID: profile,
+            interactionMode: .tap,
+            pointCount: 20
+        )
+        XCTAssertEqual(differentPuzzle.currentIndex, 0)
+        let differentChild = await relaunchedStore.beginSession(
+            puzzleID: "rocket",
+            profileID: otherProfile,
+            interactionMode: .tap,
+            pointCount: 20
+        )
+        XCTAssertEqual(differentChild.currentIndex, 0)
+    }
+
+    func testDotToDotConnectionCompletionAndRestartCannotBeUndoneByLateWrites() async throws {
+        let suiteName = "MaxPuzzlesTests.dotConnectionReset.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let profile = UUID()
+        let store = DotToDotProgressStore(defaults: defaults)
+
+        let session = await store.beginSession(
+            puzzleID: "fish",
+            profileID: profile,
+            interactionMode: .trace,
+            pointCount: 10
+        )
+        let savedInitialProgress = await store.save(
+            currentIndex: 6,
+            puzzleID: "fish",
+            profileID: profile,
+            interactionMode: .trace,
+            pointCount: 10,
+            sessionToken: session.token
+        )
+        XCTAssertTrue(savedInitialProgress)
+        let clearedProgress = await store.clear(
+            puzzleID: "fish",
+            profileID: profile,
+            interactionMode: .trace,
+            sessionToken: session.token
+        )
+        XCTAssertTrue(clearedProgress)
+        let acceptedLateCompletionWrite = await store.save(
+            currentIndex: 7,
+            puzzleID: "fish",
+            profileID: profile,
+            interactionMode: .trace,
+            pointCount: 10,
+            sessionToken: session.token
+        )
+        XCTAssertFalse(acceptedLateCompletionWrite, "A save already in flight must not revive completed progress")
+
+        let afterCompletion = await store.beginSession(
+            puzzleID: "fish",
+            profileID: profile,
+            interactionMode: .trace,
+            pointCount: 10
+        )
+        XCTAssertEqual(afterCompletion.currentIndex, 0)
+        let restartedSession = await store.restart(
+            puzzleID: "fish",
+            profileID: profile,
+            interactionMode: .trace,
+            sessionToken: afterCompletion.token
+        )
+        let restarted = try XCTUnwrap(restartedSession)
+        let acceptedPreRestartWrite = await store.save(
+            currentIndex: 3,
+            puzzleID: "fish",
+            profileID: profile,
+            interactionMode: .trace,
+            pointCount: 10,
+            sessionToken: afterCompletion.token
+        )
+        XCTAssertFalse(acceptedPreRestartWrite, "Restart must invalidate writes from the previous attempt")
+        let savedRestartedProgress = await store.save(
+            currentIndex: 1,
+            puzzleID: "fish",
+            profileID: profile,
+            interactionMode: .trace,
+            pointCount: 10,
+            sessionToken: restarted.token
+        )
+        XCTAssertTrue(savedRestartedProgress)
+    }
+
+    func testDotToDotConnectionQueueDrainsFinalProgressBeforeReopenRotatesToken() async throws {
+        let suiteName = "MaxPuzzlesTests.dotConnectionCloseRace.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let profile = UUID()
+        let store = DotToDotProgressStore(defaults: defaults)
+        let queue = DotToDotPersistenceQueue()
+        let resource = DotToDotPersistenceQueue.Resource.connection(
+            puzzleID: "race-rocket",
+            profileID: profile,
+            interactionMode: .tap
+        )
+        let session = await store.beginSession(
+            puzzleID: "race-rocket",
+            profileID: profile,
+            interactionMode: .tap,
+            pointCount: 20
         )
 
-        store.reset(puzzleID: "picture", profileID: profile)
-        XCTAssertEqual(store.load(puzzleID: "picture", profileID: profile), .empty)
+        queue.enqueue(for: resource) {
+            // Model a save that was still suspended when the child pressed Close.
+            try? await Task.sleep(nanoseconds: 25_000_000)
+            _ = await store.save(
+                currentIndex: 4,
+                puzzleID: "race-rocket",
+                profileID: profile,
+                interactionMode: .tap,
+                pointCount: 20,
+                sessionToken: session.token
+            )
+        }
+        queue.enqueue(for: resource) {
+            _ = await store.save(
+                currentIndex: 5,
+                puzzleID: "race-rocket",
+                profileID: profile,
+                interactionMode: .tap,
+                pointCount: 20,
+                sessionToken: session.token
+            )
+        }
+
+        // This is the production reopen order: drain all writes registered by the old view, then
+        // begin a session (which is allowed to replace the token only after the final save lands).
+        await queue.drain(resource)
+        let reopened = await store.beginSession(
+            puzzleID: "race-rocket",
+            profileID: profile,
+            interactionMode: .tap,
+            pointCount: 20
+        )
+        XCTAssertEqual(reopened.currentIndex, 5)
+    }
+
+    func testDotToDotColouringQueueDrainsFinalEditBeforeReopenRotatesToken() async throws {
+        let suiteName = "MaxPuzzlesTests.dotColourCloseRace.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let profile = UUID()
+        let store = DotColouringSnapshotStore(defaults: defaults)
+        let queue = DotToDotPersistenceQueue()
+        let resource = DotToDotPersistenceQueue.Resource.colouring(
+            puzzleID: "race-picture",
+            profileID: profile
+        )
+        let session = await store.beginSession(puzzleID: "race-picture", profileID: profile)
+        let first = DotColouringSnapshot(tapFilledRegionIDs: [1], strokes: [])
+        let final = DotColouringSnapshot(tapFilledRegionIDs: [1, 2], strokes: [])
+
+        queue.enqueue(for: resource) {
+            try? await Task.sleep(nanoseconds: 25_000_000)
+            _ = await store.save(
+                first,
+                puzzleID: "race-picture",
+                profileID: profile,
+                sessionToken: session.token,
+                revision: 1
+            )
+        }
+        queue.enqueue(for: resource) {
+            _ = await store.save(
+                final,
+                puzzleID: "race-picture",
+                profileID: profile,
+                sessionToken: session.token,
+                revision: 2
+            )
+        }
+
+        await queue.drain(resource)
+        let reopened = await store.beginSession(puzzleID: "race-picture", profileID: profile)
+        XCTAssertEqual(reopened.snapshot, final)
+    }
+
+    func testFreshDotToDotLoadChangesAutomaticHintTaskIdentityAtIndexZero() {
+        let beforeLoad = DotToDotAutomaticHintTaskID(
+            hasLoadedConnectionProgress: false,
+            currentIndex: 0
+        )
+        let freshPuzzleAfterLoad = DotToDotAutomaticHintTaskID(
+            hasLoadedConnectionProgress: true,
+            currentIndex: 0
+        )
+        let afterFirstDot = DotToDotAutomaticHintTaskID(
+            hasLoadedConnectionProgress: true,
+            currentIndex: 1
+        )
+
+        XCTAssertNotEqual(
+            beforeLoad,
+            freshPuzzleAfterLoad,
+            "Loading a fresh puzzle must restart the automatic hint task for number 1"
+        )
+        XCTAssertNotEqual(freshPuzzleAfterLoad, afterFirstDot)
+    }
+
+    func testDotToDotConnectionStoreRecoversFromCorruptData() async throws {
+        let suiteName = "MaxPuzzlesTests.dotConnectionCorrupt.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let profile = UUID()
+        let key = "maxpuzzles.profile.\(profile.uuidString).dotToDot.connectionProgress.v1.tap.star"
+        defaults.set(Data("not-json".utf8), forKey: key)
+
+        let store = DotToDotProgressStore(defaults: defaults)
+        let recovered = await store.beginSession(
+            puzzleID: "star",
+            profileID: profile,
+            interactionMode: .tap,
+            pointCount: 12
+        )
+        XCTAssertTrue(recovered.recoveredFromCorruptData)
+        XCTAssertEqual(recovered.currentIndex, 0)
+        let savedAfterRecovery = await store.save(
+            currentIndex: 1,
+            puzzleID: "star",
+            profileID: profile,
+            interactionMode: .tap,
+            pointCount: 12,
+            sessionToken: recovered.token
+        )
+        XCTAssertTrue(savedAfterRecovery, "A recovered store must remain writable")
+        XCTAssertFalse(DotToDotRestartPolicy.requiresConfirmation(currentIndex: 0))
+        XCTAssertTrue(DotToDotRestartPolicy.requiresConfirmation(currentIndex: 1))
+    }
+
+    func testDotToDotChildFacingAndSpokenCopyUsesEverydayNumberLanguage() throws {
+        let prohibitedTerm = ["numer", "al"].joined()
+        let representativeCopy = DotInteractionMode.allCases.flatMap {
+            [$0.title, $0.shortInstruction]
+        } + DotToDotTier.allCases.flatMap {
+            [$0.title, $0.subtitle, $0.rangeLabel]
+        } + [
+            NumeralSpeechService.promptText(for: 7),
+            NumeralSpeechService.numberText(for: 7),
+            NumeralSpeechService.celebrationText(for: "rocket"),
+            NumeralSpeechService.starCountText(for: 4)
+        ]
+
+        for copy in representativeCopy {
+            XCTAssertFalse(
+                copy.localizedCaseInsensitiveContains(prohibitedTerm),
+                "Child-facing copy must use everyday number language: \(copy)"
+            )
+        }
+        XCTAssertEqual(NumeralSpeechService.promptText(for: 7), "Find number 7.")
+
+        // Keep inline menu, game, completion, hint and accessibility strings covered too. Remove
+        // interpolation expressions before checking so internal variable/type names can stay precise.
+        let testsFile = URL(fileURLWithPath: #filePath)
+        let iosAppRoot = testsFile
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let dotModule = iosAppRoot.appendingPathComponent("MaxPuzzles/Modules/DotToDot")
+        let hubSources = [
+            iosAppRoot.appendingPathComponent("MaxPuzzles/Hub/Views/MainHubView.swift"),
+            iosAppRoot.appendingPathComponent("MaxPuzzles/Hub/Views/SettingsView.swift")
+        ]
+        let dotSources = try FileManager.default
+            .contentsOfDirectory(at: dotModule, includingPropertiesForKeys: nil)
+            .filter { $0.pathExtension == "swift" }
+        let quotedStringPattern = try NSRegularExpression(pattern: #""(?:\\.|[^"\\])*""#)
+        let interpolationPattern = try NSRegularExpression(pattern: #"\\\([^)]*\)"#)
+
+        for sourceURL in dotSources + hubSources {
+            let source = try String(contentsOf: sourceURL, encoding: .utf8)
+            let sourceRange = NSRange(source.startIndex..., in: source)
+            for match in quotedStringPattern.matches(in: source, range: sourceRange) {
+                guard let matchRange = Range(match.range, in: source) else { continue }
+                let literal = String(source[matchRange])
+                let literalRange = NSRange(literal.startIndex..., in: literal)
+                let childFacingText = interpolationPattern.stringByReplacingMatches(
+                    in: literal,
+                    range: literalRange,
+                    withTemplate: ""
+                )
+                XCTAssertFalse(
+                    childFacingText.localizedCaseInsensitiveContains(prohibitedTerm),
+                    "\(sourceURL.lastPathComponent) contains child-facing technical copy: \(literal)"
+                )
+            }
+        }
     }
 
     func testSubitizingBonusUsesDistinctChoicesAndStandardOneToFivePatterns() {
@@ -606,6 +990,33 @@ final class MaxPuzzlesTests: XCTestCase {
             file: file,
             line: line
         )
+    }
+
+    private func assertColouringSnapshot(
+        _ actual: DotColouringSnapshot,
+        equals expected: DotColouringSnapshot,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        XCTAssertEqual(actual.tapFilledRegionIDs, expected.tapFilledRegionIDs, file: file, line: line)
+        XCTAssertEqual(actual.strokes.count, expected.strokes.count, file: file, line: line)
+        for (actualStroke, expectedStroke) in zip(actual.strokes, expected.strokes) {
+            XCTAssertEqual(actualStroke.id, expectedStroke.id, file: file, line: line)
+            XCTAssertEqual(actualStroke.regionID, expectedStroke.regionID, file: file, line: line)
+            XCTAssertEqual(actualStroke.swatchID, expectedStroke.swatchID, file: file, line: line)
+            XCTAssertEqual(
+                actualStroke.normalizedLineWidth,
+                expectedStroke.normalizedLineWidth,
+                accuracy: 0.000_000_001,
+                file: file,
+                line: line
+            )
+            XCTAssertEqual(actualStroke.points.count, expectedStroke.points.count, file: file, line: line)
+            for (actualPoint, expectedPoint) in zip(actualStroke.points, expectedStroke.points) {
+                XCTAssertEqual(actualPoint.x, expectedPoint.x, accuracy: 0.000_000_001, file: file, line: line)
+                XCTAssertEqual(actualPoint.y, expectedPoint.y, accuracy: 0.000_000_001, file: file, line: line)
+            }
+        }
     }
 
     private func rgbComponents(

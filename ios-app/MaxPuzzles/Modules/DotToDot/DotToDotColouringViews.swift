@@ -44,7 +44,7 @@ enum DotColouringMode: String, CaseIterable, Identifiable {
 /// One continuous, genuine input gesture in the free-shading mode. Points and width are stored in
 /// the artwork's normalised 0...1 coordinate space so a rotation or a different device never
 /// distorts the child's work.
-struct DotColourStroke: Identifiable, Equatable, Codable {
+struct DotColourStroke: Identifiable, Equatable, Codable, Sendable {
     let id: UUID
     let regionID: Int
     let swatchID: Int
@@ -66,18 +66,28 @@ struct DotColourStroke: Identifiable, Equatable, Codable {
     }
 }
 
-struct DotColouringSnapshot: Equatable, Codable {
+struct DotColouringSnapshot: Equatable, Codable, Sendable {
     var tapFilledRegionIDs: Set<Int>
     var strokes: [DotColourStroke]
 
     static let empty = DotColouringSnapshot(tapFilledRegionIDs: [], strokes: [])
 }
 
-struct DotColouringSnapshotStore {
-    private static let persistenceQueue = DispatchQueue(
-        label: "com.maxpuzzles.dot-colouring-snapshots",
-        qos: .utility
-    )
+actor DotColouringSnapshotStore {
+    static let shared = DotColouringSnapshotStore()
+
+    struct Session: Equatable, Sendable {
+        let token: UUID
+        let revision: Int
+        let snapshot: DotColouringSnapshot
+        let recoveredFromCorruptData: Bool
+    }
+
+    private struct Envelope: Codable {
+        let token: UUID
+        var revision: Int
+        var snapshot: DotColouringSnapshot
+    }
 
     private let defaults: UserDefaults
 
@@ -85,50 +95,107 @@ struct DotColouringSnapshotStore {
         self.defaults = defaults
     }
 
-    func load(puzzleID: String, profileID: UUID?) -> DotColouringSnapshot {
-        Self.persistenceQueue.sync {
-            guard let data = defaults.data(forKey: key(puzzleID: puzzleID, profileID: profileID)),
-                  let snapshot = try? JSONDecoder().decode(DotColouringSnapshot.self, from: data)
-            else { return .empty }
-            return DotColouringSnapshot(
-                tapFilledRegionIDs: snapshot.tapFilledRegionIDs,
-                strokes: DotColourStrokeSampler.bounded(snapshot.strokes)
-            )
-        }
+    func beginSession(puzzleID: String, profileID: UUID?) -> Session {
+        let storageKey = key(puzzleID: puzzleID, profileID: profileID)
+        let oldStorageKey = legacyKey(
+            puzzleID: puzzleID,
+            profileID: profileID
+        )
+        let decoded = decodeSnapshot(forKey: storageKey, legacyKey: oldStorageKey)
+        let token = UUID()
+        let envelope = Envelope(token: token, revision: 0, snapshot: decoded.snapshot)
+        persist(envelope, forKey: storageKey)
+        defaults.removeObject(forKey: oldStorageKey)
+        return Session(
+            token: token,
+            revision: 0,
+            snapshot: decoded.snapshot,
+            recoveredFromCorruptData: decoded.wasCorrupt
+        )
     }
 
-    func save(_ snapshot: DotColouringSnapshot, puzzleID: String, profileID: UUID?) {
-        Self.persistenceQueue.sync {
-            persist(snapshot, puzzleID: puzzleID, profileID: profileID)
-        }
+    /// Revisions make reset deterministic even if an earlier debounced save reaches the actor
+    /// later. Writes from a dismissed/superseded colouring screen are rejected by the token.
+    @discardableResult
+    func save(
+        _ snapshot: DotColouringSnapshot,
+        puzzleID: String,
+        profileID: UUID?,
+        sessionToken: UUID,
+        revision: Int
+    ) -> Bool {
+        let storageKey = key(puzzleID: puzzleID, profileID: profileID)
+        guard let existing = decodeEnvelope(forKey: storageKey),
+              existing.token == sessionToken,
+              revision > existing.revision else { return false }
+        persist(
+            Envelope(token: sessionToken, revision: revision, snapshot: bounded(snapshot)),
+            forKey: storageKey
+        )
+        return true
     }
 
-    func saveInBackground(_ snapshot: DotColouringSnapshot, puzzleID: String, profileID: UUID?) {
-        Self.persistenceQueue.async {
-            self.persist(snapshot, puzzleID: puzzleID, profileID: profileID)
-        }
+    @discardableResult
+    func reset(
+        puzzleID: String,
+        profileID: UUID?,
+        sessionToken: UUID,
+        revision: Int
+    ) -> Bool {
+        save(
+            .empty,
+            puzzleID: puzzleID,
+            profileID: profileID,
+            sessionToken: sessionToken,
+            revision: revision
+        )
     }
 
-    func reset(puzzleID: String, profileID: UUID?) {
-        Self.persistenceQueue.sync {
-            defaults.removeObject(forKey: key(puzzleID: puzzleID, profileID: profileID))
-        }
-    }
-
-    static func flushPendingWrites() {
-        persistenceQueue.sync {}
-    }
-
-    private func persist(_ snapshot: DotColouringSnapshot, puzzleID: String, profileID: UUID?) {
-        let bounded = DotColouringSnapshot(
+    private func bounded(_ snapshot: DotColouringSnapshot) -> DotColouringSnapshot {
+        DotColouringSnapshot(
             tapFilledRegionIDs: snapshot.tapFilledRegionIDs,
             strokes: DotColourStrokeSampler.bounded(snapshot.strokes)
         )
-        guard let data = try? JSONEncoder().encode(bounded) else { return }
-        defaults.set(data, forKey: key(puzzleID: puzzleID, profileID: profileID))
+    }
+
+    private func decodeSnapshot(
+        forKey storageKey: String,
+        legacyKey: String
+    ) -> (snapshot: DotColouringSnapshot, wasCorrupt: Bool) {
+        if let data = defaults.data(forKey: storageKey) {
+            guard let envelope = try? JSONDecoder().decode(Envelope.self, from: data) else {
+                defaults.removeObject(forKey: storageKey)
+                return (.empty, true)
+            }
+            return (bounded(envelope.snapshot), false)
+        }
+
+        guard let legacyData = defaults.data(forKey: legacyKey) else { return (.empty, false) }
+        guard let legacySnapshot = try? JSONDecoder().decode(DotColouringSnapshot.self, from: legacyData) else {
+            defaults.removeObject(forKey: legacyKey)
+            return (.empty, true)
+        }
+        return (bounded(legacySnapshot), false)
+    }
+
+    private func decodeEnvelope(forKey storageKey: String) -> Envelope? {
+        guard let data = defaults.data(forKey: storageKey) else { return nil }
+        return try? JSONDecoder().decode(Envelope.self, from: data)
+    }
+
+    private func persist(_ envelope: Envelope, forKey storageKey: String) {
+        guard let data = try? JSONEncoder().encode(envelope) else { return }
+        defaults.set(data, forKey: storageKey)
     }
 
     private func key(puzzleID: String, profileID: UUID?) -> String {
+        if let profileID {
+            return "maxpuzzles.profile.\(profileID.uuidString).dotToDot.colouringSnapshot.v2.\(puzzleID)"
+        }
+        return "maxpuzzles.dotToDot.colouringSnapshot.v2.\(puzzleID)"
+    }
+
+    private func legacyKey(puzzleID: String, profileID: UUID?) -> String {
         if let profileID {
             return "maxpuzzles.profile.\(profileID.uuidString).dotToDot.colouringSnapshot.v1.\(puzzleID)"
         }
@@ -386,7 +453,9 @@ struct DotToDotColouringStage: View {
     let plan: DotSemanticColourPlan
     let initialCompletedRegions: Set<Int>
     let onRegionCompleted: (Int) -> Void
-    let onSnapshotChanged: (DotColouringSnapshot) -> Void
+    /// Registers persistence synchronously and returns the queue task so Close/Finished can await
+    /// durable storage before this presentation is allowed to disappear.
+    let onSnapshotChanged: (DotColouringSnapshot) -> Task<Void, Never>
     let onReset: () -> Void
     let onDone: () -> Void
     let onClose: () -> Void
@@ -403,6 +472,8 @@ struct DotToDotColouringStage: View {
     @State private var clearWrongRegionTask: Task<Void, Never>?
     @State private var snapshotPersistenceTask: Task<Void, Never>?
     @State private var pendingSnapshot: DotColouringSnapshot?
+    @State private var hasCommittedForDismissal = false
+    @State private var isCommittingExit = false
 
     init(
         puzzle: DotPuzzle,
@@ -410,7 +481,7 @@ struct DotToDotColouringStage: View {
         initialCompletedRegions: Set<Int> = [],
         initialSnapshot: DotColouringSnapshot = .empty,
         onRegionCompleted: @escaping (Int) -> Void,
-        onSnapshotChanged: @escaping (DotColouringSnapshot) -> Void = { _ in },
+        onSnapshotChanged: @escaping (DotColouringSnapshot) -> Task<Void, Never> = { _ in Task {} },
         onReset: @escaping () -> Void,
         onDone: @escaping () -> Void,
         onClose: @escaping () -> Void
@@ -505,13 +576,25 @@ struct DotToDotColouringStage: View {
         .onDisappear {
             clearWrongRegionTask?.cancel()
             clearWrongRegionTask = nil
-            flushPendingSnapshot(waitForDisk: true)
+            snapshotPersistenceTask?.cancel()
+            snapshotPersistenceTask = nil
+            // Explicit Close and Finished paths have already awaited this exact snapshot. For an
+            // external lifecycle teardown, register the final value synchronously so a subsequent
+            // presentation's queue drain sees it before rotating the session token.
+            if !hasCommittedForDismissal {
+                pendingSnapshot = nil
+                _ = onSnapshotChanged(currentSnapshot)
+            }
             DotSemanticMaskHitTester.release(plan, referenceArt: puzzle.referenceArt)
         }
         .onChange(of: scenePhase) { phase in
             guard phase != .active else { return }
-            flushPendingSnapshot(waitForDisk: true)
+            snapshotPersistenceTask?.cancel()
+            snapshotPersistenceTask = nil
+            pendingSnapshot = nil
+            _ = onSnapshotChanged(currentSnapshot)
         }
+        .interactiveDismissDisabled(true)
     }
 
     @ViewBuilder
@@ -572,14 +655,7 @@ struct DotToDotColouringStage: View {
 
             Button {
                 guard progress.isComplete else { return }
-                flushPendingSnapshot(waitForDisk: false)
-                SoundEffectsService.shared.play(.levelComplete)
-                FeedbackManager.shared.haptic(.levelComplete)
-                onDone()
-                // Drive dismissal from the presented view as well as the parent's binding. This
-                // avoids a SwiftUI fullScreenCover race where the reward view is updated behind
-                // a cover that has not yet begun dismissing.
-                dismiss()
+                finishStage()
             } label: {
                 Label("Finished", systemImage: "checkmark.circle.fill")
                     .font(.system(.body, design: .rounded, weight: .bold))
@@ -591,7 +667,7 @@ struct DotToDotColouringStage: View {
                     )
             }
             .buttonStyle(.plain)
-            .disabled(!progress.isComplete)
+            .disabled(!progress.isComplete || isCommittingExit)
             .accessibilityHint(progress.isComplete ? "Completes the picture" : "Use every numbered colour first")
             .accessibilityIdentifier("dot-colouring-finish")
         }
@@ -880,14 +956,36 @@ struct DotToDotColouringStage: View {
             message = "Fresh canvas—start with pot 1."
         }
         onReset()
+        scheduleSnapshotPersistence()
         FeedbackManager.shared.haptic(.light)
         announce("Colouring reset")
     }
 
     private func closeStage() {
-        flushPendingSnapshot(waitForDisk: false)
-        onClose()
-        dismiss()
+        guard !isCommittingExit else { return }
+        isCommittingExit = true
+        Task { @MainActor in
+            await flushPendingSnapshot()
+            hasCommittedForDismissal = true
+            onClose()
+            dismiss()
+        }
+    }
+
+    private func finishStage() {
+        guard !isCommittingExit else { return }
+        isCommittingExit = true
+        Task { @MainActor in
+            await flushPendingSnapshot()
+            hasCommittedForDismissal = true
+            SoundEffectsService.shared.play(.levelComplete)
+            FeedbackManager.shared.haptic(.levelComplete)
+            onDone()
+            // Drive dismissal from the presented view as well as the parent's binding. This
+            // avoids a SwiftUI fullScreenCover race where the reward view is updated behind
+            // a cover that has not yet begun dismissing.
+            dismiss()
+        }
     }
 
     private func swatchName(_ id: Int) -> String {
@@ -961,22 +1059,27 @@ struct DotToDotColouringStage: View {
         snapshotPersistenceTask = Task { @MainActor in
             try? await Task.sleep(nanoseconds: 350_000_000)
             guard !Task.isCancelled else { return }
-            snapshotPersistenceTask = nil
             guard let snapshot = pendingSnapshot else { return }
             pendingSnapshot = nil
-            onSnapshotChanged(snapshot)
+            let persistenceTask = onSnapshotChanged(snapshot)
+            await persistenceTask.value
+            guard !Task.isCancelled else { return }
+            snapshotPersistenceTask = nil
         }
     }
 
-    private func flushPendingSnapshot(waitForDisk: Bool) {
-        snapshotPersistenceTask?.cancel()
+    @MainActor
+    private func flushPendingSnapshot() async {
+        let scheduledTask = snapshotPersistenceTask
+        scheduledTask?.cancel()
         snapshotPersistenceTask = nil
         if let snapshot = pendingSnapshot {
             pendingSnapshot = nil
-            onSnapshotChanged(snapshot)
-        }
-        if waitForDisk {
-            DotColouringSnapshotStore.flushPendingWrites()
+            let persistenceTask = onSnapshotChanged(snapshot)
+            await persistenceTask.value
+        } else if let scheduledTask {
+            // If the debounce already took ownership of the snapshot, wait for its store write.
+            await scheduledTask.value
         }
     }
 

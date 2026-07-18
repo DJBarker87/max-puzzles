@@ -149,8 +149,9 @@ class StoryProgress: ObservableObject {
         // Level 1 (A) is always unlocked if chapter is unlocked
         if level == 1 { return true }
 
-        // Require 2+ stars on previous level to unlock next
-        return starsForLevel(chapter: chapter, level: level - 1) >= 2
+        // Completing a level always opens the next one. Stars are a replay and
+        // mastery reward; they must never block a child who needed another try.
+        return isLevelCompleted(chapter: chapter, level: level - 1)
     }
 
     /// Check if a specific level is completed
@@ -197,11 +198,7 @@ class StoryProgress: ObservableObject {
             levelData.completed = true
 
             // Calculate stars for this attempt
-            let earnedStars = StoryDifficulty.calculateStars(
-                livesLost: livesLost,
-                timeSeconds: timeSeconds,
-                tileCount: tileCount
-            )
+            let earnedStars = StoryDifficulty.calculateStars(livesLost: livesLost)
 
             // Keep best stars
             levelData.stars = max(levelData.stars, earnedStars)

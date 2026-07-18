@@ -34,7 +34,7 @@ struct GameMoveResult: Identifiable {
 /// Coin animation for visual feedback
 struct CoinAnimation: Identifiable {
     let id = UUID()
-    /// Amount of coins (+10 or -30)
+    /// Amount of points earned
     let value: Int
     /// Type of change
     let type: CoinChangeType
@@ -43,7 +43,22 @@ struct CoinAnimation: Identifiable {
 
     enum CoinChangeType {
         case earn
-        case penalty
+    }
+}
+
+// MARK: - Reward Policy
+
+/// Keeps Circuit rewards cumulative: trying another route can be recorded as a
+/// mistake, but it never takes away points already earned.
+enum CircuitReward {
+    static let pointsPerCorrectMove = 10
+
+    static func points(afterMoveIsCorrect correct: Bool, current: Int) -> Int {
+        correct ? current + pointsPerCorrectMove : current
+    }
+
+    static func points(correctMoves: Int) -> Int {
+        max(0, correctMoves) * pointsPerCorrectMove
     }
 }
 

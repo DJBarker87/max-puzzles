@@ -1,22 +1,25 @@
 # App Store release red team
 
-Reviewed: 17 July 2026
+Reviewed: 18 July 2026
 
 ## Verdict
 
 Version 1.3 (build 5) is submitted to App Review with status `WAITING_FOR_REVIEW`. Apple processed the uploaded build as `VALID`; the build is attached, both screenshot sets are complete, and the listing, categories, age rating and review information match the release payload. The pre-submission read-only API audit passed, then the current review-submission API flow created the submission, added version 1.3 and submitted it at 16:42 UTC on 16 July 2026. Release remains manual.
 
-Version 1.4 (build 6) is the next prepared payload and has not been submitted by this implementation pass. Its local app changes have been red-teamed for UX and performance: the obsolete 100-picture Dot-to-Dot pack is removed in favour of 84 audited D1–D7 designs; semantic full-screen tap/Pencil colouring now requires real coverage; Star Speller adds the England Year 1 starter curriculum, contextual prompts, adaptive 3/5/10-word sessions and Comet Writer handwriting; and compact family progress can sync through Apple's private iCloud key-value store. No claim in the historical 1.3 evidence below should be read as a completed 1.4 archive, upload, physical-device or TestFlight check.
+Version 1.4 (build 6) is the next prepared payload and had not yet been uploaded at the time this implementation evidence was committed. Its local app changes have been red-teamed for UX and performance across all four games: Dot-to-Dot has 84 audited D1–D7 designs and durable per-child play/colouring recovery; Star Speller adds the England Year 1 starter curriculum, contextual prompts, adaptive 3/5/10-word sessions and immediate built-in speech fallback; Comet Writer supports ordinary finger input and explicit two-utterance letter teaching; Circuit Challenge has accuracy-only stars, child-safe confirmations and reliable progression. Compact family progress can sync through Apple's private iCloud key-value store. No claim in the historical 1.3 evidence below should be read as a completed 1.4 physical-device or TestFlight check.
 
 ## Version 1.4 implementation evidence
 
-- A clean iOS 26.2 simulator build succeeds with the iOS 16.0 deployment target.
-- All 145 unit tests pass, including exact 84-picture catalogue enforcement, semantic colour plans, meaningful Pencil coverage, profile/cloud merging, contextual Year 1 prompts, three-key hints, adaptive mastery and durable session restoration.
-- The menu artwork is held in a fixed viewport, ambient animation work is lifecycle/Reduce Motion aware, and Circuit text now scales with Dynamic Type.
+- The unsigned generic-device Release build and Release static analysis both succeed with the iOS 16.0 deployment target.
+- All 172 unit tests pass on iOS 16.1, including exact 84-picture catalogue enforcement, atomic per-child Dot-to-Dot recovery, semantic colour plans, input-coordinate mapping, all 52 letter speech sequences, all 10 number speech sequences, profile/cloud merging, contextual Year 1 prompts, audio fallback, adaptive mastery, Circuit stars/progression and stale-navigation cancellation.
+- The complete iOS 26.2 serial UI/launch suite passes 30 executions across 27 tests, including four launch configurations, onboarding and profile relaunch, all four games, Accessibility XXL, audio recovery, rotation/relaunch and real finger writing.
+- Five representative iPadOS 16.1 game paths pass across the equal four-game hub, Dot-to-Dot, Circuit Challenge, Comet Writer controls and Star Speller. The two-point iOS 16 accessibility-frame rounding between visually equal hub cards is covered by a three-point cross-runtime test tolerance.
+- The menu artwork is held in a fixed viewport, ambient animation work is lifecycle/Reduce Motion aware, the hub gives all four games equal 2×2 prominence, and Circuit text now scales with Dynamic Type.
 - App-owned audio-session changes are centralised. Star Speller, Dot-to-Dot speech, Comet Writer speech and custom recordings suppress music for the full required-audio flow.
-- Comet Writer now uses the system's ordinary British English letter names without spoken lowercase/uppercase labels. The experimental custom phoneme/IPA pronunciation layer and its curly/kicking letter wording are intentionally excluded from this release.
+- Comet Writer now uses the system's ordinary British English letter names without spoken lowercase/uppercase labels. Every letter lesson queues `Letter C.` and `C is for cat.` (or the corresponding letter) as separate utterances with an explicit 0.45-second pause; number lessons say “number”, never “numeral”. The experimental custom phoneme/IPA pronunciation layer and its curly/kicking letter wording are intentionally excluded from this release.
 - The iCloud payload is compact and excludes detailed attempts, handwriting traces, custom words and recordings. Removed legacy Dot-to-Dot IDs are filtered from both local and cloud progress.
 - The serial simulator UI suite covers all integrated product flows and launch configurations, including semantic-colouring close and Finished → More Pictures paths.
+- Sixteen fresh native Simulator screenshots from the final source were visually inspected, then converted to opaque upload-ready JPEGs at 1320×2868 and 2048×2732.
 
 ## Version 1.3 submission evidence (historical)
 
@@ -48,7 +51,7 @@ Version 1.4 (build 6) is the next prepared payload and has not been submitted by
 | Resolved | The listing, screenshot sets, categories, Kids band, age rating and review details needed to be populated. | The authenticated sync completed and the independent read-only audit matches every prepared value. |
 | P1 | DSA trader status and any additional App Store Connect agreements are account-level legal declarations that cannot be derived from the app. | App Store Connect accepted the submission under the existing account state; retain truthful selections and address any account-level request from Apple. |
 | P1 | App privacy and content-rights provenance cannot be safely inferred or fully written through the current API. | Reconfirm Data Not Collected in App Store Connect against the 1.4 binary. The developer has no backend or access to the private Apple iCloud value, but the new off-device Apple service must be described accurately in the privacy policy and review notes. Keep asset-rights evidence on file. |
-| P1 | Simulator testing cannot validate a real Apple Pencil, microphone hardware, real memory pressure or install-from-TestFlight behaviour. | Run the eventual 1.4 build through TestFlight on a supported iPhone and a Pencil-capable iPad before submission. |
+| P1 | Simulator testing cannot validate a real Apple Pencil, microphone hardware, real memory pressure or install-from-TestFlight behaviour. | Run build 6 through TestFlight on a supported iPhone and a Pencil-capable iPad as soon as those devices are available; retain this as an explicit residual risk if review submission precedes that check. |
 
 ## High-priority findings
 
@@ -85,7 +88,7 @@ Version 1.4 (build 6) is the next prepared payload and has not been submitted by
 - The Debug-only screenshot router is excluded from Release builds and presents real production views.
 - Do not upload the raw PNG captures because Simulator PNGs contain an alpha channel.
 - Do not upload `Screenshots/iPad-13`; those are retained iPadOS 26 windowing audit captures and include the Home Screen. Use only `Screenshots/Upload-Ready`.
-- The first three recommended screenshots show guided writing, whole-word writing and Circuit Challenge rather than a splash or login screen.
+- The first three screenshots show real Dot-to-Dot play, its Tap dots/Trace lines choice and the equal four-game hub rather than a splash or login screen.
 - The screenshots contain no fake scores, reviews, rankings, prices or unavailable features.
 
 ## Privacy and child-safety review

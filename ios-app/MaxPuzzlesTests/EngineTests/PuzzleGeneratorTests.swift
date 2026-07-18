@@ -202,4 +202,138 @@ final class PuzzleGeneratorTests: XCTestCase {
         XCTAssertTrue(finishCell.expression.isEmpty, "FINISH cell should have empty expression")
         XCTAssertNil(finishCell.answer, "FINISH cell should have nil answer")
     }
+
+    func testStoryCompletionUnlocksNextLevelEvenWithOneStar() {
+        let suiteName = "PuzzleGeneratorTests.storyUnlock.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let progress = StoryProgress(defaults: defaults)
+        XCTAssertFalse(progress.isLevelUnlocked(chapter: 1, level: 2))
+
+        progress.recordAttempt(
+            chapter: 1,
+            level: 1,
+            won: true,
+            livesLost: 4,
+            timeSeconds: 180,
+            tileCount: 8
+        )
+
+        XCTAssertEqual(progress.starsForLevel(chapter: 1, level: 1), 1)
+        XCTAssertTrue(progress.isLevelUnlocked(chapter: 1, level: 2))
+
+        let reloadedProgress = StoryProgress(defaults: defaults)
+        XCTAssertTrue(
+            reloadedProgress.isLevelUnlocked(chapter: 1, level: 2),
+            "Leaving and returning must preserve the same next-level access offered in-session"
+        )
+    }
+
+    func testFailedStoryAttemptDoesNotUnlockNextLevel() {
+        let suiteName = "PuzzleGeneratorTests.storyFailed.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let progress = StoryProgress(defaults: defaults)
+        progress.recordAttempt(
+            chapter: 1,
+            level: 1,
+            won: false,
+            livesLost: 5,
+            timeSeconds: 90,
+            tileCount: 3
+        )
+
+        XCTAssertFalse(progress.isLevelUnlocked(chapter: 1, level: 2))
+    }
+
+    func testStoryStarsRewardAccuracyWithoutSpeedPressure() {
+        XCTAssertEqual(StoryDifficulty.calculateStars(livesLost: 0), 3)
+        XCTAssertEqual(StoryDifficulty.calculateStars(livesLost: 1), 2)
+        XCTAssertEqual(StoryDifficulty.calculateStars(livesLost: 2), 2)
+        XCTAssertEqual(StoryDifficulty.calculateStars(livesLost: 3), 1)
+    }
+
+    func testWrongMoveNeverErasesEarnedPoints() {
+        let earned = CircuitReward.points(afterMoveIsCorrect: true, current: 20)
+        let afterMistake = CircuitReward.points(afterMoveIsCorrect: false, current: earned)
+
+        XCTAssertEqual(earned, 30)
+        XCTAssertEqual(afterMistake, earned)
+        XCTAssertEqual(CircuitReward.points(correctMoves: 4), 40)
+    }
+
+    func testStoryNewPuzzleRequiresConfirmation() {
+        XCTAssertTrue(CircuitNewPuzzleSafeguard.requiresConfirmation(isStoryMode: true))
+        XCTAssertFalse(CircuitNewPuzzleSafeguard.requiresConfirmation(isStoryMode: false))
+    }
+
+    func testHiddenRevealOwnsTheOnlyPendingSummarySchedule() {
+        XCTAssertEqual(
+            CircuitSummarySchedulingPolicy.decision(
+                for: .revealing,
+                isHiddenMode: true,
+                isShowingSolution: false,
+                hasPendingSummary: false
+            ),
+            .revealHiddenAndSchedule(
+                delayNanoseconds: CircuitSummarySchedulingPolicy.hiddenRevealDelayNanoseconds
+            )
+        )
+
+        XCTAssertEqual(
+            CircuitSummarySchedulingPolicy.decision(
+                for: .won,
+                isHiddenMode: true,
+                isShowingSolution: false,
+                hasPendingSummary: true
+            ),
+            .keepPending,
+            "Publishing won after hidden reveal must not install a second delayed callback"
+        )
+    }
+
+    func testCircuitSummaryScheduleRejectsCancelledOrReplacedPuzzleGeneration() {
+        let originalPuzzleID = UUID().uuidString
+
+        XCTAssertTrue(
+            CircuitSummarySchedulingPolicy.isCurrent(
+                scheduledGeneration: 4,
+                scheduledPuzzleID: originalPuzzleID,
+                currentGeneration: 4,
+                currentPuzzleID: originalPuzzleID
+            )
+        )
+        XCTAssertFalse(
+            CircuitSummarySchedulingPolicy.isCurrent(
+                scheduledGeneration: 4,
+                scheduledPuzzleID: originalPuzzleID,
+                currentGeneration: 5,
+                currentPuzzleID: originalPuzzleID
+            ),
+            "Cancellation must invalidate a callback even while the same puzzle is visible"
+        )
+        XCTAssertFalse(
+            CircuitSummarySchedulingPolicy.isCurrent(
+                scheduledGeneration: 4,
+                scheduledPuzzleID: originalPuzzleID,
+                currentGeneration: 4,
+                currentPuzzleID: UUID().uuidString
+            ),
+            "A callback from the previous puzzle must never summarize the replacement puzzle"
+        )
+    }
+
+    func testCircuitSummaryDoesNotScheduleWhileShowingSolution() {
+        XCTAssertEqual(
+            CircuitSummarySchedulingPolicy.decision(
+                for: .lost,
+                isHiddenMode: false,
+                isShowingSolution: true,
+                hasPendingSummary: false
+            ),
+            .cancel
+        )
+    }
 }

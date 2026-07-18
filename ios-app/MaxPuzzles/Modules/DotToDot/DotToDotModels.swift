@@ -1,6 +1,7 @@
+import Foundation
 import SwiftUI
 
-enum DotInteractionMode: String, CaseIterable, Identifiable {
+enum DotInteractionMode: String, CaseIterable, Identifiable, Sendable {
     case tap
     case trace
 
@@ -15,7 +16,7 @@ enum DotInteractionMode: String, CaseIterable, Identifiable {
 
     var shortInstruction: String {
         switch self {
-        case .tap: return "Press the next numeral"
+        case .tap: return "Press the next number"
         case .trace: return "Draw from the last dot to the next"
         }
     }
@@ -25,6 +26,232 @@ enum DotInteractionMode: String, CaseIterable, Identifiable {
         case .tap: return "hand.tap.fill"
         case .trace: return "pencil.and.outline"
         }
+    }
+}
+
+/// Serialises persistence work for one Dot-to-Dot activity without making interaction wait for
+/// UserDefaults. Registering a write is synchronous on the main actor, so a newly presented view
+/// can drain the resource before it creates a replacement session token. This closes the narrow
+/// close/reopen race where an older unstructured Task used to arrive just after `beginSession`.
+@MainActor
+final class DotToDotPersistenceQueue {
+    static let shared = DotToDotPersistenceQueue()
+
+    enum Resource: Hashable {
+        case connection(
+            puzzleID: String,
+            profileID: UUID?,
+            interactionMode: DotInteractionMode
+        )
+        case colouring(puzzleID: String, profileID: UUID?)
+    }
+
+    private struct Entry {
+        let id: UUID
+        let task: Task<Void, Never>
+    }
+
+    private var entries: [Resource: Entry] = [:]
+
+    /// Adds work to the resource's FIFO and returns a handle callers may await at a durability
+    /// boundary such as Close or Finished. Normal taps only enqueue, keeping the UI responsive.
+    @discardableResult
+    func enqueue(
+        for resource: Resource,
+        operation: @escaping () async -> Void
+    ) -> Task<Void, Never> {
+        let previous = entries[resource]?.task
+        let id = UUID()
+        let task = Task { @MainActor [weak self] in
+            await previous?.value
+            await operation()
+            guard let self, self.entries[resource]?.id == id else { return }
+            self.entries.removeValue(forKey: resource)
+        }
+        entries[resource] = Entry(id: id, task: task)
+        return task
+    }
+
+    /// Waits for every write registered for this resource, including work appended while an
+    /// earlier operation is suspended in its persistence actor.
+    func drain(_ resource: Resource) async {
+        while let task = entries[resource]?.task {
+            await task.value
+        }
+    }
+}
+
+/// SwiftUI restarts a `.task(id:)` only when its identity changes. Including load state ensures a
+/// fresh puzzle moves from `(not loaded, 0)` to `(loaded, 0)` and therefore schedules dot 1's hint.
+struct DotToDotAutomaticHintTaskID: Equatable {
+    let hasLoadedConnectionProgress: Bool
+    let currentIndex: Int
+}
+
+/// Persists an unfinished numbered trail without ever making the main actor wait for disk-backed
+/// preferences. A session token prevents a delayed write from an old screen from bringing back
+/// progress after the child has completed or restarted the picture.
+actor DotToDotProgressStore {
+    static let shared = DotToDotProgressStore()
+
+    struct Session: Equatable, Sendable {
+        let token: UUID
+        let currentIndex: Int
+        let recoveredFromCorruptData: Bool
+    }
+
+    private struct Envelope: Codable {
+        let token: UUID
+        var currentIndex: Int
+        var acceptsUpdates: Bool
+    }
+
+    private let defaults: UserDefaults
+
+    init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
+    }
+
+    func beginSession(
+        puzzleID: String,
+        profileID: UUID?,
+        interactionMode: DotInteractionMode,
+        pointCount: Int
+    ) -> Session {
+        let storageKey = key(
+            puzzleID: puzzleID,
+            profileID: profileID,
+            interactionMode: interactionMode
+        )
+        let decoded = decodeEnvelope(forKey: storageKey)
+        let restoredIndex: Int
+        if let envelope = decoded.envelope,
+           envelope.acceptsUpdates,
+           envelope.currentIndex > 0,
+           envelope.currentIndex < pointCount {
+            restoredIndex = envelope.currentIndex
+        } else {
+            restoredIndex = 0
+        }
+
+        let token = UUID()
+        persist(
+            Envelope(token: token, currentIndex: restoredIndex, acceptsUpdates: true),
+            forKey: storageKey
+        )
+        return Session(
+            token: token,
+            currentIndex: restoredIndex,
+            recoveredFromCorruptData: decoded.wasCorrupt
+        )
+    }
+
+    /// Returns false when the write belongs to a screen that has already completed, restarted,
+    /// or been superseded by a newer presentation of the same activity.
+    @discardableResult
+    func save(
+        currentIndex: Int,
+        puzzleID: String,
+        profileID: UUID?,
+        interactionMode: DotInteractionMode,
+        pointCount: Int,
+        sessionToken: UUID
+    ) -> Bool {
+        guard currentIndex > 0, currentIndex < pointCount else { return false }
+        let storageKey = key(
+            puzzleID: puzzleID,
+            profileID: profileID,
+            interactionMode: interactionMode
+        )
+        guard let existing = decodeEnvelope(forKey: storageKey).envelope,
+              existing.token == sessionToken,
+              existing.acceptsUpdates else { return false }
+        persist(
+            Envelope(
+                token: sessionToken,
+                currentIndex: max(existing.currentIndex, currentIndex),
+                acceptsUpdates: true
+            ),
+            forKey: storageKey
+        )
+        return true
+    }
+
+    /// Closes the current session. Keeping a tiny tombstone instead of deleting the key means a
+    /// delayed save carrying the same token is safely rejected.
+    @discardableResult
+    func clear(
+        puzzleID: String,
+        profileID: UUID?,
+        interactionMode: DotInteractionMode,
+        sessionToken: UUID
+    ) -> Bool {
+        let storageKey = key(
+            puzzleID: puzzleID,
+            profileID: profileID,
+            interactionMode: interactionMode
+        )
+        guard let existing = decodeEnvelope(forKey: storageKey).envelope,
+              existing.token == sessionToken else { return false }
+        persist(
+            Envelope(token: sessionToken, currentIndex: 0, acceptsUpdates: false),
+            forKey: storageKey
+        )
+        return true
+    }
+
+    /// Starts a clean, writable session and invalidates every outstanding write from the old one.
+    func restart(
+        puzzleID: String,
+        profileID: UUID?,
+        interactionMode: DotInteractionMode,
+        sessionToken: UUID?
+    ) -> Session? {
+        let storageKey = key(
+            puzzleID: puzzleID,
+            profileID: profileID,
+            interactionMode: interactionMode
+        )
+        if let sessionToken,
+           let existing = decodeEnvelope(forKey: storageKey).envelope,
+           existing.token != sessionToken {
+            return nil
+        }
+        let token = UUID()
+        persist(
+            Envelope(token: token, currentIndex: 0, acceptsUpdates: true),
+            forKey: storageKey
+        )
+        return Session(token: token, currentIndex: 0, recoveredFromCorruptData: false)
+    }
+
+    private func decodeEnvelope(forKey storageKey: String) -> (envelope: Envelope?, wasCorrupt: Bool) {
+        guard let data = defaults.data(forKey: storageKey) else { return (nil, false) }
+        guard let envelope = try? JSONDecoder().decode(Envelope.self, from: data) else {
+            defaults.removeObject(forKey: storageKey)
+            return (nil, true)
+        }
+        return (envelope, false)
+    }
+
+    private func persist(_ envelope: Envelope, forKey storageKey: String) {
+        guard let data = try? JSONEncoder().encode(envelope) else { return }
+        defaults.set(data, forKey: storageKey)
+    }
+
+    private func key(
+        puzzleID: String,
+        profileID: UUID?,
+        interactionMode: DotInteractionMode
+    ) -> String {
+        let profileComponent = profileID?.uuidString ?? "guest"
+        return "maxpuzzles.profile.\(profileComponent).dotToDot.connectionProgress.v1.\(interactionMode.rawValue).\(puzzleID)"
+    }
+}
+
+enum DotToDotRestartPolicy {
+    static func requiresConfirmation(currentIndex: Int) -> Bool {
+        currentIndex > 0
     }
 }
 
@@ -49,7 +276,7 @@ enum DotToDotTier: String, CaseIterable, Identifiable {
         switch self {
         case .firstDots: return "A gentle start"
         case .numberTrail: return "Growing confidence"
-        case .numberExplorer: return "Numerals to 20"
+        case .numberExplorer: return "Numbers to 20"
         case .bigNumberAdventure: return "A special challenge"
         }
     }

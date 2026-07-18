@@ -70,7 +70,7 @@ struct GameCoinDisplay: View {
 
 // MARK: - CoinChangeAnimation
 
-/// Floating animation for coin changes (+10 or -30)
+/// Floating animation for points earned by a correct move.
 struct CoinChangeAnimation: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -80,28 +80,22 @@ struct CoinChangeAnimation: View {
     @State private var opacity: Double = 1
     @State private var offset: CGFloat = 0
 
-    private var isEarn: Bool {
-        change.type == .earn
-    }
-
     var body: some View {
-        Text(isEarn ? "+\(change.value)" : "\(change.value)")
+        Text("+\(change.value)")
             .font(.system(size: size == .small ? 12 : 16, weight: .bold))
-            .foregroundColor(isEarn ? AppTheme.accentPrimary : AppTheme.error)
+            .foregroundColor(AppTheme.accentPrimary)
             .opacity(opacity)
             .offset(y: offset)
             .accessibilityHidden(true)
             .onAppear {
                 UIAccessibility.post(
                     notification: .announcement,
-                    argument: isEarn
-                        ? "Earned \(change.value) puzzle points"
-                        : "Lost \(abs(change.value)) puzzle points"
+                    argument: "Earned \(change.value) puzzle points"
                 )
                 guard !reduceMotion else { return }
                 withAnimation(.easeOut(duration: 0.8)) {
                     opacity = 0
-                    offset = isEarn ? -20 : 20
+                    offset = -20
                 }
             }
     }
@@ -123,15 +117,6 @@ struct CoinChangeAnimation: View {
             GameCoinDisplay(
                 amount: 60,
                 showChange: CoinAnimation(value: 10, type: .earn, timestamp: Date())
-            )
-        }
-
-        VStack {
-            Text("Regular - Penalty")
-                .foregroundColor(.white)
-            GameCoinDisplay(
-                amount: 20,
-                showChange: CoinAnimation(value: -30, type: .penalty, timestamp: Date())
             )
         }
 

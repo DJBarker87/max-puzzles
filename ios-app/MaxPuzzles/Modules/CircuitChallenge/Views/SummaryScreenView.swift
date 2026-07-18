@@ -544,7 +544,7 @@ struct SummaryScreenView: View {
                             }
                             .font(.scaledSystem(size: 22))
 
-                            Text("(\(results.correctCount * 10) earned - \(results.mistakeCount * 30) penalty)")
+                            Text("Mistakes never take away points")
                                 .font(.scaledSystem(size: 13))
                                 .foregroundColor(AppTheme.textSecondary)
                         }

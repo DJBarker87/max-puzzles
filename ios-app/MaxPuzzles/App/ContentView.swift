@@ -15,6 +15,12 @@ struct ContentView: View {
                 DotToDotSinglePreview(index: dotPreviewIndex)
             } else if let dotReviewPage {
                 DotToDotReviewSheet(page: dotReviewPage)
+            } else if starSpellerTestMenu {
+                StarSpellerMenuView()
+            } else if let starSpellerTestWord {
+                NavigationStack {
+                    StarSpellerGameView(words: [starSpellerTestWord])
+                }
             } else if let appStoreScreen {
                 AppStoreScreenshotScene(screen: appStoreScreen)
             } else if appState.isLoading {
@@ -63,11 +69,27 @@ struct ContentView: View {
               let index = Int(arguments[flagIndex + 1]) else { return nil }
         return min(max(index, 0), DotPuzzleCatalog.downloadedReferencePuzzles.count - 1)
     }
+
+    private var starSpellerTestMenu: Bool {
+        ProcessInfo.processInfo.arguments.contains("-star-speller-test-menu")
+    }
+
+    private var starSpellerTestWord: String? {
+        let arguments = ProcessInfo.processInfo.arguments
+        guard let flagIndex = arguments.firstIndex(of: "-star-speller-test-word"),
+              arguments.indices.contains(flagIndex + 1) else { return nil }
+        let candidate = arguments[flagIndex + 1]
+        guard !candidate.isEmpty,
+              candidate.count <= CometLearningStore.maximumCustomWordLength,
+              candidate.allSatisfy(\.isLetter) else { return nil }
+        return candidate
+    }
     #endif
 }
 
 struct PlayerProfileSelectionView: View {
     @EnvironmentObject private var appState: AppState
+    @EnvironmentObject private var musicService: MusicService
     @ObservedObject private var profileStore = CometLearningStore.shared
 
     @State private var showsAddProfile = false
@@ -127,6 +149,11 @@ struct PlayerProfileSelectionView: View {
             }
             .presentationDetents([.large])
             .presentationDragIndicator(.visible)
+        }
+        .onAppear {
+            if !musicService.isPlaying {
+                musicService.play(track: .hub)
+            }
         }
     }
 

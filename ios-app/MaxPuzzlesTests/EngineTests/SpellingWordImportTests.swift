@@ -129,10 +129,59 @@ final class SpellingWordImportTests: XCTestCase {
         )
     }
 
-    func testDaysOfWeekDisplayInUppercaseWithoutChangingOtherWords() {
-        XCTAssertEqual(StarSpellerWordLibrary.displayForm(for: "Monday"), "MONDAY")
-        XCTAssertEqual(StarSpellerWordLibrary.displayForm(for: "monday"), "MONDAY")
+    func testDaysOfWeekDisplayWithProperNounCapitalisationWithoutChangingOtherWords() {
+        XCTAssertEqual(StarSpellerWordLibrary.displayForm(for: "Monday"), "Monday")
+        XCTAssertEqual(StarSpellerWordLibrary.displayForm(for: "monday"), "Monday")
+        XCTAssertEqual(StarSpellerWordLibrary.displayForm(for: "MONDAY"), "Monday")
         XCTAssertEqual(StarSpellerWordLibrary.displayForm(for: "friend"), "friend")
+    }
+
+    func testPromptAudioFailureProducesAnExplicitRecoveryState() {
+        XCTAssertEqual(
+            StarSpellerPromptAudioState.afterPlaybackAttempt(succeeded: true),
+            .ready
+        )
+        XCTAssertEqual(
+            StarSpellerPromptAudioState.afterPlaybackAttempt(succeeded: false),
+            .failed
+        )
+    }
+
+    func testMissingCustomPromptRecordingFallsBackToBuiltInVoice() {
+        var requestedCustomFilename: String?
+        var voiceAttempts = 0
+
+        let succeeded = StarSpellerPromptAudioPlayback.play(
+            customRecordingFilename: "missing-family-prompt.m4a",
+            customPlayback: { filename in
+                requestedCustomFilename = filename
+                return false
+            },
+            voicePlayback: {
+                voiceAttempts += 1
+                return true
+            }
+        )
+
+        XCTAssertTrue(succeeded)
+        XCTAssertEqual(requestedCustomFilename, "missing-family-prompt.m4a")
+        XCTAssertEqual(voiceAttempts, 1)
+    }
+
+    func testSuccessfulCustomPromptDoesNotAlsoSpeakBuiltInVoice() {
+        var voiceAttempts = 0
+
+        let succeeded = StarSpellerPromptAudioPlayback.play(
+            customRecordingFilename: "family-prompt.m4a",
+            customPlayback: { _ in true },
+            voicePlayback: {
+                voiceAttempts += 1
+                return true
+            }
+        )
+
+        XCTAssertTrue(succeeded)
+        XCTAssertEqual(voiceAttempts, 0)
     }
 
     func testEnglandYearOneStarterListIncludesTheCurriculumExceptionWords() {
@@ -322,6 +371,43 @@ final class SpellingWordImportTests: XCTestCase {
         XCTAssertEqual(attempt.errorCount, 1)
         XCTAssertEqual(attempt.hintUses, 0)
         XCTAssertTrue(attempt.wasSuccessful)
+    }
+
+    @MainActor
+    func testAdaptiveRankingPerformanceAtBoundedHistoryLimit() throws {
+        let suiteName = "SpellingWordImportTests.ranking.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let initialStore = CometLearningStore(defaults: defaults)
+        let profileID = initialStore.activeProfileID
+        let words = StarSpellerWordLibrary.englandYearOne
+        let records = (0..<500).map { index in
+            StarSpellerAttemptRecord(
+                id: UUID(),
+                profileID: profileID,
+                word: CometLearningStore.normalizedCustomWord(words[index % words.count]),
+                checkAttempts: index.isMultiple(of: 3) ? 2 : 1,
+                errorCount: index.isMultiple(of: 3) ? 1 : 0,
+                hintUses: index.isMultiple(of: 5) ? 1 : 0,
+                wasSuccessful: !index.isMultiple(of: 7),
+                pointsEarned: index.isMultiple(of: 5) ? 90 : 100,
+                timestamp: Date(timeIntervalSinceReferenceDate: Double(index))
+            )
+        }
+        defaults.set(
+            try JSONEncoder().encode(records),
+            forKey: "maxpuzzles.starSpeller.attempts"
+        )
+        let store = CometLearningStore(defaults: defaults)
+
+        measure {
+            for _ in 0..<25 {
+                XCTAssertEqual(
+                    store.adaptiveSpellingWords(from: words, count: 10).count,
+                    10
+                )
+            }
+        }
     }
 
     @MainActor

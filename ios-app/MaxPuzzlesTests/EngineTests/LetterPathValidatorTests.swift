@@ -17,8 +17,12 @@ final class LetterPathValidatorTests: XCTestCase {
         XCTAssertTrue(TraceInputPolicy.accepts(.direct, pencilOnly: false))
         XCTAssertTrue(TraceInputPolicy.accepts(.pencil, pencilOnly: false))
         XCTAssertFalse(TraceInputPolicy.accepts(.direct, pencilOnly: true))
+        XCTAssertFalse(TraceInputPolicy.accepts(.indirect, pencilOnly: true))
         XCTAssertFalse(TraceInputPolicy.accepts(.indirectPointer, pencilOnly: true))
         XCTAssertTrue(TraceInputPolicy.accepts(.pencil, pencilOnly: true))
+        XCTAssertTrue(TraceInputPolicy.resolvedPencilOnly(true, supportsApplePencil: true))
+        XCTAssertFalse(TraceInputPolicy.resolvedPencilOnly(true, supportsApplePencil: false))
+        XCTAssertFalse(TraceInputPolicy.resolvedPencilOnly(false, supportsApplePencil: true))
     }
 
     func testFormationScoreTranslatesDirectlyIntoCometPoints() {
@@ -245,6 +249,121 @@ final class LetterPathValidatorTests: XCTestCase {
         XCTAssertFalse(allPromptText.contains("capital"))
     }
 
+    func testEveryLessonQueuesTheLetterNameThenAnAudiblePauseBeforeItsExample() throws {
+        let c = try XCTUnwrap(LetterLibrary.glyph(for: "c"))
+        let capitalC = try XCTUnwrap(LetterLibrary.glyph(for: "C"))
+
+        let cSequence = LetterSpeechService.lessonSequence(for: c)
+        XCTAssertEqual(cSequence.map(\.text).first, "Letter c.")
+        XCTAssertEqual(cSequence[1].text, "c is for cat.")
+
+        let capitalCSequence = LetterSpeechService.lessonSequence(for: capitalC)
+        XCTAssertEqual(capitalCSequence.map(\.text).first, "Letter C.")
+        XCTAssertEqual(capitalCSequence[1].text, "C is for cat.")
+
+        let allLetters = LetterLibrary.all.filter { !$0.isNumber }
+        XCTAssertEqual(allLetters.count, 52)
+        for glyph in allLetters {
+            let sequence = LetterSpeechService.lessonSequence(for: glyph)
+            XCTAssertEqual(sequence.count, 2, "\(glyph.character) must use two queued utterances")
+            XCTAssertEqual(
+                sequence[0].text,
+                "Letter \(glyph.character)."
+            )
+            XCTAssertGreaterThanOrEqual(
+                sequence[0].postUtteranceDelay,
+                0.4,
+                "\(glyph.character) needs an audible pause after its introduction"
+            )
+            XCTAssertEqual(
+                sequence[0].postUtteranceDelay,
+                LetterSpeechService.lessonIntroductionPause,
+                accuracy: 0.000_001
+            )
+            XCTAssertEqual(
+                sequence[1].text,
+                "\(glyph.promptTitle).",
+                "The exact example phrase must follow the introduction"
+            )
+            XCTAssertEqual(sequence[1].postUtteranceDelay, 0)
+            XCTAssertEqual(
+                sequence.map(\.text).joined(separator: " "),
+                glyph.spokenPrompt,
+                "The queued speech must preserve the complete lesson copy"
+            )
+
+            let normalized = sequence.map(\.text).joined(separator: " ").lowercased()
+            for term in ["lowercase", "lower case", "uppercase", "upper case", "capital"] {
+                XCTAssertFalse(
+                    normalized.contains(term),
+                    "Queued child-facing speech for \(glyph.character) contains ‘\(term)’"
+                )
+            }
+        }
+
+        let allNumbers = LetterLibrary.all.filter(\.isNumber)
+        XCTAssertEqual(allNumbers.count, 10)
+        for glyph in allNumbers {
+            let sequence = LetterSpeechService.lessonSequence(for: glyph)
+            XCTAssertEqual(sequence.count, 2)
+            XCTAssertEqual(sequence[0].text, "Number \(glyph.character).")
+            XCTAssertEqual(
+                sequence[0].postUtteranceDelay,
+                LetterSpeechService.lessonIntroductionPause,
+                accuracy: 0.000_001
+            )
+            XCTAssertEqual(sequence[1].text, "\(glyph.promptTitle).")
+            XCTAssertEqual(sequence[1].postUtteranceDelay, 0)
+            XCTAssertEqual(sequence.map(\.text).joined(separator: " "), glyph.spokenPrompt)
+        }
+    }
+
+    func testEveryChildFacingFormationFormatterUsesOnlyLetterOrNumberNames() throws {
+        let forbiddenTerms = ["lowercase", "lower case", "uppercase", "upper case", "capital"]
+
+        for glyph in LetterLibrary.all {
+            let expectedName = glyph.isNumber
+                ? "number \(glyph.character)"
+                : "letter \(glyph.character)"
+            XCTAssertEqual(glyph.formationName, expectedName)
+
+            let outputs = [
+                glyph.formationName,
+                glyph.promptTitle,
+                glyph.spokenPrompt,
+                LetterSpeechService.lessonPrompt(for: glyph),
+                LetterSpeechService.letterNamePrompt(for: glyph),
+                LetterSpeechService.recallPrompt(for: glyph),
+                LetterSpeechService.pathPrompt(for: glyph, animated: true),
+                LetterSpeechService.pathPrompt(for: glyph, animated: false),
+                LetterSpeechService.wordPrompt(
+                    for: glyph,
+                    word: "map",
+                    introduction: "Write the word.",
+                    contextSentence: "The map is here."
+                )
+            ]
+
+            for output in outputs {
+                let normalized = output.lowercased()
+                for term in forbiddenTerms {
+                    XCTAssertFalse(
+                        normalized.contains(term),
+                        "Child-facing copy for \(glyph.character) contains ‘\(term)’: \(output)"
+                    )
+                }
+            }
+        }
+
+        let familyCopy = LetterFamily.allCases.flatMap { [$0.title, $0.formationHint] }
+        for output in familyCopy {
+            let normalized = output.lowercased()
+            for term in forbiddenTerms {
+                XCTAssertFalse(normalized.contains(term), "Family copy contains ‘\(term)’: \(output)")
+            }
+        }
+    }
+
     @MainActor
     func testAdvancedMissionStartsAndReloadsWithStartPointOnlyAssistance() throws {
         let first = try XCTUnwrap(LetterLibrary.glyph(for: "m"))
@@ -307,6 +426,116 @@ final class LetterPathValidatorTests: XCTestCase {
                 }
             }
         }
+    }
+
+    func testTouchCoordinatesRoundTripAcrossRotationResizeAndEveryLetterSize() throws {
+        let surfaces: [(name: String, size: CGSize, inset: CGFloat)] = [
+            ("iPhone SE portrait", CGSize(width: 288, height: 244), 12),
+            ("iPhone SE landscape", CGSize(width: 430, height: 244), 12),
+            ("iPhone portrait", CGSize(width: 342, height: 290), 24),
+            ("iPad narrow window", CGSize(width: 205, height: 245), 12),
+            ("iPad portrait", CGSize(width: 660, height: 559), 24),
+            ("iPad wide window", CGSize(width: 860, height: 559), 24)
+        ]
+        let scales = stride(
+            from: LetterDisplayTransform.minimumScale,
+            through: LetterDisplayTransform.maximumScale,
+            by: 0.05
+        )
+
+        for surface in surfaces {
+            for scale in scales {
+                let mapper = LetterTraceCoordinateMapper(
+                    size: surface.size,
+                    contentInset: surface.inset,
+                    letterScale: scale
+                )
+
+                for glyph in LetterLibrary.all {
+                    for modelPoint in glyph.strokes.flatMap(\.points) {
+                        let location = mapper.location(for: modelPoint)
+                        let recovered = mapper.modelPoint(for: location, clamped: false)
+                        XCTAssertLessThan(
+                            recovered.distance(to: modelPoint),
+                            0.000_001,
+                            "\(glyph.character) drifted on \(surface.name) at scale \(scale)"
+                        )
+                    }
+                }
+            }
+        }
+
+        let portrait = LetterTraceCoordinateMapper(
+            size: surfaces[0].size,
+            contentInset: surfaces[0].inset,
+            letterScale: 0.85
+        )
+        let landscape = LetterTraceCoordinateMapper(
+            size: surfaces[1].size,
+            contentInset: surfaces[1].inset,
+            letterScale: 0.85
+        )
+        let modelPoint = LetterPoint(x: 0.27, y: 0.64)
+        XCTAssertLessThan(
+            portrait.modelPoint(for: portrait.location(for: modelPoint)).distance(to: modelPoint),
+            0.000_001
+        )
+        XCTAssertLessThan(
+            landscape.modelPoint(for: landscape.location(for: modelPoint)).distance(to: modelPoint),
+            0.000_001
+        )
+    }
+
+    func testTouchCoordinatesClampOutsideTheResizedSurface() {
+        let mapper = LetterTraceCoordinateMapper(
+            size: CGSize(width: 205, height: 245),
+            contentInset: 12,
+            letterScale: LetterDisplayTransform.minimumScale
+        )
+
+        XCTAssertEqual(mapper.modelPoint(for: CGPoint(x: -1_000, y: -1_000)).x, 0)
+        XCTAssertEqual(mapper.modelPoint(for: CGPoint(x: -1_000, y: -1_000)).y, 0)
+        XCTAssertEqual(mapper.modelPoint(for: CGPoint(x: 1_000, y: 1_000)).x, 1)
+        XCTAssertEqual(
+            mapper.modelPoint(for: CGPoint(x: 1_000, y: 1_000)).y,
+            LetterWritingMetrics.canvasHeight
+        )
+    }
+
+    func testWritingLinesStayOrderedAndInsideEverySupportedSurface() {
+        let surfaces: [(CGSize, CGFloat)] = [
+            (CGSize(width: 288, height: 244), 12),
+            (CGSize(width: 430, height: 244), 12),
+            (CGSize(width: 205, height: 245), 12),
+            (CGSize(width: 660, height: 559), 24),
+            (CGSize(width: 860, height: 559), 24)
+        ]
+
+        for (size, inset) in surfaces {
+            let positions = LetterWritingLineLayout.renderedYPositions(
+                size: size,
+                contentInset: inset
+            )
+            XCTAssertEqual(positions.count, 4)
+            XCTAssertEqual(positions, positions.sorted())
+            XCTAssertTrue(positions.allSatisfy { (0...size.height).contains($0) })
+        }
+    }
+
+    func testWritingHandMovesControlsWithoutMirroringTheTrace() {
+        XCTAssertTrue(CometWriterLayoutPolicy.tracePrecedesSidebar(isWide: true, writingHand: .left))
+        XCTAssertFalse(CometWriterLayoutPolicy.tracePrecedesSidebar(isWide: true, writingHand: .right))
+        XCTAssertFalse(CometWriterLayoutPolicy.tracePrecedesSidebar(isWide: false, writingHand: .left))
+        XCTAssertFalse(CometWriterLayoutPolicy.tracePrecedesSidebar(isWide: false, writingHand: .right))
+
+        let mapper = LetterTraceCoordinateMapper(
+            size: CGSize(width: 660, height: 559),
+            contentInset: 24,
+            letterScale: 1
+        )
+        let point = LetterPoint(x: 0.22, y: 0.41)
+        let renderedForEitherHand = mapper.location(for: point)
+        XCTAssertEqual(renderedForEitherHand, mapper.location(for: point))
     }
 
     func testLetterSizeAlwaysStaysAnchoredToTheWritingBaseline() throws {
@@ -1013,6 +1242,60 @@ final class LetterPathValidatorTests: XCTestCase {
         }
     }
 
+    func testRealisticUnevenWobblyChildStrokesCompleteEveryFormation() throws {
+        for glyph in LetterLibrary.all {
+            for (strokeIndex, stroke) in glyph.strokes.enumerated() {
+                let points = childStylePoints(for: stroke)
+                var validator = LetterPathValidator(stroke: stroke)
+                XCTAssertEqual(
+                    validator.begin(at: try XCTUnwrap(points.first)),
+                    .ready,
+                    "A slightly imperfect start should work for \(glyph.character)"
+                )
+
+                for (pointIndex, point) in points.dropFirst().dropLast().enumerated() {
+                    let result = validator.add(point)
+                    guard case .advanced = result else {
+                        XCTFail(
+                            "A natural wobbly \(glyph.character) stroke \(strokeIndex), sample "
+                                + "\(pointIndex + 1), progress \(validator.progress) was rejected "
+                                + "with \(result)"
+                        )
+                        break
+                    }
+                }
+
+                XCTAssertEqual(
+                    validator.end(at: try XCTUnwrap(points.last)),
+                    .complete,
+                    "A natural wobbly \(glyph.character) stroke could not finish"
+                )
+            }
+        }
+    }
+
+    @MainActor
+    func testNoisyChildStyleDragCompletesThroughTheProductionViewModel() throws {
+        let glyph = try XCTUnwrap(LetterLibrary.glyph(for: "c"))
+        let stroke = try XCTUnwrap(glyph.strokes.first)
+        let points = childStylePoints(for: stroke)
+        let viewModel = CometWriterViewModel(glyph: glyph, assistance: .flySolo)
+
+        XCTAssertEqual(viewModel.beginTrace(at: try XCTUnwrap(points.first)), .none)
+        for point in points.dropFirst().dropLast() {
+            XCTAssertEqual(viewModel.continueTrace(at: point), .none)
+        }
+        XCTAssertEqual(viewModel.endTrace(at: try XCTUnwrap(points.last)), .letterCompleted)
+        XCTAssertTrue(viewModel.isLetterComplete)
+        XCTAssertEqual(viewModel.completedTraces.count, 1)
+        XCTAssertEqual(viewModel.mistakeCount, 0)
+        XCTAssertGreaterThan(viewModel.performanceMetrics.averagePathDeviation, 0)
+        XCTAssertGreaterThanOrEqual(
+            CometRewardCalculator.reward(metrics: viewModel.performanceMetrics).score,
+            80
+        )
+    }
+
     func testTraceMustBeginAtTaughtStart() throws {
         let stroke = try XCTUnwrap(LetterLibrary.glyph(for: "c")?.strokes.first)
         var validator = LetterPathValidator(stroke: stroke)
@@ -1138,5 +1421,45 @@ final class LetterPathValidatorTests: XCTestCase {
         }
 
         XCTAssertEqual(validator.end(at: stroke.point(at: 0.4)), .incomplete)
+    }
+
+    private func childStylePoints(for stroke: LetterStroke) -> [LetterPoint] {
+        if stroke.isDot {
+            let imperfectTap = LetterPoint(
+                x: min(max(stroke.start.x + 0.012, 0), 1),
+                y: min(max(stroke.start.y - 0.009, 0), LetterWritingMetrics.canvasHeight)
+            )
+            return [imperfectTap, imperfectTap]
+        }
+
+        let sampleCount = 42
+        return (0...sampleCount).map { index in
+            let elapsed = CGFloat(index) / CGFloat(sampleCount)
+            // Uneven progress resembles a child slowing around corners instead of a synthetic,
+            // perfectly timed trace.
+            let progress = pow(elapsed, 1.08)
+            let base = stroke.point(at: progress)
+            let before = stroke.point(at: max(0, progress - 0.012))
+            let after = stroke.point(at: min(1, progress + 0.012))
+            let dx = after.x - before.x
+            let dy = after.y - before.y
+            let tangentLength = max(hypot(dx, dy), 0.000_001)
+            // Slow side-to-side drift models an unsteady young hand. High-frequency alternating
+            // noise would create real local reversals, which the direction validator should (and
+            // does) reject rather than treating as ordinary imprecision.
+            let driftEnvelope = sin(.pi * elapsed)
+            let wobble = driftEnvelope * CGFloat(
+                sin(Double(index) * 0.57) * 0.009
+                    + sin(Double(index) * 0.19) * 0.004
+            )
+
+            return LetterPoint(
+                x: min(max(base.x - dy / tangentLength * wobble, 0), 1),
+                y: min(
+                    max(base.y + dx / tangentLength * wobble, 0),
+                    LetterWritingMetrics.canvasHeight
+                )
+            )
+        }
     }
 }

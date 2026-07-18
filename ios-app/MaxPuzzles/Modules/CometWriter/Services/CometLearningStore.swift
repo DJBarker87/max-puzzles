@@ -594,12 +594,100 @@ final class CometLearningStore: ObservableObject {
 
     func spellingMastery(for word: String) -> CometMasteryLevel {
         let normalizedWord = Self.normalizedCustomWord(word)
-        let recent = activeSpellingAttempts
-            .filter { $0.word == normalizedWord }
-            .sorted { $0.timestamp > $1.timestamp }
+        return Self.spellingMastery(
+            from: activeSpellingAttempts.filter { $0.word == normalizedWord }
+        )
+    }
 
-        guard !recent.isEmpty else { return .new }
-        let latestThree = Array(recent.prefix(3))
+    func adaptiveSpellingWords(from allowed: [String], count: Int) -> [String] {
+        var seen = Set<String>()
+        let uniqueWords = allowed.filter { word in
+            let normalized = Self.normalizedCustomWord(word)
+            return !normalized.isEmpty && seen.insert(normalized).inserted
+        }
+        guard !uniqueWords.isEmpty else { return [] }
+
+        // Index the bounded attempt history once. The previous comparator repeatedly filtered
+        // all 500 records during every sort comparison, which made opening a mixed practice
+        // mission do unnecessary O(words log(words) * attempts) work on the main actor.
+        let attempts = activeSpellingAttempts
+        let attemptsByWord = Dictionary(grouping: attempts, by: \.word)
+        let metadata = Dictionary(
+            uniqueKeysWithValues: uniqueWords.map { word -> (String, SpellingPracticeMetadata) in
+                let normalized = Self.normalizedCustomWord(word)
+                let records = attemptsByWord[normalized, default: []]
+                let support = records.suffix(3).reduce(0) {
+                    $0 + $1.errorCount * 2 + $1.hintUses + ($1.wasSuccessful ? 0 : 3)
+                }
+                return (
+                    normalized,
+                    SpellingPracticeMetadata(
+                        mastery: Self.spellingMastery(from: records),
+                        support: support,
+                        lastPractisedAt: records.map(\.timestamp).max() ?? .distantPast
+                    )
+                )
+            }
+        )
+
+        let rotation = attempts.count % uniqueWords.count
+        let rotated = Array(uniqueWords[rotation...]) + Array(uniqueWords[..<rotation])
+        let sourceOrder = Dictionary(
+            uniqueKeysWithValues: rotated.enumerated().map {
+                (Self.normalizedCustomWord($0.element), $0.offset)
+            }
+        )
+
+        let ranked = rotated.sorted { left, right in
+            let leftKey = Self.normalizedCustomWord(left)
+            let rightKey = Self.normalizedCustomWord(right)
+            let leftMetadata = metadata[leftKey] ?? .new
+            let rightMetadata = metadata[rightKey] ?? .new
+            let leftPriority = Self.spellingPracticePriority(leftMetadata.mastery)
+            let rightPriority = Self.spellingPracticePriority(rightMetadata.mastery)
+            if leftPriority != rightPriority { return leftPriority < rightPriority }
+
+            if leftMetadata.support != rightMetadata.support {
+                return leftMetadata.support > rightMetadata.support
+            }
+
+            if leftMetadata.lastPractisedAt != rightMetadata.lastPractisedAt {
+                return leftMetadata.lastPractisedAt < rightMetadata.lastPractisedAt
+            }
+
+            return sourceOrder[leftKey, default: 0] < sourceOrder[rightKey, default: 0]
+        }
+        let targetCount = max(1, count)
+        if ranked.count >= targetCount {
+            return Array(ranked.prefix(targetCount))
+        }
+
+        var repeated = ranked
+        while repeated.count < targetCount {
+            repeated.append(ranked[repeated.count % ranked.count])
+        }
+        return repeated
+    }
+
+    private struct SpellingPracticeMetadata {
+        let mastery: CometMasteryLevel
+        let support: Int
+        let lastPractisedAt: Date
+
+        static let new = SpellingPracticeMetadata(
+            mastery: .new,
+            support: 0,
+            lastPractisedAt: .distantPast
+        )
+    }
+
+    private static func spellingMastery(
+        from records: [StarSpellerAttemptRecord]
+    ) -> CometMasteryLevel {
+        guard !records.isEmpty else { return .new }
+        let latestThree = records
+            .sorted { $0.timestamp > $1.timestamp }
+            .prefix(3)
         if latestThree.count == 3,
            latestThree.allSatisfy({
                $0.wasSuccessful && $0.errorCount == 0 && $0.hintUses == 0
@@ -613,62 +701,6 @@ final class CometLearningStore: ObservableObject {
         }
         if successfulCount >= 2 && supportCount <= 1 { return .secure }
         return .practising
-    }
-
-    func adaptiveSpellingWords(from allowed: [String], count: Int) -> [String] {
-        var seen = Set<String>()
-        let uniqueWords = allowed.filter { word in
-            let normalized = Self.normalizedCustomWord(word)
-            return !normalized.isEmpty && seen.insert(normalized).inserted
-        }
-        guard !uniqueWords.isEmpty else { return [] }
-
-        let rotation = activeSpellingAttempts.count % uniqueWords.count
-        let rotated = Array(uniqueWords[rotation...]) + Array(uniqueWords[..<rotation])
-        let sourceOrder = Dictionary(
-            uniqueKeysWithValues: rotated.enumerated().map {
-                (Self.normalizedCustomWord($0.element), $0.offset)
-            }
-        )
-
-        let ranked = rotated.sorted { left, right in
-            let leftMastery = spellingMastery(for: left)
-            let rightMastery = spellingMastery(for: right)
-            let leftPriority = Self.spellingPracticePriority(leftMastery)
-            let rightPriority = Self.spellingPracticePriority(rightMastery)
-            if leftPriority != rightPriority { return leftPriority < rightPriority }
-
-            let leftRecords = activeSpellingAttempts.filter {
-                $0.word == Self.normalizedCustomWord(left)
-            }
-            let rightRecords = activeSpellingAttempts.filter {
-                $0.word == Self.normalizedCustomWord(right)
-            }
-            let leftSupport = leftRecords.suffix(3).reduce(0) {
-                $0 + $1.errorCount * 2 + $1.hintUses + ($1.wasSuccessful ? 0 : 3)
-            }
-            let rightSupport = rightRecords.suffix(3).reduce(0) {
-                $0 + $1.errorCount * 2 + $1.hintUses + ($1.wasSuccessful ? 0 : 3)
-            }
-            if leftSupport != rightSupport { return leftSupport > rightSupport }
-
-            let leftDate = leftRecords.map(\.timestamp).max() ?? .distantPast
-            let rightDate = rightRecords.map(\.timestamp).max() ?? .distantPast
-            if leftDate != rightDate { return leftDate < rightDate }
-
-            return sourceOrder[Self.normalizedCustomWord(left), default: 0]
-                < sourceOrder[Self.normalizedCustomWord(right), default: 0]
-        }
-        let targetCount = max(1, count)
-        if ranked.count >= targetCount {
-            return Array(ranked.prefix(targetCount))
-        }
-
-        var repeated = ranked
-        while repeated.count < targetCount {
-            repeated.append(ranked[repeated.count % ranked.count])
-        }
-        return repeated
     }
 
     func spellingProgress(limit: Int? = nil) -> [StarSpellerWordProgress] {

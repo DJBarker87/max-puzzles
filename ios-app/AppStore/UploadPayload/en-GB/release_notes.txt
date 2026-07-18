@@ -2,10 +2,10 @@ Meet Dot-to-Dot Discovery:
 
 • Reveal 84 independently reviewed illustrated pictures
 • Choose to press the next dot or trace each line
-• Recognise numerals across 1–10, 1–15 and 1–20 trails, plus selected 1–25 challenges
+• Recognise numbers across 1–10, 1–15 and 1–20 trails, plus selected 1–25 challenges
 • Follow authentic trails with no fake dots and no impossible unnumbered exterior corners
 • Colour picture-specific regions by tapping or by shading directly with a finger or Apple Pencil
 • Build subitising confidence with standard 1–5 dot patterns and quick star patterns
-• Occasionally practise writing a numeral in Comet Writer between pictures
+• Occasionally practise writing a number in Comet Writer between pictures
 
-This update also adds Star Speller, private iCloud progress sync for family profiles, spoken letter-name practice and a reminder that Comet Writer is best played with a capacitive stylus.
+This update also adds Star Speller, private iCloud progress sync for family profiles and spoken letter-name practice. Comet Writer works with a finger, with a stylus remaining optional.

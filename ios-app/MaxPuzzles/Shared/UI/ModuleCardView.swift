@@ -2,6 +2,7 @@ import SwiftUI
 
 /// Premium card displaying a puzzle module with glass effect and micro-interactions
 struct ModuleCardView: View {
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.verticalSizeClass) private var verticalSizeClass
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -18,13 +19,23 @@ struct ModuleCardView: View {
     @State private var bounceTask: Task<Void, Never>?
 
     private var isCompactHeight: Bool { verticalSizeClass == .compact }
-    private var iconFrameSize: CGFloat { isCompactHeight ? 88 : 120 }
-    private var symbolGlowSize: CGFloat { isCompactHeight ? 80 : 104 }
-    private var symbolCircleSize: CGFloat { isCompactHeight ? 72 : 96 }
+    private var isCompactWidth: Bool { horizontalSizeClass == .compact }
+    private var iconFrameSize: CGFloat {
+        if isCompactWidth { return isCompactHeight ? 52 : 72 }
+        return isCompactHeight ? 88 : 120
+    }
+    private var symbolGlowSize: CGFloat {
+        if isCompactWidth { return isCompactHeight ? 48 : 68 }
+        return isCompactHeight ? 80 : 104
+    }
+    private var symbolCircleSize: CGFloat {
+        if isCompactWidth { return isCompactHeight ? 44 : 62 }
+        return isCompactHeight ? 72 : 96
+    }
 
     var body: some View {
         Button(action: handleTap) {
-            VStack(spacing: isCompactHeight ? 10 : AppSpacing.md) {
+            VStack(spacing: isCompactWidth || isCompactHeight ? 8 : AppSpacing.md) {
                 // Icon with glow
                 ZStack {
                     // Custom image or SF Symbol icon
@@ -76,7 +87,12 @@ struct ModuleCardView: View {
 
                         // Icon
                         Image(systemName: iconName)
-                            .font(.system(size: isCompactHeight ? 32 : 42, weight: .semibold))
+                            .font(
+                                .system(
+                                    size: isCompactWidth ? 26 : (isCompactHeight ? 32 : 42),
+                                    weight: .semibold
+                                )
+                            )
                             .foregroundColor(AppTheme.accentPrimary)
                             .shadow(color: AppTheme.accentPrimary.opacity(0.5), radius: 6)
                             .scaleEffect(iconBounce ? 1.1 : 1.0)
@@ -86,7 +102,7 @@ struct ModuleCardView: View {
 
                 // Title with electric typography - bold with glow effect
                 Text(title)
-                    .font(AppTypography.titleSmall)
+                    .font(isCompactWidth ? AppTypography.buttonLarge : AppTypography.titleSmall)
                     .foregroundColor(.white)
                     .multilineTextAlignment(.center)
                     .lineLimit(2, reservesSpace: true)
@@ -94,12 +110,16 @@ struct ModuleCardView: View {
                     .shadow(color: AppTheme.connectorGlow.opacity(0.8), radius: 8)
                     .shadow(color: AppTheme.accentPrimary.opacity(0.5), radius: 4)
 
-                // Description
-                Text(description)
-                    .font(AppTypography.bodySmall)
-                    .foregroundColor(AppTheme.textSecondary)
-                    .multilineTextAlignment(.center)
-                    .lineLimit(isCompactHeight ? 1 : 2, reservesSpace: true)
+                // The compact hub relies on a recognisable icon and short game name. Keeping the
+                // longer description in the accessibility hint avoids four reading-heavy cards
+                // and leaves all games visible for younger children.
+                if !isCompactWidth {
+                    Text(description)
+                        .font(AppTypography.bodySmall)
+                        .foregroundColor(AppTheme.textSecondary)
+                        .multilineTextAlignment(.center)
+                        .lineLimit(isCompactHeight ? 1 : 2, reservesSpace: true)
+                }
 
                 // Lock indicator or play button
                 if isLocked {
@@ -124,8 +144,8 @@ struct ModuleCardView: View {
                         )
                 }
             }
-            .padding(.vertical, isCompactHeight ? AppSpacing.md : AppSpacing.lg)
-            .padding(.horizontal, AppSpacing.md)
+            .padding(.vertical, isCompactWidth || isCompactHeight ? 12 : AppSpacing.lg)
+            .padding(.horizontal, isCompactWidth ? 8 : AppSpacing.md)
             .frame(maxWidth: .infinity)
             // Glass effect background
             .background(
@@ -184,6 +204,7 @@ struct ModuleCardView: View {
             .scaleEffect(isHovered && !isLocked && !reduceMotion ? 1.03 : 1.0)
             .opacity(isLocked ? 0.6 : 1.0)
         }
+        .dynamicTypeSize(...DynamicTypeSize.accessibility1)
         .buttonStyle(ScrollFriendlyPressStyle(scale: 0.97, yOffset: 2))
         .disabled(isLocked)
         .accessibilityLabel(title)

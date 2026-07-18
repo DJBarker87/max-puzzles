@@ -65,8 +65,12 @@ final class AppAudioSessionCoordinator {
 
 // MARK: - MusicService
 
-/// Service for managing background music playback
-/// Uses AVAudioPlayer for looping background music
+/// Service for managing background music playback.
+///
+/// `AVPlayer` deliberately replaces `AVAudioPlayer` here. `AVAudioPlayer.prepareToPlay()` may
+/// synchronously create and prime an audio queue; doing that from this `@MainActor` service once
+/// caused the scene-create watchdog to terminate the app during launch. `AVPlayer` loads local
+/// assets asynchronously, so music can never hold the first interactive frame hostage.
 @MainActor
 class MusicService: ObservableObject {
     // MARK: - Singleton
@@ -87,7 +91,8 @@ class MusicService: ObservableObject {
 
     // MARK: - Private Properties
 
-    private var player: AVAudioPlayer?
+    private var player: AVPlayer?
+    private var playerLooper: AVPlayerLooper?
     private let storage = StorageService.shared
     private var currentTrack: MusicTrack?
     private var requiredAudioSessions: Set<UUID> = []
@@ -161,7 +166,7 @@ class MusicService: ObservableObject {
             // Resume existing player
             player.volume = volume
             player.play()
-            isPlaying = player.isPlaying
+            isPlaying = true
         } else if let track = currentTrack {
             // No player but we have a track - restart it
             play(track: track)
@@ -313,28 +318,32 @@ class MusicService: ObservableObject {
 
     private func startPlayback(url: URL, loop: Bool, initialVolume: Float) {
         stopPlayback(cancelFade: true)
-        do {
-            let nextPlayer = try AVAudioPlayer(contentsOf: url)
-            nextPlayer.volume = initialVolume
-            nextPlayer.numberOfLoops = loop ? -1 : 0
-            nextPlayer.prepareToPlay()
-            player = nextPlayer
-            playbackGeneration &+= 1
-            isPlaying = nextPlayer.play()
-            if !isPlaying {
-                player = nil
-            }
-        } catch {
-            player = nil
-            isPlaying = false
+
+        let item = AVPlayerItem(url: url)
+        let nextPlayer: AVPlayer
+        if loop {
+            let queuePlayer = AVQueuePlayer()
+            playerLooper = AVPlayerLooper(player: queuePlayer, templateItem: item)
+            nextPlayer = queuePlayer
+        } else {
+            playerLooper = nil
+            nextPlayer = AVPlayer(playerItem: item)
         }
+
+        nextPlayer.volume = initialVolume
+        nextPlayer.automaticallyWaitsToMinimizeStalling = true
+        player = nextPlayer
+        playbackGeneration &+= 1
+        isPlaying = true
+        nextPlayer.play()
     }
 
     private func stopPlayback(cancelFade shouldCancelFade: Bool) {
         if shouldCancelFade { cancelFade() }
         playbackGeneration &+= 1
-        player?.stop()
+        player?.pause()
         player = nil
+        playerLooper = nil
         isPlaying = false
     }
 

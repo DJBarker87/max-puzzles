@@ -61,7 +61,8 @@ class AppState: ObservableObject {
         if StorageService.shared.needsFirstRunSetup {
             needsFirstRun = true
         } else {
-            needsProfileSelection = CometLearningStore.shared.profiles.count > 1
+            needsProfileSelection = StorageService.shared.shouldOfferAdditionalProfileAfterFirstRun
+                || CometLearningStore.shared.profiles.count > 1
         }
         // Now safe to set isLoading false - needsFirstRun is already set if needed
         isLoading = false
@@ -84,14 +85,18 @@ class AppState: ObservableObject {
             StorageService.shared.setPlayerName(playerName)
         }
 
-        StorageService.shared.completeFirstRun()
+        StorageService.shared.completeFirstRun(offerAdditionalProfile: true)
         return true
     }
 
     /// Removes the first-run screen after its optional exit animation has completed.
+    ///
+    /// Every family is shown the profile picker once, even when only one child has been entered.
+    /// That makes the sibling path explicit during onboarding instead of hiding “Add a child”
+    /// behind an unexplained avatar on the hub.
     func finishFirstRunTransition() {
         needsFirstRun = false
-        needsProfileSelection = false
+        needsProfileSelection = true
     }
 
     // MARK: - Player Profiles
@@ -103,6 +108,7 @@ class AppState: ObservableObject {
 
     func selectProfile(_ profileID: UUID) {
         CometLearningStore.shared.setActiveProfile(profileID)
+        StorageService.shared.markAdditionalProfileOfferHandled()
         needsProfileSelection = false
     }
 

@@ -26,6 +26,7 @@ struct GameHeaderView: View {
                     .cornerRadius(10)
             }
             .accessibilityLabel("Back")
+            .accessibilityIdentifier("circuit-game-back")
 
             // Music toggle
             MusicToggleButton(size: .small)
@@ -146,18 +147,6 @@ struct TimerDisplayCompact: View {
             isTimerRunning: true,
             coins: 50,
             coinChange: nil,
-            isHiddenMode: false,
-            onBackClick: {}
-        )
-
-        GameHeaderView(
-            title: "Quick Play",
-            lives: 2,
-            maxLives: 5,
-            elapsedMs: 125000,
-            isTimerRunning: true,
-            coins: 30,
-            coinChange: CoinAnimation(value: -30, type: .penalty, timestamp: Date()),
             isHiddenMode: false,
             onBackClick: {}
         )

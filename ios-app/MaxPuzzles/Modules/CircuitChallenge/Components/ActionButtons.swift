@@ -1,6 +1,59 @@
 import SwiftUI
 import UIKit
 
+/// Story puzzles represent a child's current piece of work, so replacing one
+/// needs an explicit choice. Quick Play keeps the fast one-tap shuffle action.
+enum CircuitNewPuzzleSafeguard {
+    static func requiresConfirmation(isStoryMode: Bool) -> Bool {
+        isStoryMode
+    }
+}
+
+/// Keeps terminal-state UI transitions deterministic. Hidden mode briefly enters `.revealing`
+/// before publishing `.won`; that second publication must not schedule another summary.
+enum CircuitSummarySchedulingPolicy {
+    enum Decision: Equatable {
+        case revealHiddenAndSchedule(delayNanoseconds: UInt64)
+        case schedule(delayNanoseconds: UInt64)
+        case keepPending
+        case cancel
+    }
+
+    static let hiddenRevealDelayNanoseconds: UInt64 = 500_000_000
+    static let standardDelayNanoseconds: UInt64 = 1_200_000_000
+
+    static func decision(
+        for status: GameStatus,
+        isHiddenMode: Bool,
+        isShowingSolution: Bool,
+        hasPendingSummary: Bool
+    ) -> Decision {
+        if status == .revealing, isHiddenMode {
+            return hasPendingSummary
+                ? .keepPending
+                : .revealHiddenAndSchedule(delayNanoseconds: hiddenRevealDelayNanoseconds)
+        }
+
+        if (status == .won || status == .lost), !isShowingSolution {
+            if status == .won, isHiddenMode, hasPendingSummary {
+                return .keepPending
+            }
+            return .schedule(delayNanoseconds: standardDelayNanoseconds)
+        }
+
+        return .cancel
+    }
+
+    static func isCurrent(
+        scheduledGeneration: UInt,
+        scheduledPuzzleID: String?,
+        currentGeneration: UInt,
+        currentPuzzleID: String?
+    ) -> Bool {
+        scheduledGeneration == currentGeneration && scheduledPuzzleID == currentPuzzleID
+    }
+}
+
 // MARK: - ActionButtons
 
 /// Game action buttons (Reset, New Puzzle, View Solution, Continue)

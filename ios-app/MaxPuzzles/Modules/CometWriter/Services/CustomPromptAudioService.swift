@@ -100,10 +100,11 @@ final class CustomPromptAudioService: NSObject, ObservableObject, AVAudioPlayerD
         return filename
     }
 
-    func play(filename: String) {
+    @discardableResult
+    func play(filename: String) -> Bool {
         if playingFilename == filename {
             stopPlayback()
-            return
+            return false
         }
         _ = stopRecording(releaseAudioFocus: false)
         stopPlayback(releaseAudioFocus: false)
@@ -112,12 +113,12 @@ final class CustomPromptAudioService: NSObject, ObservableObject, AVAudioPlayerD
         let url = Self.recordingsDirectory.appendingPathComponent(filename)
         guard FileManager.default.fileExists(atPath: url.path) else {
             releaseAudioFocus()
-            return
+            return false
         }
         do {
             guard AppAudioSessionCoordinator.shared.activate(.spokenPlayback) else {
                 releaseAudioFocus()
-                return
+                return false
             }
             let nextPlayer = try AVAudioPlayer(contentsOf: url)
             nextPlayer.delegate = self
@@ -125,12 +126,14 @@ final class CustomPromptAudioService: NSObject, ObservableObject, AVAudioPlayerD
             nextPlayer.prepareToPlay()
             guard nextPlayer.play() else {
                 releaseAudioFocus()
-                return
+                return false
             }
             player = nextPlayer
             playingFilename = filename
+            return true
         } catch {
             stopPlayback()
+            return false
         }
     }
 

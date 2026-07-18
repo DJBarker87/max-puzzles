@@ -1,5 +1,11 @@
 import SwiftUI
 
+enum CometWriterLayoutPolicy {
+    static func tracePrecedesSidebar(isWide: Bool, writingHand: WritingHand) -> Bool {
+        isWide && writingHand == .left
+    }
+}
+
 struct CometWriterGameView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -34,7 +40,10 @@ struct CometWriterGameView: View {
 
                 if isWide {
                     HStack(spacing: AppSpacing.lg) {
-                        if learningStore.activeWritingHand == .left {
+                        if CometWriterLayoutPolicy.tracePrecedesSidebar(
+                            isWide: isWide,
+                            writingHand: learningStore.activeWritingHand
+                        ) {
                             traceArea
                                 .frame(maxHeight: geometry.size.height - AppSpacing.md * 2)
                             sidebar
@@ -64,6 +73,10 @@ struct CometWriterGameView: View {
                     completionOverlay
                 }
             }
+            // The precision surface must retain enough physical height for a child's hand.
+            // Accessibility sizes remain enlarged, while the fixed game chrome stops growing
+            // after AX1; all longer explanatory screens remain scrollable at the user's full size.
+            .dynamicTypeSize(...DynamicTypeSize.accessibility1)
         }
         .toolbar(.hidden, for: .navigationBar)
         .navigationBarBackButtonHidden(true)
@@ -84,9 +97,10 @@ struct CometWriterGameView: View {
             if requiredAudioToken == nil {
                 requiredAudioToken = musicService.beginRequiredAudioSession()
             }
-            if UIDevice.current.userInterfaceIdiom != .pad {
-                pencilOnly = false
-            }
+            pencilOnly = TraceInputPolicy.resolvedPencilOnly(
+                pencilOnly,
+                supportsApplePencil: UIDevice.current.userInterfaceIdiom == .pad
+            )
             StorageService.shared.setLastCometWriterLetter(viewModel.glyph.character)
             if StorageService.shared.isVoiceEnabled {
                 speech.speak(viewModel.glyph)
@@ -111,7 +125,14 @@ struct CometWriterGameView: View {
         } message: {
             Text("Completed attempts are saved, but the current unfinished letter will reset.")
         }
-        .accessibilityIdentifier("comet-writer-game")
+        // Keep the screen marker separate so it cannot overwrite identifiers on the direct-
+        // interaction writing pad or the child-facing controls around it.
+        .background {
+            Color.clear
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("Comet Writer game")
+                .accessibilityIdentifier("comet-writer-game")
+        }
     }
 
     private var gameHeader: some View {
@@ -1471,9 +1492,10 @@ struct CometWriterToolsSheet: View {
         }
         .preferredColorScheme(.dark)
         .onAppear {
-            if !supportsApplePencil {
-                pencilOnly = false
-            }
+            pencilOnly = TraceInputPolicy.resolvedPencilOnly(
+                pencilOnly,
+                supportsApplePencil: supportsApplePencil
+            )
         }
     }
 

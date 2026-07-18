@@ -95,6 +95,7 @@ private struct DotPuzzleReferenceArtworkView: View {
 
 struct DotToDotMenuView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @EnvironmentObject private var musicService: MusicService
     @ObservedObject private var storage = StorageService.shared
 
@@ -109,6 +110,10 @@ struct DotToDotMenuView: View {
         DotPuzzleCatalog.sanitizedCompletedIDs(storage.dotToDotCompletedPuzzles)
     }
 
+    private var usesAccessibilityLayout: Bool {
+        dynamicTypeSize.isAccessibilitySize
+    }
+
     var body: some View {
         NavigationStack {
             ZStack {
@@ -118,7 +123,9 @@ struct DotToDotMenuView: View {
                 ScrollView {
                     VStack(spacing: AppSpacing.lg) {
                         header
-                        hero
+                        if !usesAccessibilityLayout {
+                            hero
+                        }
                         playStylePicker
                         tierPicker
                         puzzleGallery
@@ -128,6 +135,7 @@ struct DotToDotMenuView: View {
                     .padding(.bottom, AppSpacing.xxl)
                 }
                 .scrollIndicators(.hidden)
+                .accessibilityIdentifier("dot-menu-scroll")
             }
             .toolbar(.hidden, for: .navigationBar)
         }
@@ -146,68 +154,87 @@ struct DotToDotMenuView: View {
         .accessibilityIdentifier("dot-to-dot-menu")
     }
 
+    @ViewBuilder
     private var header: some View {
-        HStack(spacing: AppSpacing.md) {
-            PremiumIconButton(
-                icon: "xmark",
-                action: { dismiss() },
-                size: 48,
-                accessibilityLabelText: "Close Dot-to-Dot"
-            )
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Dot-to-Dot Discovery")
-                    .font(AppTypography.titleMedium)
-                    .foregroundColor(AppTheme.textPrimary)
-
-                Text("Find the next numeral, reveal it, then colour it")
-                    .font(AppTypography.bodySmall)
-                    .foregroundColor(AppTheme.textSecondary)
-                    .lineLimit(2)
+        if usesAccessibilityLayout {
+            VStack(alignment: .leading, spacing: AppSpacing.md) {
+                HStack(spacing: AppSpacing.md) {
+                    closeButton
+                    Spacer(minLength: AppSpacing.sm)
+                    progressBadge
+                }
+                headerCopy
             }
-
-            Spacer()
-
-            HStack(spacing: 6) {
-                Image(systemName: "checkmark.seal.fill")
-                    .foregroundColor(Color(hex: "5eead4"))
-                Text("\(completedPuzzleIDs.count)/\(DotPuzzleCatalog.all.count)")
-                    .font(AppTypography.buttonSmall)
-                    .foregroundColor(AppTheme.textPrimary)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.top, AppSpacing.md)
+        } else {
+            HStack(spacing: AppSpacing.md) {
+                closeButton
+                headerCopy
+                Spacer(minLength: AppSpacing.sm)
+                progressBadge
             }
-            .padding(.horizontal, 12)
-            .frame(minHeight: 44)
-            .background(Capsule().fill(AppTheme.backgroundMid.opacity(0.90)))
-            .accessibilityLabel("\(completedPuzzleIDs.count) of \(DotPuzzleCatalog.all.count) pictures completed")
+            .padding(.top, AppSpacing.md)
         }
-        .padding(.top, AppSpacing.md)
     }
 
+    private var closeButton: some View {
+        PremiumIconButton(
+            icon: "xmark",
+            action: { dismiss() },
+            size: 48,
+            accessibilityLabelText: "Close Dot-to-Dot"
+        )
+    }
+
+    private var headerCopy: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text("Dot-to-Dot Discovery")
+                .font(AppTypography.titleMedium)
+                .foregroundColor(AppTheme.textPrimary)
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityIdentifier("dot-menu-title")
+
+            Text("Find the next number, reveal it, then colour it")
+                .font(AppTypography.bodySmall)
+                .foregroundColor(AppTheme.textSecondary)
+                .lineLimit(usesAccessibilityLayout ? nil : 2)
+                .fixedSize(horizontal: false, vertical: true)
+                .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var progressBadge: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "checkmark.seal.fill")
+                .foregroundColor(Color(hex: "5eead4"))
+            Text("\(completedPuzzleIDs.count)/\(DotPuzzleCatalog.all.count)")
+                .font(AppTypography.buttonSmall)
+                .foregroundColor(AppTheme.textPrimary)
+                .lineLimit(1)
+                .fixedSize(horizontal: true, vertical: false)
+        }
+        .padding(.horizontal, 12)
+        .frame(minHeight: 44)
+        .fixedSize(horizontal: true, vertical: false)
+        .background(Capsule().fill(AppTheme.backgroundMid.opacity(0.90)))
+        .accessibilityLabel("\(completedPuzzleIDs.count) of \(DotPuzzleCatalog.all.count) pictures completed")
+        .accessibilityIdentifier("dot-menu-progress")
+    }
+
+    @ViewBuilder
     private var hero: some View {
-        HStack(spacing: AppSpacing.md) {
-            Image("dot_to_dot_icon")
-                .resizable()
-                .scaledToFit()
-                .frame(width: 78, height: 78)
-                .clipShape(RoundedRectangle(cornerRadius: 18))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 18)
-                        .stroke(Color.white.opacity(0.20), lineWidth: 1)
-                )
-                .accessibilityHidden(true)
-
-            VStack(alignment: .leading, spacing: AppSpacing.sm) {
-                Text("Can you reveal the hidden picture?")
-                    .font(AppTypography.titleSmall)
-                    .foregroundColor(AppTheme.textPrimary)
-
-                Text("Every dot belongs to the picture. The next numeral is shown and spoken, and hints keep the challenge friendly.")
-                    .font(AppTypography.bodySmall)
-                    .foregroundColor(AppTheme.textSecondary)
-                    .fixedSize(horizontal: false, vertical: true)
+        Group {
+            if usesAccessibilityLayout {
+                heroCopy
+            } else {
+                HStack(spacing: AppSpacing.md) {
+                    heroIcon
+                    heroCopy
+                    Spacer(minLength: 0)
+                }
             }
-
-            Spacer(minLength: 0)
         }
         .padding(AppSpacing.md)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -219,6 +246,36 @@ struct DotToDotMenuView: View {
             RoundedRectangle(cornerRadius: 24)
                 .stroke(Color(hex: "5eead4").opacity(0.35), lineWidth: 1)
         )
+        // This card is explanatory rather than a control. Capping it prevents decorative copy
+        // from consuming an entire small screen while the header and choices remain fully scaled.
+        .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
+    }
+
+    private var heroIcon: some View {
+        Image("dot_to_dot_icon")
+            .resizable()
+            .scaledToFit()
+            .frame(width: 78, height: 78)
+            .clipShape(RoundedRectangle(cornerRadius: 18))
+            .overlay(
+                RoundedRectangle(cornerRadius: 18)
+                    .stroke(Color.white.opacity(0.20), lineWidth: 1)
+            )
+            .accessibilityHidden(true)
+    }
+
+    private var heroCopy: some View {
+        VStack(alignment: .leading, spacing: AppSpacing.sm) {
+            Text("Can you reveal the hidden picture?")
+                .font(AppTypography.titleSmall)
+                .foregroundColor(AppTheme.textPrimary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Text("Every dot belongs to the picture. The next number is shown and spoken, and hints keep the challenge friendly.")
+                .font(AppTypography.bodySmall)
+                .foregroundColor(AppTheme.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
     }
 
     private var tierPicker: some View {
@@ -244,13 +301,17 @@ struct DotToDotMenuView: View {
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(tier.title)
                                         .font(AppTypography.buttonMedium)
+                                        .fixedSize(horizontal: false, vertical: true)
                                     Text("\(tier.rangeLabel) • \(tier.subtitle)")
                                         .font(AppTypography.caption)
                                         .opacity(0.82)
+                                        .fixedSize(horizontal: false, vertical: true)
                                 }
                             }
                             .foregroundColor(selectedTier == tier ? AppTheme.backgroundDark : AppTheme.textPrimary)
                             .padding(.horizontal, 16)
+                            .padding(.vertical, usesAccessibilityLayout ? 10 : 0)
+                            .frame(minWidth: usesAccessibilityLayout ? 250 : nil)
                             .frame(minHeight: 58)
                             .background(
                                 RoundedRectangle(cornerRadius: 18)
@@ -266,7 +327,7 @@ struct DotToDotMenuView: View {
                             )
                         }
                         .buttonStyle(.plain)
-                        .accessibilityLabel("\(tier.title), numerals \(tier.rangeLabel), \(tier.subtitle)")
+                        .accessibilityLabel("\(tier.title), numbers \(tier.rangeLabel), \(tier.subtitle)")
                         .accessibilityAddTraits(selectedTier == tier ? .isSelected : [])
                         .accessibilityIdentifier("dot-tier-\(tier.rawValue)")
                     }
@@ -282,7 +343,22 @@ struct DotToDotMenuView: View {
                 .font(AppTypography.titleSmall)
                 .foregroundColor(AppTheme.textPrimary)
 
-            HStack(spacing: AppSpacing.sm) {
+            Group {
+                if usesAccessibilityLayout {
+                    VStack(spacing: AppSpacing.sm) {
+                        playStyleButtons
+                    }
+                } else {
+                    HStack(spacing: AppSpacing.sm) {
+                        playStyleButtons
+                    }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var playStyleButtons: some View {
                 ForEach(DotInteractionMode.allCases) { mode in
                     let selected = storage.dotToDotInteractionMode == mode
                     Button {
@@ -296,7 +372,8 @@ struct DotToDotMenuView: View {
                             Text(mode.shortInstruction)
                                 .font(AppTypography.caption)
                                 .multilineTextAlignment(.center)
-                                .lineLimit(2)
+                                .lineLimit(usesAccessibilityLayout ? nil : 2)
+                                .fixedSize(horizontal: false, vertical: true)
                         }
                         .foregroundColor(selected ? AppTheme.backgroundDark : AppTheme.textPrimary)
                         .frame(maxWidth: .infinity, minHeight: 72)
@@ -314,32 +391,33 @@ struct DotToDotMenuView: View {
                     .accessibilityAddTraits(selected ? .isSelected : [])
                     .accessibilityIdentifier("dot-mode-\(mode.rawValue)")
                 }
-            }
-        }
     }
 
     private var puzzleGallery: some View {
         VStack(alignment: .leading, spacing: AppSpacing.md) {
-            HStack {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Picture gallery")
-                        .font(AppTypography.titleSmall)
-                        .foregroundColor(AppTheme.textPrimary)
-                    Text("\(puzzles.count) pictures in this number range")
-                        .font(AppTypography.caption)
-                        .foregroundColor(AppTheme.textSecondary)
+            Group {
+                if usesAccessibilityLayout {
+                    VStack(alignment: .leading, spacing: AppSpacing.sm) {
+                        galleryCopy
+                        rangeBadge
+                    }
+                } else {
+                    HStack {
+                        galleryCopy
+                        Spacer()
+                        rangeBadge
+                    }
                 }
-                Spacer()
-                Text(selectedTier.rangeLabel)
-                    .font(AppTypography.buttonSmall)
-                    .foregroundColor(selectedTier.color)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 7)
-                    .background(Capsule().fill(selectedTier.color.opacity(0.13)))
             }
 
             LazyVGrid(
-                columns: [GridItem(.adaptive(minimum: 145, maximum: 210), spacing: AppSpacing.md)],
+                columns: [GridItem(
+                    .adaptive(
+                        minimum: usesAccessibilityLayout ? 240 : 145,
+                        maximum: usesAccessibilityLayout ? 520 : 210
+                    ),
+                    spacing: AppSpacing.md
+                )],
                 spacing: AppSpacing.md
             ) {
                 ForEach(puzzles) { puzzle in
@@ -347,6 +425,30 @@ struct DotToDotMenuView: View {
                 }
             }
         }
+    }
+
+    private var galleryCopy: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text("Picture gallery")
+                .font(AppTypography.titleSmall)
+                .foregroundColor(AppTheme.textPrimary)
+                .fixedSize(horizontal: false, vertical: true)
+            Text("\(puzzles.count) pictures in this number range")
+                .font(AppTypography.caption)
+                .foregroundColor(AppTheme.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private var rangeBadge: some View {
+        Text(selectedTier.rangeLabel)
+            .font(AppTypography.buttonSmall)
+            .foregroundColor(selectedTier.color)
+            .lineLimit(1)
+            .fixedSize(horizontal: true, vertical: false)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 7)
+            .background(Capsule().fill(selectedTier.color.opacity(0.13)))
     }
 
     private func puzzleCard(_ puzzle: DotPuzzle) -> some View {
@@ -387,11 +489,14 @@ struct DotToDotMenuView: View {
                 Text(puzzle.title)
                     .font(AppTypography.buttonMedium)
                     .foregroundColor(AppTheme.textPrimary)
-                    .lineLimit(1)
+                    .lineLimit(usesAccessibilityLayout ? 2 : 1)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 Text("\(puzzle.points.count) numbers")
                     .font(AppTypography.caption)
                     .foregroundColor(AppTheme.textSecondary)
+                    .lineLimit(1)
+                    .fixedSize(horizontal: true, vertical: false)
             }
             .padding(10)
             .frame(maxWidth: .infinity)
@@ -476,14 +581,20 @@ private enum SemanticColouringDismissAction {
 struct DotToDotPlayView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.scenePhase) private var scenePhase
     @EnvironmentObject private var musicService: MusicService
     @ObservedObject private var storage = StorageService.shared
 
     let puzzle: DotPuzzle
     let interactionMode: DotInteractionMode
     let onExit: (() -> Void)?
+    private let requestedInitialProgress: Int
 
     @State private var currentIndex = 0
+    @State private var progressSession: DotToDotProgressStore.Session?
+    @State private var hasLoadedConnectionProgress = false
+    @State private var showsRestartConfirmation = false
+    @State private var isRestarting = false
     @State private var showsHint = false
     @State private var statusMessage: String?
     @State private var wrongRealIndex: Int?
@@ -493,6 +604,8 @@ struct DotToDotPlayView: View {
     @State private var coloredRegions: Set<Int> = []
     @State private var colouringSnapshot: DotColouringSnapshot = .empty
     @State private var hasLoadedColouringSnapshot = false
+    @State private var colouringSessionToken: UUID?
+    @State private var colouringSnapshotRevision = 0
     @State private var showsSemanticColouring = false
     @State private var semanticColouringDismissAction: SemanticColouringDismissAction?
     @State private var wrongSubitizingClearTask: Task<Void, Never>?
@@ -502,8 +615,11 @@ struct DotToDotPlayView: View {
     @State private var initialPromptTask: Task<Void, Never>?
     @State private var wrongRealClearTask: Task<Void, Never>?
     @State private var completionTransitionTask: Task<Void, Never>?
+    @State private var isExiting = false
 
-    private let colouringSnapshotStore = DotColouringSnapshotStore()
+    private let progressStore = DotToDotProgressStore.shared
+    private let colouringSnapshotStore = DotColouringSnapshotStore.shared
+    private let persistenceQueue = DotToDotPersistenceQueue.shared
 
     init(
         puzzle: DotPuzzle,
@@ -516,8 +632,9 @@ struct DotToDotPlayView: View {
         self.puzzle = puzzle
         self.interactionMode = interactionMode
         self.onExit = onExit
+        requestedInitialProgress = min(max(initialProgress, 0), puzzle.points.count)
         _currentIndex = State(
-            initialValue: min(max(initialProgress, 0), puzzle.points.count)
+            initialValue: requestedInitialProgress
         )
         _completionPresented = State(initialValue: showsCompletionInitially)
         _showsSemanticColouring = State(initialValue: showsSemanticColouringInitially)
@@ -578,20 +695,12 @@ struct DotToDotPlayView: View {
         }
         .onAppear {
             coloredRegions = storage.coloredDotToDotRegions(for: puzzle.id)
-            loadColouringSnapshot()
             if requiredAudioToken == nil {
                 requiredAudioToken = musicService.beginRequiredAudioSession()
             }
-            if !isComplete {
-                initialPromptTask?.cancel()
-                initialPromptTask = Task { @MainActor in
-                    try? await Task.sleep(nanoseconds: 450_000_000)
-                    guard !Task.isCancelled, !isComplete else { return }
-                    NumeralSpeechService.shared.speakPrompt(expectedNumeral)
-                }
-            }
         }
         .onDisappear {
+            persistConnectionProgress()
             initialPromptTask?.cancel()
             wrongRealClearTask?.cancel()
             completionTransitionTask?.cancel()
@@ -604,6 +713,10 @@ struct DotToDotPlayView: View {
                 musicService.endRequiredAudioSession(requiredAudioToken)
                 self.requiredAudioToken = nil
             }
+        }
+        .onChange(of: scenePhase) { phase in
+            guard phase != .active else { return }
+            persistConnectionProgress()
         }
         .fullScreenCover(isPresented: $showsWritingBreak, onDismiss: {
             writingBreakNumeral = nil
@@ -629,21 +742,11 @@ struct DotToDotPlayView: View {
                         storage.colorDotToDotRegion(region, for: puzzle.id)
                     },
                     onSnapshotChanged: { snapshot in
-                        colouringSnapshot = snapshot
-                        colouringSnapshotStore.saveInBackground(
-                            snapshot,
-                            puzzleID: puzzle.id,
-                            profileID: storage.activeProfileID
-                        )
+                        persistColouringSnapshot(snapshot)
                     },
                     onReset: {
                         coloredRegions = []
-                        colouringSnapshot = .empty
                         storage.resetDotToDotColoring(for: puzzle.id)
-                        colouringSnapshotStore.reset(
-                            puzzleID: puzzle.id,
-                            profileID: storage.activeProfileID
-                        )
                     },
                     onDone: finishSemanticColouring,
                     onClose: leaveSemanticColouring
@@ -657,8 +760,23 @@ struct DotToDotPlayView: View {
                 }
             }
         }
-        .task(id: currentIndex) {
-            guard !isComplete else { return }
+        .alert("Start this picture again?", isPresented: $showsRestartConfirmation) {
+            Button("Keep going", role: .cancel) {}
+            Button("Start again", role: .destructive, action: performRestart)
+        } message: {
+            Text("Your joined dots will start again from number 1.")
+        }
+        .task {
+            await restoreConnectionProgress()
+            await loadColouringSnapshot()
+        }
+        .task(
+            id: DotToDotAutomaticHintTaskID(
+                hasLoadedConnectionProgress: hasLoadedConnectionProgress,
+                currentIndex: currentIndex
+            )
+        ) {
+            guard hasLoadedConnectionProgress, !isComplete else { return }
             let nanoseconds = UInt64(puzzle.tier.automaticHintDelay * 1_000_000_000)
             try? await Task.sleep(nanoseconds: nanoseconds)
             guard !Task.isCancelled, !isComplete else { return }
@@ -681,7 +799,7 @@ struct DotToDotPlayView: View {
                 Text(puzzle.title)
                     .font(AppTypography.titleMedium)
                     .foregroundColor(AppTheme.textPrimary)
-                Text("\(interactionMode.title) • \(puzzle.points.count) numerals")
+                Text("\(interactionMode.title) • \(puzzle.points.count) numbers")
                     .font(AppTypography.caption)
                     .foregroundColor(AppTheme.textSecondary)
             }
@@ -776,6 +894,20 @@ struct DotToDotPlayView: View {
             onTraceMiss: handleTraceMiss
         )
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .allowsHitTesting(hasLoadedConnectionProgress && !isRestarting)
+        .overlay {
+            if !hasLoadedConnectionProgress || isRestarting {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 28)
+                        .fill(AppTheme.backgroundDark.opacity(0.64))
+                    ProgressView(isRestarting ? "Starting again…" : "Finding your place…")
+                        .tint(puzzle.tier.color)
+                        .foregroundStyle(AppTheme.textPrimary)
+                }
+                .accessibilityElement(children: .combine)
+                .accessibilityIdentifier("dot-to-dot-progress-loading")
+            }
+        }
     }
 
     private var controls: some View {
@@ -789,7 +921,7 @@ struct DotToDotPlayView: View {
                     NumeralSpeechService.shared.speakPrompt(expectedNumeral)
                 }
                 controlButton("Restart", icon: "arrow.counterclockwise") {
-                    restart()
+                    requestRestart()
                 }
             }
 
@@ -803,10 +935,11 @@ struct DotToDotPlayView: View {
                     }
                 }
                 controlButton("Restart", icon: "arrow.counterclockwise") {
-                    restart()
+                    requestRestart()
                 }
             }
         }
+        .disabled(!hasLoadedConnectionProgress || isRestarting)
     }
 
     private func controlButton(_ title: String, icon: String, action: @escaping () -> Void) -> some View {
@@ -828,7 +961,7 @@ struct DotToDotPlayView: View {
     }
 
     private func handleRealDot(_ index: Int) {
-        guard !isComplete else { return }
+        guard hasLoadedConnectionProgress, !isRestarting, !isComplete else { return }
 
         if index == currentIndex {
             let foundNumeral = index + 1
@@ -842,17 +975,18 @@ struct DotToDotPlayView: View {
                 statusMessage = nil
                 wrongRealIndex = nil
             }
+            persistConnectionProgress()
 
             if currentIndex >= puzzle.points.count {
                 UIAccessibility.post(
                     notification: .announcement,
-                    argument: "All \(puzzle.points.count) numerals found. Picture revealed."
+                    argument: "All \(puzzle.points.count) numbers found. Picture revealed."
                 )
                 completePuzzle()
             } else {
                 UIAccessibility.post(
                     notification: .announcement,
-                    argument: "Correct. Find numeral \(expectedNumeral)."
+                    argument: "Correct. Find number \(expectedNumeral)."
                 )
             }
             return
@@ -896,7 +1030,7 @@ struct DotToDotPlayView: View {
             try? await Task.sleep(nanoseconds: delay)
             guard !Task.isCancelled, isComplete else { return }
             if semanticColourPlan != nil {
-                loadColouringSnapshot()
+                await loadColouringSnapshot()
                 showsSemanticColouring = true
             } else {
                 recordFinishedPicture()
@@ -907,20 +1041,48 @@ struct DotToDotPlayView: View {
         }
     }
 
-    private func restart() {
-        withAnimation(.easeInOut(duration: 0.25)) {
-            currentIndex = 0
-            showsHint = false
-            statusMessage = nil
-            wrongRealIndex = nil
-            completionPresented = false
-            subitizingSolved = false
-            wrongSubitizingChoice = nil
-            coloredRegions = storage.coloredDotToDotRegions(for: puzzle.id)
-            showsSemanticColouring = false
-            writingBreakNumeral = nil
+    private func requestRestart() {
+        guard DotToDotRestartPolicy.requiresConfirmation(currentIndex: currentIndex) else {
+            performRestart()
+            return
         }
-        NumeralSpeechService.shared.speakPrompt(1)
+        showsRestartConfirmation = true
+    }
+
+    @MainActor
+    private func performRestart() {
+        guard !isRestarting else { return }
+        isRestarting = true
+        let previousToken = progressSession?.token
+        let profileID = storage.activeProfileID
+        Task { @MainActor in
+            let session = await progressStore.restart(
+                puzzleID: puzzle.id,
+                profileID: profileID,
+                interactionMode: interactionMode,
+                sessionToken: previousToken
+            )
+            guard let session else {
+                isRestarting = false
+                statusMessage = "Please reopen this picture to start again."
+                return
+            }
+            progressSession = session
+            withAnimation(.easeInOut(duration: 0.25)) {
+                currentIndex = 0
+                showsHint = false
+                statusMessage = nil
+                wrongRealIndex = nil
+                completionPresented = false
+                subitizingSolved = false
+                wrongSubitizingChoice = nil
+                coloredRegions = storage.coloredDotToDotRegions(for: puzzle.id)
+                showsSemanticColouring = false
+                writingBreakNumeral = nil
+            }
+            isRestarting = false
+            NumeralSpeechService.shared.speakPrompt(1)
+        }
     }
 
     private var completionOverlay: some View {
@@ -940,7 +1102,7 @@ struct DotToDotPlayView: View {
                             .multilineTextAlignment(.center)
                             .minimumScaleFactor(0.75)
 
-                        Text("All \(puzzle.points.count) numerals found—and you brought the picture to life with colour!")
+                        Text("All \(puzzle.points.count) numbers found—and you brought the picture to life with colour!")
                             .font(AppTypography.bodyMedium)
                             .foregroundColor(AppTheme.textSecondary)
                             .multilineTextAlignment(.center)
@@ -979,13 +1141,13 @@ struct DotToDotPlayView: View {
                                     Text("Comet Writer pit stop")
                                         .font(AppTypography.buttonLarge)
                                         .foregroundColor(AppTheme.textPrimary)
-                                    Text("You can also practise drawing numeral \(writingBreakNumeral).")
+                                    Text("You can also practise drawing number \(writingBreakNumeral).")
                                         .font(AppTypography.bodySmall)
                                         .foregroundColor(AppTheme.textSecondary)
                                 }
                                 Spacer(minLength: 0)
                             }
-                            SecondaryButton("Practise numeral \(writingBreakNumeral)", icon: "pencil.and.outline") {
+                            SecondaryButton("Practise number \(writingBreakNumeral)", icon: "pencil.and.outline") {
                                 showsWritingBreak = true
                             }
                         }
@@ -1021,24 +1183,24 @@ struct DotToDotPlayView: View {
 
     private var promptTitle: String {
         if interactionMode == .trace, currentIndex > 0 {
-            return "Trace to numeral \(expectedNumeral)"
+            return "Trace to number \(expectedNumeral)"
         }
-        return "Find numeral \(expectedNumeral)"
+        return "Find number \(expectedNumeral)"
     }
 
     private var defaultPromptMessage: String {
         if interactionMode == .trace {
             return currentIndex == 0
-                ? "Press numeral 1 to start the trail."
+                ? "Press number 1 to start the trail."
                 : "Draw from \(currentIndex) to \(expectedNumeral). Scan the whole picture if you need to."
         }
-        return "Scan the whole picture and press the matching numeral."
+        return "Scan the whole picture and press the matching number."
     }
 
     private func handleTraceMiss() {
         guard interactionMode == .trace, !isComplete else { return }
         if currentIndex == 0 {
-            statusMessage = "Press numeral 1 to begin."
+            statusMessage = "Press number 1 to begin."
         } else {
             statusMessage = "Start at \(currentIndex), then draw to \(expectedNumeral)."
         }
@@ -1128,30 +1290,195 @@ struct DotToDotPlayView: View {
         showsSemanticColouring = false
     }
 
-    private func loadColouringSnapshot() {
-        colouringSnapshot = colouringSnapshotStore.load(
+    @MainActor
+    private func restoreConnectionProgress() async {
+        let profileID = storage.activeProfileID
+        let resource = DotToDotPersistenceQueue.Resource.connection(
             puzzleID: puzzle.id,
-            profileID: storage.activeProfileID
+            profileID: profileID,
+            interactionMode: interactionMode
         )
+        await persistenceQueue.drain(resource)
+        guard !Task.isCancelled else { return }
+        let session = await progressStore.beginSession(
+            puzzleID: puzzle.id,
+            profileID: profileID,
+            interactionMode: interactionMode,
+            pointCount: puzzle.points.count
+        )
+        guard !Task.isCancelled else { return }
+        progressSession = session
+        let restoredIndex = max(requestedInitialProgress, session.currentIndex)
+        currentIndex = min(restoredIndex, puzzle.points.count)
+        hasLoadedConnectionProgress = true
+
+        if session.recoveredFromCorruptData {
+            statusMessage = "We started a fresh trail safely."
+        } else if session.currentIndex > 0 {
+            statusMessage = "Welcome back! Carry on with number \(expectedNumeral)."
+            UIAccessibility.post(
+                notification: .announcement,
+                argument: "Welcome back. Continue with number \(expectedNumeral)."
+            )
+        }
+
+        if isComplete {
+            _ = await progressStore.clear(
+                puzzleID: puzzle.id,
+                profileID: profileID,
+                interactionMode: interactionMode,
+                sessionToken: session.token
+            )
+        } else if requestedInitialProgress > session.currentIndex {
+            _ = await progressStore.save(
+                currentIndex: currentIndex,
+                puzzleID: puzzle.id,
+                profileID: profileID,
+                interactionMode: interactionMode,
+                pointCount: puzzle.points.count,
+                sessionToken: session.token
+            )
+        }
+        scheduleInitialPrompt()
+    }
+
+    @MainActor
+    private func scheduleInitialPrompt() {
+        guard !isComplete else { return }
+        initialPromptTask?.cancel()
+        initialPromptTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 450_000_000)
+            guard !Task.isCancelled, hasLoadedConnectionProgress, !isComplete else { return }
+            NumeralSpeechService.shared.speakPrompt(expectedNumeral)
+        }
+    }
+
+    @MainActor
+    @discardableResult
+    private func persistConnectionProgress() -> DotToDotPersistenceQueue.Resource {
+        let profileID = storage.activeProfileID
+        let resource = DotToDotPersistenceQueue.Resource.connection(
+            puzzleID: puzzle.id,
+            profileID: profileID,
+            interactionMode: interactionMode
+        )
+        guard let token = progressSession?.token else { return resource }
+        let index = currentIndex
+        guard index > 0 else { return resource }
+        persistenceQueue.enqueue(for: resource) {
+            if index >= puzzle.points.count {
+                _ = await progressStore.clear(
+                    puzzleID: puzzle.id,
+                    profileID: profileID,
+                    interactionMode: interactionMode,
+                    sessionToken: token
+                )
+            } else {
+                _ = await progressStore.save(
+                    currentIndex: index,
+                    puzzleID: puzzle.id,
+                    profileID: profileID,
+                    interactionMode: interactionMode,
+                    pointCount: puzzle.points.count,
+                    sessionToken: token
+                )
+            }
+        }
+        return resource
+    }
+
+    @MainActor
+    private func flushConnectionProgress() async {
+        let resource = persistConnectionProgress()
+        await persistenceQueue.drain(resource)
+    }
+
+    @MainActor
+    private func loadColouringSnapshot() async {
+        guard !hasLoadedColouringSnapshot else { return }
+        let profileID = storage.activeProfileID
+        let resource = DotToDotPersistenceQueue.Resource.colouring(
+            puzzleID: puzzle.id,
+            profileID: profileID
+        )
+        await persistenceQueue.drain(resource)
+        guard !Task.isCancelled else { return }
+        let session = await colouringSnapshotStore.beginSession(
+            puzzleID: puzzle.id,
+            profileID: profileID
+        )
+        guard !Task.isCancelled else { return }
+        colouringSnapshot = session.snapshot
+        colouringSessionToken = session.token
+        colouringSnapshotRevision = session.revision
         hasLoadedColouringSnapshot = true
+    }
+
+    @MainActor
+    private func persistColouringSnapshot(_ snapshot: DotColouringSnapshot) -> Task<Void, Never> {
+        colouringSnapshot = snapshot
+        guard let token = colouringSessionToken else { return Task {} }
+        colouringSnapshotRevision += 1
+        let revision = colouringSnapshotRevision
+        let profileID = storage.activeProfileID
+        let resource = DotToDotPersistenceQueue.Resource.colouring(
+            puzzleID: puzzle.id,
+            profileID: profileID
+        )
+        return persistenceQueue.enqueue(for: resource) {
+            _ = await colouringSnapshotStore.save(
+                snapshot,
+                puzzleID: puzzle.id,
+                profileID: profileID,
+                sessionToken: token,
+                revision: revision
+            )
+        }
+    }
+
+    @MainActor
+    @discardableResult
+    private func resetColouringSnapshot() -> Task<Void, Never> {
+        colouringSnapshot = .empty
+        guard let token = colouringSessionToken else { return Task {} }
+        colouringSnapshotRevision += 1
+        let revision = colouringSnapshotRevision
+        let profileID = storage.activeProfileID
+        let resource = DotToDotPersistenceQueue.Resource.colouring(
+            puzzleID: puzzle.id,
+            profileID: profileID
+        )
+        return persistenceQueue.enqueue(for: resource) {
+            _ = await colouringSnapshotStore.reset(
+                puzzleID: puzzle.id,
+                profileID: profileID,
+                sessionToken: token,
+                revision: revision
+            )
+        }
     }
 
     private func playAgain() {
         storage.resetDotToDotColoring(for: puzzle.id)
-        colouringSnapshotStore.reset(
-            puzzleID: puzzle.id,
-            profileID: storage.activeProfileID
-        )
         coloredRegions = []
-        colouringSnapshot = .empty
-        restart()
+        resetColouringSnapshot()
+        performRestart()
     }
 
+    @MainActor
     private func exitGame() {
-        if let onExit {
-            onExit()
-        } else {
-            dismiss()
+        guard !isExiting else { return }
+        isExiting = true
+        Task { @MainActor in
+            // Do not dismiss until the final index has reached the actor-backed store. The await
+            // suspends this task rather than the UI, and the next presentation drains the same
+            // resource before rotating its session token.
+            await flushConnectionProgress()
+            if let onExit {
+                onExit()
+            } else {
+                dismiss()
+            }
         }
     }
 }
@@ -1370,8 +1697,8 @@ private struct DotToDotBoard: View {
             }
             .buttonStyle(.plain)
             .position(boardPoint(normalized, in: size))
-            .accessibilityLabel("Numeral \(index + 1)")
-            .accessibilityHint(index == currentIndex ? "This is the numeral to find" : "Choose only when this numeral is requested")
+            .accessibilityLabel("Number \(index + 1)")
+            .accessibilityHint(index == currentIndex ? "This is the number to find" : "Choose only when this number is requested")
             .accessibilitySortPriority(index == currentIndex ? 10 : 1)
             .accessibilityIdentifier("dot-real-\(index + 1)")
         }
@@ -1641,19 +1968,35 @@ final class NumeralSpeechService {
     private init() {}
 
     func speakPrompt(_ numeral: Int) {
-        speak("Find numeral \(numeral).")
+        speak(Self.promptText(for: numeral))
+    }
+
+    static func promptText(for number: Int) -> String {
+        "Find number \(number)."
     }
 
     func speakNumber(_ numeral: Int) {
-        speak("\(numeral)")
+        speak(Self.numberText(for: numeral))
+    }
+
+    static func numberText(for number: Int) -> String {
+        "\(number)"
     }
 
     func speakCelebration(_ picture: String) {
-        speak("Well done! You found the \(picture).")
+        speak(Self.celebrationText(for: picture))
+    }
+
+    static func celebrationText(for picture: String) -> String {
+        "Well done! You found the \(picture)."
     }
 
     func speakStarCount(_ count: Int) {
-        speak("\(count) stars. Great spotting!")
+        speak(Self.starCountText(for: count))
+    }
+
+    static func starCountText(for count: Int) -> String {
+        "\(count) stars. Great spotting!"
     }
 
     func stop() {

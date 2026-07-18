@@ -13,7 +13,7 @@ struct SummaryData {
     /// Total time elapsed in milliseconds
     let elapsedMs: Int
 
-    /// Coins earned (or remaining after penalties) for this puzzle
+    /// Points earned for correct moves in this puzzle
     let puzzleCoins: Int
 
     /// Complete move history
@@ -115,26 +115,10 @@ struct SummaryData {
         return Double(elapsedMs) / Double(correctMoves)
     }
 
-    /// Stars earned for this puzzle (1-3)
-    /// - 1 star: Completed the puzzle
-    /// - 2 stars: Completed with no lives lost (no mistakes)
-    /// - 3 stars: Completed with no lives lost AND average tile time < 5 seconds
+    /// Stars earned for this puzzle (1-3). Accuracy earns mastery stars;
+    /// completion is never gated by speed.
     var starsEarned: Int {
         guard won else { return 0 }
-
-        // 1 star for completing
-        var stars = 1
-
-        // 2 stars for no mistakes (no lives lost)
-        if mistakes == 0 {
-            stars = 2
-
-            // 3 stars for no mistakes AND average tile time < 5 seconds (5000ms)
-            if averageTileTimeMs < 5000 {
-                stars = 3
-            }
-        }
-
-        return stars
+        return StoryDifficulty.calculateStars(livesLost: mistakes)
     }
 }

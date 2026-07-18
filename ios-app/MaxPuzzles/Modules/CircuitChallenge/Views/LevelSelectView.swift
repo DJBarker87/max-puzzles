@@ -423,15 +423,7 @@ struct LevelSelectView: View {
     // MARK: - Level State Helpers
 
     private func isLevelUnlocked(_ level: Int) -> Bool {
-        if level == 1 {
-            return progress.isChapterUnlocked(chapter)
-        }
-        // Level 7 requires level 6 completed
-        if level == 7 {
-            return progress.isLevelCompleted(chapter: chapter, level: 6)
-        }
-        // Levels 2-6 require 2+ stars on previous level
-        return progress.starsForLevel(chapter: chapter, level: level - 1) >= 2
+        progress.isLevelUnlocked(chapter: chapter, level: level)
     }
 
     private func isLevelCompleted(_ level: Int) -> Bool {

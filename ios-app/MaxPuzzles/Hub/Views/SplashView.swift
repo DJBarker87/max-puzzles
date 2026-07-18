@@ -145,6 +145,7 @@ struct SplashView: View {
         initializationTask = Task { @MainActor in
             if reduceMotion {
                 appState.completeLoading()
+                await Task.yield()
                 musicService.play(track: .hub)
                 return
             }
@@ -153,11 +154,13 @@ struct SplashView: View {
             // the entire decorative animation on every launch.
             try? await Task.sleep(nanoseconds: 100_000_000)
             guard !Task.isCancelled else { return }
-            musicService.play(track: .hub)
-
-            try? await Task.sleep(nanoseconds: 200_000_000)
-            guard !Task.isCancelled else { return }
             appState.completeLoading()
+
+            // Rendering the usable screen is always more important than optional music. Yield a
+            // frame before asking the asynchronous player to begin loading its local asset.
+            await Task.yield()
+            guard !Task.isCancelled else { return }
+            musicService.play(track: .hub)
         }
     }
 }

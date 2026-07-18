@@ -1,6 +1,16 @@
 import AVFoundation
 import Foundation
 
+struct LetterSpeechSegment: Equatable, Sendable {
+    let text: String
+    let postUtteranceDelay: TimeInterval
+
+    init(_ text: String, postUtteranceDelay: TimeInterval = 0) {
+        self.text = text
+        self.postUtteranceDelay = postUtteranceDelay
+    }
+}
+
 @MainActor
 final class LetterSpeechService {
     static let shared = LetterSpeechService()
@@ -11,29 +21,34 @@ final class LetterSpeechService {
 
     private init() {}
 
-    func speak(_ glyph: LetterGlyph) {
-        speak(Self.lessonPrompt(for: glyph))
+    @discardableResult
+    func speak(_ glyph: LetterGlyph) -> Bool {
+        speak(Self.lessonSequence(for: glyph))
     }
 
-    func speakLetterNamePrompt(for glyph: LetterGlyph) {
+    @discardableResult
+    func speakLetterNamePrompt(for glyph: LetterGlyph) -> Bool {
         speak(Self.letterNamePrompt(for: glyph))
     }
 
-    func speakRecallPrompt(for glyph: LetterGlyph) {
+    @discardableResult
+    func speakRecallPrompt(for glyph: LetterGlyph) -> Bool {
         speak(Self.recallPrompt(for: glyph))
     }
 
-    func speakPathPrompt(for glyph: LetterGlyph, animated: Bool) {
+    @discardableResult
+    func speakPathPrompt(for glyph: LetterGlyph, animated: Bool) -> Bool {
         speak(Self.pathPrompt(for: glyph, animated: animated))
     }
 
+    @discardableResult
     func speakWordPrompt(
         for glyph: LetterGlyph,
         word: String,
         introduction: String,
         contextSentence: String?
-    ) {
-        speak(
+    ) -> Bool {
+        return speak(
             Self.wordPrompt(
                 for: glyph,
                 word: word,
@@ -43,12 +58,34 @@ final class LetterSpeechService {
         )
     }
 
-    func speakSpellingPrompt(for word: String, contextSentence: String?) {
+    @discardableResult
+    func speakSpellingPrompt(for word: String, contextSentence: String?) -> Bool {
         speak(Self.spellingPrompt(for: word, contextSentence: contextSentence))
     }
 
     nonisolated static func lessonPrompt(for glyph: LetterGlyph) -> String {
-        glyph.spokenPrompt
+        lessonSequence(for: glyph).map(\.text).joined(separator: " ")
+    }
+
+    /// Separate queued utterances keep the repeated letter names intelligible to young children.
+    /// Punctuation alone is voice-dependent and can collapse "Letter C. C is for cat" into a
+    /// single run of sound, so the introduction owns an explicit post-utterance pause. Keep the
+    /// example as its own exact phrase; formation guidance is presented separately in the UI.
+    nonisolated static func lessonSequence(for glyph: LetterGlyph) -> [LetterSpeechSegment] {
+        let introduction = glyph.isNumber
+            ? "Number \(glyph.character)."
+            : "Letter \(glyph.character)."
+        return [
+            LetterSpeechSegment(
+                introduction,
+                postUtteranceDelay: lessonIntroductionPause
+            ),
+            LetterSpeechSegment("\(glyph.promptTitle).")
+        ]
+    }
+
+    nonisolated static var lessonIntroductionPause: TimeInterval {
+        0.45
     }
 
     nonisolated static func letterNamePrompt(for glyph: LetterGlyph) -> String {
@@ -89,20 +126,30 @@ final class LetterSpeechService {
         return "Spell the word \(word).\(context)"
     }
 
-    func speak(_ words: String) {
+    @discardableResult
+    func speak(_ words: String) -> Bool {
+        speak([LetterSpeechSegment(words)])
+    }
+
+    @discardableResult
+    private func speak(_ segments: [LetterSpeechSegment]) -> Bool {
         let storage = StorageService.shared
-        guard storage.isVoiceEnabled else { return }
+        guard storage.isVoiceEnabled, !segments.isEmpty else { return false }
 
         let synthesizer = speechEngine()
         synthesizer.stopSpeaking(at: .immediate)
 
-        let utterance = AVSpeechUtterance(string: words)
-        utterance.voice = AVSpeechSynthesisVoice(language: "en-GB")
-        utterance.rate = 0.43
-        utterance.pitchMultiplier = 1.05
-        utterance.volume = storage.voiceVolume
-        guard AppAudioSessionCoordinator.shared.activate(.spokenPlayback) else { return }
-        synthesizer.speak(utterance)
+        guard AppAudioSessionCoordinator.shared.activate(.spokenPlayback) else { return false }
+        for segment in segments {
+            let utterance = AVSpeechUtterance(string: segment.text)
+            utterance.voice = AVSpeechSynthesisVoice(language: "en-GB")
+            utterance.rate = 0.43
+            utterance.pitchMultiplier = 1.05
+            utterance.volume = storage.voiceVolume
+            utterance.postUtteranceDelay = segment.postUtteranceDelay
+            synthesizer.speak(utterance)
+        }
+        return true
     }
 
     func stop() {

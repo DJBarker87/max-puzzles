@@ -2,7 +2,7 @@
 
 Effective date: 17 July 2026
 
-Maxi's Mighty Mindgames is a children's handwriting, numeral-recognition, spelling and mathematics app. It works without a developer account and does not send personal data to the developer, advertisers or analytics companies. When Apple iCloud is available, it uses Apple's private key-value storage to keep family profiles and a small progress summary available on devices using the same Apple Account.
+Maxi's Mighty Mindgames is a children's handwriting, number-recognition, spelling and mathematics app. It works without a developer account and does not send personal data to the developer, advertisers or analytics companies. When Apple iCloud is available, it uses Apple's private key-value storage to keep family profiles and a small progress summary available on devices using the same Apple Account.
 
 ## Information used on the device
 

@@ -3,6 +3,7 @@ import SwiftUI
 struct CometWriterMenuView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @ObservedObject private var storage = StorageService.shared
     @ObservedObject private var learningStore = CometLearningStore.shared
     @AppStorage("maxpuzzles.cometWriter.cometPoints") private var cometPoints = 0
@@ -11,6 +12,8 @@ struct CometWriterMenuView: View {
     @State private var showsRecallPicker = false
     @State private var selectedRecallLetters = LetterRecallCatalog.allLetters
     @State private var showsMorePractice = false
+    @State private var selectedPracticeCategory: PracticeCategory?
+    @State private var selectedFamily: LetterFamily?
 
     private enum Destination: Hashable {
         case lesson(LetterGlyph)
@@ -22,6 +25,51 @@ struct CometWriterMenuView: View {
         case constellation
         case customWords
         case missionControl
+    }
+
+    private enum PracticeCategory: String, CaseIterable, Identifiable {
+        case daily
+        case lettersAndNumbers
+        case soundAndWords
+        case pencilControl
+
+        var id: String { rawValue }
+
+        var title: String {
+            switch self {
+            case .daily: return "Today’s Mission"
+            case .lettersAndNumbers: return "Letters & Numbers"
+            case .soundAndWords: return "Sounds & Words"
+            case .pencilControl: return "Pencil Control"
+            }
+        }
+
+        var detail: String {
+            switch self {
+            case .daily: return "A short, balanced practice journey"
+            case .lettersAndNumbers: return "Choose one movement family"
+            case .soundAndWords: return "Recall letters and build words"
+            case .pencilControl: return "Lines, paper practice and progress"
+            }
+        }
+
+        var icon: String {
+            switch self {
+            case .daily: return "flag.checkered"
+            case .lettersAndNumbers: return "textformat.abc"
+            case .soundAndWords: return "ear.and.waveform"
+            case .pencilControl: return "pencil.line"
+            }
+        }
+
+        var color: Color {
+            switch self {
+            case .daily: return AppTheme.cometGold
+            case .lettersAndNumbers: return AppTheme.cometCyan
+            case .soundAndWords: return AppTheme.cometPurple
+            case .pencilControl: return AppTheme.accentPrimary
+            }
+        }
     }
 
     var body: some View {
@@ -90,33 +138,63 @@ struct CometWriterMenuView: View {
             .presentationDetents([.large])
             .presentationDragIndicator(.hidden)
         }
-        .accessibilityIdentifier("comet-writer-menu")
+        // Keep the largest accessibility setting readable without allowing text to squeeze every
+        // launch control off a compact iPhone screen. AX1 remains substantially enlarged.
+        .dynamicTypeSize(...DynamicTypeSize.accessibility1)
+        .background {
+            Color.clear
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("Comet Writer menu")
+                .accessibilityIdentifier("comet-writer-menu")
+        }
     }
 
     private var header: some View {
-        HStack(spacing: AppSpacing.md) {
-            PremiumIconButton(
-                icon: "xmark",
-                action: { dismiss() },
-                size: 48,
-                accessibilityLabelText: "Close Comet Writer"
-            )
+        Group {
+            if dynamicTypeSize.isAccessibilitySize {
+                VStack(alignment: .leading, spacing: AppSpacing.sm) {
+                    HStack(alignment: .top, spacing: AppSpacing.md) {
+                        closeButton
+                        headerTitle
+                        Spacer(minLength: 0)
+                    }
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Comet Writer")
-                    .font(AppTypography.titleMedium)
-                    .foregroundColor(AppTheme.textPrimary)
-
-                Text("Learn how every letter and number moves")
-                    .font(AppTypography.bodySmall)
-                    .foregroundColor(AppTheme.textSecondary)
+                    progressBadge
+                        .frame(maxWidth: .infinity, alignment: .trailing)
+                }
+            } else {
+                HStack(spacing: AppSpacing.md) {
+                    closeButton
+                    headerTitle
+                    Spacer(minLength: 0)
+                    progressBadge
+                }
             }
-
-            Spacer()
-
-            progressBadge
         }
         .padding(.top, AppSpacing.md)
+    }
+
+    private var closeButton: some View {
+        PremiumIconButton(
+            icon: "xmark",
+            action: { dismiss() },
+            size: 48,
+            accessibilityLabelText: "Close Comet Writer"
+        )
+    }
+
+    private var headerTitle: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text("Comet Writer")
+                .font(AppTypography.titleMedium)
+                .foregroundColor(AppTheme.textPrimary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Text("Learn how every letter and number moves")
+                .font(AppTypography.bodySmall)
+                .foregroundColor(AppTheme.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
     }
 
     private var progressBadge: some View {
@@ -126,6 +204,8 @@ struct CometWriterMenuView: View {
             Text("\(practisedCount)/\(LetterLibrary.all.count)")
                 .font(AppTypography.buttonSmall)
                 .foregroundColor(AppTheme.textPrimary)
+                .monospacedDigit()
+                .lineLimit(1)
 
             Rectangle()
                 .fill(Color.white.opacity(0.18))
@@ -136,16 +216,21 @@ struct CometWriterMenuView: View {
             Text("\(displayedPoints)")
                 .font(AppTypography.buttonSmall)
                 .foregroundColor(AppTheme.cometGold)
+                .monospacedDigit()
+                .lineLimit(1)
         }
         .padding(.horizontal, 12)
         .frame(minHeight: 44)
         .background(Capsule().fill(AppTheme.backgroundMid.opacity(0.86)))
+        .fixedSize(horizontal: true, vertical: false)
+        .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(practisedCount) of \(LetterLibrary.all.count) symbols practised, \(displayedPoints) Comet Points")
+        .accessibilityIdentifier("comet-writer-progress")
     }
 
     private var stylusNote: some View {
         Label {
-            Text("Comet Writer is best played with a capacitive stylus.")
+            Text("Write with your finger, or use a stylus if you have one.")
                 .font(AppTypography.bodySmall)
                 .foregroundColor(AppTheme.textPrimary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -169,51 +254,24 @@ struct CometWriterMenuView: View {
     }
 
     private var missionHero: some View {
-        HStack(spacing: AppSpacing.md) {
-            Image("alien_nova")
-                .resizable()
-                .scaledToFit()
-                .frame(width: 92, height: 92)
-                .accessibilityHidden(true)
-
-            VStack(alignment: .leading, spacing: AppSpacing.sm) {
-                Text(practisedCount == 0 ? "Ready for launch?" : "Continue your mission")
-                    .font(AppTypography.titleSmall)
-                    .foregroundColor(AppTheme.textPrimary)
-
-                Text("Trace each symbol three ways: follow the glow, connect the stars, then fly solo.")
-                    .font(AppTypography.bodySmall)
-                    .foregroundColor(AppTheme.textSecondary)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                ViewThatFits(in: .horizontal) {
-                    HStack(spacing: AppSpacing.sm) {
-                        PrimaryButton(
-                            practisedCount == 0 ? "Start with c" : "Continue",
-                            icon: "paperplane.fill",
-                            size: .medium
-                        ) {
-                            destination = .lesson(continueGlyph)
-                        }
-                        .accessibilityIdentifier("comet-writer-continue")
-
-                        SecondaryButton("Choose practice", icon: "hand.tap.fill") {
-                            destination = .quickPractice
-                        }
-                        .accessibilityIdentifier("comet-writer-quick-practice")
+        Group {
+            if dynamicTypeSize.isAccessibilitySize {
+                VStack(alignment: .leading, spacing: AppSpacing.md) {
+                    HStack(spacing: AppSpacing.md) {
+                        novaImage(size: 64)
+                        missionTitle
                     }
+                    missionDescription
+                    missionActions
+                }
+            } else {
+                HStack(spacing: AppSpacing.md) {
+                    novaImage(size: 92)
 
                     VStack(alignment: .leading, spacing: AppSpacing.sm) {
-                        PrimaryButton(
-                            practisedCount == 0 ? "Start with c" : "Continue",
-                            icon: "paperplane.fill",
-                            size: .medium
-                        ) {
-                            destination = .lesson(continueGlyph)
-                        }
-                        SecondaryButton("Choose practice", icon: "hand.tap.fill") {
-                            destination = .quickPractice
-                        }
+                        missionTitle
+                        missionDescription
+                        missionActions
                     }
                 }
             }
@@ -230,6 +288,60 @@ struct CometWriterMenuView: View {
         )
     }
 
+    private func novaImage(size: CGFloat) -> some View {
+        Image("alien_nova")
+            .resizable()
+            .scaledToFit()
+            .frame(width: size, height: size)
+            .accessibilityHidden(true)
+    }
+
+    private var missionTitle: some View {
+        Text(practisedCount == 0 ? "Ready for launch?" : "Continue your mission")
+            .font(AppTypography.titleSmall)
+            .foregroundColor(AppTheme.textPrimary)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private var missionDescription: some View {
+        Text("Trace each symbol three ways: follow the glow, connect the stars, then fly solo.")
+            .font(AppTypography.bodySmall)
+            .foregroundColor(AppTheme.textSecondary)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private var missionActions: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: AppSpacing.sm) {
+                continueButton
+                choosePracticeButton
+            }
+
+            VStack(alignment: .leading, spacing: AppSpacing.sm) {
+                continueButton
+                choosePracticeButton
+            }
+        }
+    }
+
+    private var continueButton: some View {
+        PrimaryButton(
+            practisedCount == 0 ? "Start with c" : "Continue",
+            icon: "paperplane.fill",
+            size: .medium
+        ) {
+            destination = .lesson(continueGlyph)
+        }
+        .accessibilityIdentifier("comet-writer-continue")
+    }
+
+    private var choosePracticeButton: some View {
+        SecondaryButton("Choose practice", icon: "hand.tap.fill") {
+            destination = .quickPractice
+        }
+        .accessibilityIdentifier("comet-writer-quick-practice")
+    }
+
     private var morePracticeDisclosure: some View {
         VStack(alignment: .leading, spacing: AppSpacing.md) {
             Button {
@@ -239,6 +351,10 @@ struct CometWriterMenuView: View {
                     withAnimation(.easeInOut(duration: 0.20)) {
                         showsMorePractice.toggle()
                     }
+                }
+                if !showsMorePractice {
+                    selectedPracticeCategory = nil
+                    selectedFamily = nil
                 }
             } label: {
                 HStack(spacing: 12) {
@@ -282,20 +398,127 @@ struct CometWriterMenuView: View {
             .accessibilityIdentifier("comet-writer-more-practice")
 
             if showsMorePractice {
-                featureCard(
-                    title: "Today’s Comet Mission",
-                    detail: "A balanced warm-up, formation, sound, word and paper journey.",
-                    icon: "flag.checkered",
-                    color: AppTheme.cometGold,
-                    destination: .dailyMission,
-                    identifier: "comet-writer-daily-mission"
-                )
-
-                advancedMissions
-                moreWaysToLearn
-                familyGrid
+                if let selectedPracticeCategory {
+                    practiceCategoryHeader(selectedPracticeCategory)
+                    practiceContent(for: selectedPracticeCategory)
+                } else {
+                    practiceCategoryGrid
+                }
             }
         }
+    }
+
+    private var practiceCategoryGrid: some View {
+        LazyVGrid(
+            columns: [GridItem(.adaptive(minimum: 250), spacing: AppSpacing.md)],
+            spacing: AppSpacing.md
+        ) {
+            ForEach(PracticeCategory.allCases) { category in
+                Button {
+                    selectPracticeCategory(category)
+                } label: {
+                    HStack(spacing: 14) {
+                        Image(systemName: category.icon)
+                            .font(.system(size: 23, weight: .bold))
+                            .foregroundColor(category.color)
+                            .frame(width: 48, height: 48)
+                            .background(Circle().fill(category.color.opacity(0.16)))
+
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(category.title)
+                                .font(AppTypography.buttonLarge)
+                                .foregroundColor(AppTheme.textPrimary)
+                            Text(category.detail)
+                                .font(AppTypography.bodySmall)
+                                .foregroundColor(AppTheme.textSecondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+
+                        Spacer(minLength: 0)
+                        Image(systemName: "chevron.right")
+                            .foregroundColor(AppTheme.textSecondary)
+                            .accessibilityHidden(true)
+                    }
+                    .padding(AppSpacing.md)
+                    .frame(maxWidth: .infinity, minHeight: 88, alignment: .leading)
+                    .background(RoundedRectangle(cornerRadius: 20).fill(AppTheme.backgroundMid.opacity(0.88)))
+                    .overlay(RoundedRectangle(cornerRadius: 20).stroke(category.color.opacity(0.28), lineWidth: 1))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("\(category.title), \(category.detail)")
+                .accessibilityHint("Shows only this practice category")
+                .accessibilityIdentifier("comet-writer-category-\(category.rawValue)")
+            }
+        }
+    }
+
+    private func practiceCategoryHeader(_ category: PracticeCategory) -> some View {
+        HStack(alignment: .center, spacing: 12) {
+            Button {
+                if category == .lettersAndNumbers, selectedFamily != nil {
+                    selectedFamily = nil
+                } else {
+                    selectedPracticeCategory = nil
+                    selectedFamily = nil
+                }
+            } label: {
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 18, weight: .bold))
+                    .foregroundColor(AppTheme.cometCyan)
+                    .frame(width: 44, height: 44)
+                    .background(Circle().fill(AppTheme.backgroundMid.opacity(0.92)))
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(selectedFamily == nil ? "Back to practice categories" : "Back to letter families")
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(selectedFamily?.title ?? category.title)
+                    .font(AppTypography.titleSmall)
+                    .foregroundColor(AppTheme.textPrimary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text(selectedFamily?.formationHint ?? category.detail)
+                    .font(AppTypography.bodySmall)
+                    .foregroundColor(AppTheme.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .accessibilityIdentifier("comet-writer-category-header")
+    }
+
+    @ViewBuilder
+    private func practiceContent(for category: PracticeCategory) -> some View {
+        switch category {
+        case .daily:
+            featureCard(
+                title: "Today’s Comet Mission",
+                detail: "A balanced warm-up, formation, sound, word and paper journey.",
+                icon: "flag.checkered",
+                color: AppTheme.cometGold,
+                destination: .dailyMission,
+                identifier: "comet-writer-daily-mission"
+            )
+        case .lettersAndNumbers:
+            familyGrid
+        case .soundAndWords:
+            advancedMissions
+        case .pencilControl:
+            moreWaysToLearn
+        }
+    }
+
+    private func selectPracticeCategory(_ category: PracticeCategory) {
+        if reduceMotion {
+            selectedPracticeCategory = category
+        } else {
+            withAnimation(.easeInOut(duration: 0.18)) {
+                selectedPracticeCategory = category
+            }
+        }
+        selectedFamily = nil
+        FeedbackManager.shared.haptic(.light)
+        SoundEffectsService.shared.play(.cardTap)
     }
 
     private var advancedMissions: some View {
@@ -418,19 +641,77 @@ struct CometWriterMenuView: View {
 
     private var familyGrid: some View {
         VStack(alignment: .leading, spacing: AppSpacing.md) {
-            Text("Letter and number missions")
-                .font(AppTypography.titleSmall)
-                .foregroundColor(AppTheme.textPrimary)
+            if let selectedFamily {
+                familyCard(selectedFamily)
+            } else {
+                Text("Choose one movement family")
+                    .font(AppTypography.bodySmall)
+                    .foregroundColor(AppTheme.textSecondary)
 
-            LazyVGrid(
-                columns: [GridItem(.adaptive(minimum: 280), spacing: AppSpacing.md)],
-                spacing: AppSpacing.md
-            ) {
-                ForEach(LetterFamily.allCases) { family in
-                    familyCard(family)
+                LazyVGrid(
+                    columns: [GridItem(.adaptive(minimum: 250), spacing: AppSpacing.md)],
+                    spacing: AppSpacing.md
+                ) {
+                    ForEach(LetterFamily.allCases) { family in
+                        familySelectionCard(family)
+                    }
                 }
             }
         }
+    }
+
+    private func familySelectionCard(_ family: LetterFamily) -> some View {
+        let glyphs = LetterLibrary.glyphs(in: family)
+        let completed = glyphs.filter { mastery(for: $0.character) != .new }.count
+
+        return Button {
+            if reduceMotion {
+                selectedFamily = family
+            } else {
+                withAnimation(.easeInOut(duration: 0.18)) {
+                    selectedFamily = family
+                }
+            }
+            FeedbackManager.shared.haptic(.light)
+            SoundEffectsService.shared.play(.cardTap)
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: family.symbol)
+                    .font(.system(size: 21, weight: .bold))
+                    .foregroundColor(AppTheme.cometCyan)
+                    .frame(width: 46, height: 46)
+                    .background(Circle().fill(AppTheme.cometPurple.opacity(0.22)))
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(family.title)
+                        .font(AppTypography.buttonLarge)
+                        .foregroundColor(AppTheme.textPrimary)
+                    Text(family.formationHint)
+                        .font(AppTypography.bodySmall)
+                        .foregroundColor(AppTheme.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                Spacer(minLength: 0)
+                Text("\(completed)/\(glyphs.count)")
+                    .font(AppTypography.buttonSmall)
+                    .foregroundColor(completed == glyphs.count ? AppTheme.accentPrimary : AppTheme.cometGold)
+                    .monospacedDigit()
+                    .lineLimit(1)
+
+                Image(systemName: "chevron.right")
+                    .foregroundColor(AppTheme.textSecondary)
+                    .accessibilityHidden(true)
+            }
+            .padding(AppSpacing.md)
+            .frame(maxWidth: .infinity, minHeight: 82, alignment: .leading)
+            .background(RoundedRectangle(cornerRadius: 18).fill(AppTheme.backgroundMid.opacity(0.84)))
+            .overlay(RoundedRectangle(cornerRadius: 18).stroke(Color.white.opacity(0.14), lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("\(family.title), \(completed) of \(glyphs.count) symbols complete")
+        .accessibilityHint("Shows this movement family")
+        .accessibilityIdentifier("comet-writer-family-\(family.rawValue)")
     }
 
     private var moreWaysToLearn: some View {
@@ -473,13 +754,17 @@ struct CometWriterMenuView: View {
 
     private var grownUpTools: some View {
         VStack(alignment: .leading, spacing: AppSpacing.md) {
+            Divider()
+                .overlay(Color.white.opacity(0.18))
+
             VStack(alignment: .leading, spacing: 3) {
-                Text("For grown-ups")
+                Label("For grown-ups", systemImage: "lock.fill")
                     .font(AppTypography.titleSmall)
-                    .foregroundColor(AppTheme.textPrimary)
+                    .foregroundColor(AppTheme.cometGold)
                 Text("Protected by a grown-up check. Compact progress may sync privately with Apple iCloud; detailed attempts and recordings stay local.")
                     .font(AppTypography.bodySmall)
                     .foregroundColor(AppTheme.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
 
             LazyVGrid(

@@ -13,7 +13,7 @@ This is the copy-ready listing for iOS and iPadOS version 1.4 (build 6). Version
 - Secondary category: Games
 - Games subcategories: Family and Puzzle
 - Primary language: English (UK)
-- Made for Kids recommendation: ages 6–8, provided the existing App Store record can be permanently enrolled in the Kids category
+- Made for Kids primary-audience band: ages 6–8 (the app also contains Reception activities for younger siblings)
 - Expected age rating: 4+
 - Copyright: `2026 Dominic Barker`
 - Privacy policy URL: `https://maxis-mighty-mindgames-support.vercel.app/privacy`
@@ -26,26 +26,26 @@ For the age-rating questionnaire, answer No to objectionable content, advertisin
 
 153/170 characters:
 
-> Reveal 84 illustrated dot-to-dot pictures, tap or trace each numeral trail, then colour the real picture by tapping or pencil shading.
+> Reveal 84 illustrated dot-to-dot pictures, tap or trace each number trail, then colour the real picture by tapping or pencil shading.
 
 ## Description
 
-Turn handwriting, numeral recognition, spelling and maths practice into a space adventure.
+Turn handwriting, number recognition, spelling and maths practice into a space adventure.
 
-Maxi's Mighty Mindgames brings together four playful learning experiences for children aged 6–8. Short missions, calm feedback and meaningful rewards help learners keep going without turning every mistake into a noisy interruption.
+Maxi's Mighty Mindgames brings together four playful learning experiences for children from Reception through Year 2. Short missions, calm feedback and meaningful rewards help learners keep going without turning every mistake into a noisy interruption.
 
 DOT-TO-DOT DISCOVERY
 
-Recognise numerals while revealing 84 hand-reviewed, child-friendly illustrated pictures. Every visible dot belongs to the picture, and every exterior turn is one the numbered trail can actually draw.
+Recognise numbers while revealing 84 hand-reviewed, child-friendly illustrated pictures. Every visible dot belongs to the picture, and every exterior turn is one the numbered trail can actually draw.
 
-• Choose Tap dots to press the next numeral, or Trace lines to draw from the last dot to the next
-• Build confidence across numeral ranges 1–10, 1–15 and 1–20, with selected 1–25 adventures
-• See and hear the next numeral, with a gentle hint if needed
-• Scan the whole field: varied spacing makes the numeral more useful than simply choosing the nearest dot
+• Choose Tap dots to press the next number, or Trace lines to draw from the last dot to the next
+• Build confidence across number ranges 1–10, 1–15 and 1–20, with selected 1–25 adventures
+• See and hear the next number, with a gentle hint if needed
+• Scan the whole field: varied spacing makes the number more useful than simply choosing the nearest dot
 • Zoom into the finished artwork and colour meaningful regions using picture-specific colours
 • Choose quick tap-to-shade or colour directly with a finger or Apple Pencil
 • Build subitising confidence with standard 1–5 dot patterns and a quick Star Spot bonus
-• Occasionally move into Comet Writer to form a numeral between pictures
+• Occasionally move into Comet Writer to form a number between pictures
 • Explore animals, vehicles, food, nature and everyday favourites
 
 COMET WRITER
@@ -64,7 +64,7 @@ Practise all 26 lowercase letters, 26 capitals and the numbers 0–9. Every symb
 • Choose finger input or Apple Pencil-only input on compatible iPad models
 • Adjust letter size and turn writing lines on or off
 
-For the most comfortable handwriting experience, Comet Writer is best played with a capacitive stylus.
+Comet Writer works with a finger. A capacitive stylus or Apple Pencil is optional on compatible devices.
 
 STAR SPELLER
 
@@ -96,7 +96,7 @@ A grown-up gate protects detailed progress tools, reports, custom words, profile
 
 90/100 bytes:
 
-`alphabet,phonics,spelling,numerals,dot to dot,handwriting,subitising,maths,children,stylus`
+`alphabet,phonics,spelling,numbers,dot to dot,handwriting,subitising,maths,children,stylus`
 
 ## What's New in version 1.4
 
@@ -104,13 +104,13 @@ Meet Dot-to-Dot Discovery:
 
 • Reveal 84 independently reviewed illustrated pictures
 • Choose to press the next dot or trace each line
-• Recognise numerals across 1–10, 1–15 and 1–20 trails, plus selected 1–25 challenges
+• Recognise numbers across 1–10, 1–15 and 1–20 trails, plus selected 1–25 challenges
 • Follow authentic trails with no fake dots and no impossible unnumbered exterior corners
 • Colour picture-specific regions by tapping or by shading directly with a finger or Apple Pencil
 • Build subitising confidence with standard 1–5 dot patterns and quick star patterns
-• Occasionally practise writing a numeral in Comet Writer between pictures
+• Occasionally practise writing a number in Comet Writer between pictures
 
-This update also adds Star Speller, private iCloud progress sync for family profiles, spoken letter-name practice and a reminder that Comet Writer is best played with a capacitive stylus.
+This update also adds Star Speller, private iCloud progress sync for family profiles and spoken letter-name practice. Comet Writer works with a finger, with a stylus remaining optional.
 
 ## App Review notes
 
@@ -118,12 +118,12 @@ Version 1.4 adds Dot-to-Dot Discovery, Star Speller and private progress sync th
 
 Suggested review path:
 
-1. On the hub, open Dot-to-Dot Discovery. Both requested styles are visible at the top: Tap dots (“Press the next numeral”) and Trace lines (“Draw from the last dot to the next”).
+1. On the hub, open Dot-to-Dot Discovery. Both requested styles are visible at the top: Tap dots (“Press the next number”) and Trace lines (“Draw from the last dot to the next”).
 2. In Tap dots, open Giraffe and press 1, 2, 3 in order. In Trace lines, open Sailboat, press 1 to begin, then drag from 1 to 2. Tapping 2 without tracing produces a calm reminder and does not advance.
 3. Complete Giraffe, then open its full-screen colouring stage. Switch between Tap and Pencil modes: the available colours and masks correspond to the giraffe, spots and background rather than generic strips. Completing every colour shows the reward; More Pictures returns directly to the gallery. A separate Star Spot prompt remains optional.
 4. Return to the gallery and choose Big Number Adventure to see selected 1–25 trails such as Ocean Ship, Dump Truck and Scooter. Every visible exterior turn corresponds to a numbered dot; there are no fake dots.
 5. Return to the hub, tap the round profile avatar, then Add profile. With multiple profiles, the “Who’s playing?” picker appears on launch and the active player can be changed from the hub or Settings.
-6. Open Comet Writer. The capacitive-stylus recommendation appears at the top. Open Letter Name Mission to hear the target letter's ordinary name using Apple's on-device speech synthesizer.
+6. Open Comet Writer. The menu explains that children can write with a finger or use a stylus if they have one. Open Letter Name Mission to hear the target letter's ordinary name using Apple's on-device speech synthesizer.
 7. Open Star Speller, choose a Year 1 group and select a 3, 5 or 10-word mission. Built-in words are spoken in authored context sentences. A grown-up can use My Words behind the random multiplication gate to add or import words and optional example sentences. Microphone access is requested only if Record is explicitly chosen.
 8. Open Circuit Challenge, then Quick Play and Custom Settings. Enable multiplication or division to see the individual times-table picker.
 
@@ -151,10 +151,10 @@ Version 1.4 build 6 contains no custom cryptography and declares `ITSAppUsesNonE
 
 Use the opaque JPEGs in `Screenshots/Prepared-1.4` and upload the same order for both device families:
 
-1. `01-dot-game.jpg` — an authentic numeral trail where every visible dot belongs
+1. `01-dot-game.jpg` — an authentic number trail where every visible dot belongs
 2. `02-dot-menu.jpg` — both tap and trace options plus the picture gallery
 3. `03-hub.jpg` — family profile and main game hub
-4. `04-comet-writer.jpg` — breadth of writing missions and stylus guidance
+4. `04-comet-writer.jpg` — breadth of writing missions and optional input guidance
 5. `05-guided-letter-c.jpg` — guided starting point and direction
 6. `06-whole-word-mission.jpg` — one-screen word writing
 7. `07-circuit-challenge.jpg` — arithmetic path game
@@ -162,7 +162,7 @@ Use the opaque JPEGs in `Screenshots/Prepared-1.4` and upload the same order for
 
 Optional overlay captions, if a later design pass adds marketing text without obscuring the real UI:
 
-1. Find the next numeral—not simply the nearest dot.
+1. Find the next number—not simply the nearest dot.
 2. Press the next dot—or trace every line.
 3. A separate learning journey for every child.
 4. Guided practice to independent writing.

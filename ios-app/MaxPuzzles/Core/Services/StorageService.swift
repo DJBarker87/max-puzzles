@@ -17,6 +17,7 @@ class StorageService: ObservableObject {
     @Published private(set) var playerName: String
     @Published private(set) var activeProfileID: UUID?
     @Published private(set) var hasCompletedFirstRun: Bool
+    @Published private(set) var shouldOfferAdditionalProfileAfterFirstRun: Bool
     @Published private(set) var totalCoinsEarned: Int
     @Published private(set) var isSoundEnabled: Bool
     @Published private(set) var soundEffectsVolume: Float
@@ -42,6 +43,7 @@ class StorageService: ObservableObject {
         static let guestDisplayName = "maxpuzzles.guest.displayName"
         static let playerName = "maxpuzzles.player.name"
         static let hasCompletedFirstRun = "maxpuzzles.firstRun.completed"
+        static let shouldOfferAdditionalProfileAfterFirstRun = "maxpuzzles.firstRun.offerAdditionalProfile"
         static let soundEnabled = "maxpuzzles.settings.soundEnabled"
         static let soundEffectsVolume = "maxpuzzles.settings.soundEffectsVolume"
         static let voiceEnabled = "maxpuzzles.settings.voiceEnabled"
@@ -85,6 +87,9 @@ class StorageService: ObservableObject {
         self.playerName = resolvedName
         self.activeProfileID = nil
         self.hasCompletedFirstRun = defaults.bool(forKey: Keys.hasCompletedFirstRun)
+        self.shouldOfferAdditionalProfileAfterFirstRun = defaults.bool(
+            forKey: Keys.shouldOfferAdditionalProfileAfterFirstRun
+        )
         self.totalCoinsEarned = defaults.integer(forKey: Keys.totalCoinsEarned)
         self.isSoundEnabled = defaults.object(forKey: Keys.soundEnabled) as? Bool
             ?? defaults.object(forKey: "soundEffectsEnabled") as? Bool
@@ -271,10 +276,23 @@ class StorageService: ObservableObject {
         guestDisplayName = trimmedName.isEmpty ? "Guest" : trimmedName
     }
 
-    /// Marks first run as completed
-    func completeFirstRun() {
+    /// Marks first run as completed. When requested, the pending player-picker write happens
+    /// first so an immediate process termination cannot strand a new family on the hub before
+    /// they have seen the explicit “Add a child” choice. The completion flag remains the final
+    /// durable write, preserving the onboarding transaction's fail-safe ordering.
+    func completeFirstRun(offerAdditionalProfile: Bool = false) {
+        defaults.set(
+            offerAdditionalProfile,
+            forKey: Keys.shouldOfferAdditionalProfileAfterFirstRun
+        )
+        shouldOfferAdditionalProfileAfterFirstRun = offerAdditionalProfile
         defaults.set(true, forKey: Keys.hasCompletedFirstRun)
         hasCompletedFirstRun = true
+    }
+
+    func markAdditionalProfileOfferHandled() {
+        defaults.set(false, forKey: Keys.shouldOfferAdditionalProfileAfterFirstRun)
+        shouldOfferAdditionalProfileAfterFirstRun = false
     }
 
     /// Check if first run needs to be shown
@@ -556,6 +574,7 @@ class StorageService: ObservableObject {
         playerName = ""
         activeProfileID = nil
         hasCompletedFirstRun = false
+        shouldOfferAdditionalProfileAfterFirstRun = false
         totalCoinsEarned = 0
         isSoundEnabled = true
         soundEffectsVolume = 0.55

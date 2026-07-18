@@ -152,8 +152,9 @@ enum StarSpellerWordLibrary {
 
     static func displayForm(for word: String) -> String {
         let normalized = word.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        let isDay = englandYearOneDays.contains { $0.lowercased() == normalized }
-        return isDay ? word.uppercased() : word
+        // Weekdays are proper nouns. Keep their conventional English capitalisation even when
+        // the stored/imported spelling was lowercased for case-insensitive answer checking.
+        return englandYearOneDays.first { $0.lowercased() == normalized } ?? word
     }
 
     static func contextSentence(for word: String) -> String? {
@@ -280,6 +281,32 @@ enum StarSpellerAccessibilityPolicy {
     }
 }
 
+enum StarSpellerPromptAudioState: Equatable {
+    case ready
+    case failed
+
+    static func afterPlaybackAttempt(succeeded: Bool) -> Self {
+        succeeded ? .ready : .failed
+    }
+}
+
+enum StarSpellerPromptAudioPlayback {
+    /// A saved family recording is preferred, but it must never become a dead end. Files can be
+    /// removed by an interrupted restore or become unreadable; in that case the built-in voice
+    /// immediately supplies the same hidden-word prompt.
+    static func play(
+        customRecordingFilename: String?,
+        customPlayback: (String) -> Bool,
+        voicePlayback: () -> Bool
+    ) -> Bool {
+        if let customRecordingFilename,
+           customPlayback(customRecordingFilename) {
+            return true
+        }
+        return voicePlayback()
+    }
+}
+
 struct StarSpellerMenuView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -295,6 +322,7 @@ struct StarSpellerMenuView: View {
     @State private var selectedGroup: StarSpellerPracticeGroup
     @State private var sessionLength = 5
     @State private var showsReplaceSessionConfirmation = false
+    @State private var showsHowToPlay = true
 
     init() {
         _selectedGroup = State(
@@ -332,6 +360,10 @@ struct StarSpellerMenuView: View {
         }
     }
 
+    private var tutorialDefaultsKey: String {
+        "maxpuzzles.starSpeller.hasStarted.\(wordStore.activeProfileID.uuidString)"
+    }
+
     var body: some View {
         NavigationStack {
             ZStack {
@@ -341,12 +373,12 @@ struct StarSpellerMenuView: View {
                 ScrollView {
                     VStack(spacing: AppSpacing.lg) {
                         header
-                        hero
-                        howToPlay
                         if let resumeSession = wordStore.activeSpellingSession {
                             resumeCard(resumeSession)
                         }
                         launchCard
+                        hero
+                        howToPlayDisclosure
                     }
                     .frame(maxWidth: 860)
                     .padding(.horizontal, AppSpacing.md)
@@ -382,6 +414,7 @@ struct StarSpellerMenuView: View {
             if !musicService.isPlaying {
                 musicService.play(track: .hub)
             }
+            showsHowToPlay = !UserDefaults.standard.bool(forKey: tutorialDefaultsKey)
         }
         .onChange(of: wordStore.activeCustomWords.isEmpty) { customWordsAreEmpty in
             if customWordsAreEmpty && selectedGroup == .custom {
@@ -468,10 +501,6 @@ struct StarSpellerMenuView: View {
 
     private var howToPlay: some View {
         VStack(alignment: .leading, spacing: AppSpacing.md) {
-            Text("How to play")
-                .font(AppTypography.titleSmall)
-                .foregroundColor(AppTheme.textPrimary)
-
             LazyVGrid(
                 columns: [GridItem(.adaptive(minimum: 180), spacing: AppSpacing.md)],
                 spacing: AppSpacing.md
@@ -496,6 +525,46 @@ struct StarSpellerMenuView: View {
                 )
             }
         }
+    }
+
+    private var howToPlayDisclosure: some View {
+        VStack(alignment: .leading, spacing: showsHowToPlay ? AppSpacing.md : 0) {
+            Button {
+                withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.2)) {
+                    showsHowToPlay.toggle()
+                }
+            } label: {
+                HStack(spacing: AppSpacing.sm) {
+                    Image(systemName: "questionmark.circle.fill")
+                        .foregroundColor(AppTheme.cometCyan)
+                    Text("How to play")
+                        .font(AppTypography.titleSmall)
+                        .foregroundColor(AppTheme.textPrimary)
+                    Spacer(minLength: 0)
+                    Image(systemName: showsHowToPlay ? "chevron.up" : "chevron.down")
+                        .foregroundColor(AppTheme.textSecondary)
+                }
+                .frame(minHeight: 48)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityValue(showsHowToPlay ? "Expanded" : "Collapsed")
+            .accessibilityHint(showsHowToPlay ? "Hides the three instructions" : "Shows the three instructions")
+            .accessibilityIdentifier("star-speller-how-to-toggle")
+
+            if showsHowToPlay {
+                howToPlay
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+        }
+        .padding(.horizontal, AppSpacing.md)
+        .padding(.vertical, AppSpacing.sm)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 20)
+                .fill(AppTheme.backgroundMid.opacity(0.82))
+        )
+        .accessibilityElement(children: .contain)
     }
 
     private func instructionCard(
@@ -555,6 +624,16 @@ struct StarSpellerMenuView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
 
+            if !storage.isVoiceEnabled {
+                voiceRequirementCard
+            }
+
+            launchActions
+
+            Text("Change practice")
+                .font(AppTypography.buttonMedium)
+                .foregroundColor(AppTheme.textPrimary)
+
             groupPicker
             sessionLengthPicker
 
@@ -568,73 +647,6 @@ struct StarSpellerMenuView: View {
                 .fixedSize(horizontal: false, vertical: true)
             } else {
                 wordPreview
-            }
-
-            if !storage.isVoiceEnabled {
-                VStack(alignment: .leading, spacing: AppSpacing.sm) {
-                    Label("Spoken instructions are off", systemImage: "speaker.slash.fill")
-                        .font(AppTypography.buttonLarge)
-                        .foregroundColor(AppTheme.cometGold)
-                    Text("Star Speller needs voice prompts so the word stays hidden.")
-                        .font(AppTypography.bodySmall)
-                        .foregroundColor(AppTheme.textSecondary)
-                    Button("Turn on spoken instructions") {
-                        storage.setVoiceEnabled(true)
-                        FeedbackManager.shared.haptic(.success)
-                    }
-                    .font(AppTypography.buttonMedium)
-                    .foregroundColor(AppTheme.cometCyan)
-                    .frame(minHeight: 44)
-                }
-                .padding(AppSpacing.md)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(
-                    RoundedRectangle(cornerRadius: 16)
-                        .fill(AppTheme.cometGold.opacity(0.10))
-                )
-            }
-
-            HStack(spacing: AppSpacing.md) {
-                Button {
-                    destination = .words
-                } label: {
-                    Label("Manage words", systemImage: "doc.badge.plus")
-                    .font(AppTypography.buttonMedium)
-                    .foregroundColor(AppTheme.textPrimary)
-                    .frame(maxWidth: .infinity, minHeight: 52)
-                    .background(
-                        RoundedRectangle(cornerRadius: 14)
-                            .fill(AppTheme.cometPaperTop)
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 14)
-                            .stroke(AppTheme.cometCyan.opacity(0.42), lineWidth: 1)
-                    )
-                }
-                .buttonStyle(.plain)
-                .accessibilityIdentifier("star-speller-manage-words")
-
-                Button {
-                    requestStartGame()
-                } label: {
-                    Label("Start \(sessionLength) words", systemImage: "play.fill")
-                        .font(AppTypography.buttonLarge)
-                        .foregroundColor(AppTheme.backgroundDark)
-                        .frame(maxWidth: .infinity, minHeight: 52)
-                        .background(
-                            RoundedRectangle(cornerRadius: 14)
-                                .fill(AppTheme.accentPrimary)
-                        )
-                }
-                .buttonStyle(.plain)
-                .disabled(!canStart)
-                .opacity(canStart ? 1 : 0.42)
-                .accessibilityHint(
-                    canStart
-                        ? "Starts a spelling mission"
-                        : "Turn on spoken instructions first"
-                )
-                .accessibilityIdentifier("star-speller-start")
             }
 
             Button {
@@ -676,6 +688,76 @@ struct StarSpellerMenuView: View {
             RoundedRectangle(cornerRadius: 24)
                 .stroke(AppTheme.accentPrimary.opacity(0.38), lineWidth: 1)
         )
+    }
+
+    private var voiceRequirementCard: some View {
+        VStack(alignment: .leading, spacing: AppSpacing.sm) {
+            Label("Spoken instructions are off", systemImage: "speaker.slash.fill")
+                .font(AppTypography.buttonLarge)
+                .foregroundColor(AppTheme.cometGold)
+            Text("Star Speller needs voice prompts so the word stays hidden.")
+                .font(AppTypography.bodySmall)
+                .foregroundColor(AppTheme.textSecondary)
+            Button("Turn on spoken instructions") {
+                storage.setVoiceEnabled(true)
+                FeedbackManager.shared.haptic(.success)
+            }
+            .font(AppTypography.buttonMedium)
+            .foregroundColor(AppTheme.cometCyan)
+            .frame(minHeight: 44)
+            .accessibilityIdentifier("star-speller-enable-voice")
+        }
+        .padding(AppSpacing.md)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(AppTheme.cometGold.opacity(0.10))
+        )
+    }
+
+    private var launchActions: some View {
+        HStack(spacing: AppSpacing.md) {
+            Button {
+                destination = .words
+            } label: {
+                Label("Manage words", systemImage: "doc.badge.plus")
+                .font(AppTypography.buttonMedium)
+                .foregroundColor(AppTheme.textPrimary)
+                .frame(maxWidth: .infinity, minHeight: 52)
+                .background(
+                    RoundedRectangle(cornerRadius: 14)
+                        .fill(AppTheme.cometPaperTop)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 14)
+                        .stroke(AppTheme.cometCyan.opacity(0.42), lineWidth: 1)
+                )
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("star-speller-manage-words")
+
+            Button {
+                requestStartGame()
+            } label: {
+                Label("Start \(sessionLength) words", systemImage: "play.fill")
+                    .font(AppTypography.buttonLarge)
+                    .foregroundColor(AppTheme.backgroundDark)
+                    .frame(maxWidth: .infinity, minHeight: 52)
+                    .background(
+                        RoundedRectangle(cornerRadius: 14)
+                            .fill(AppTheme.accentPrimary)
+                    )
+            }
+            .buttonStyle(.plain)
+            .disabled(!canStart)
+            .opacity(canStart ? 1 : 0.42)
+            .accessibilityHint(
+                canStart
+                    ? "Starts a spelling mission"
+                    : "Turn on spoken instructions first"
+            )
+            .accessibilityIdentifier("star-speller-start")
+        }
     }
 
     private var wordPreview: some View {
@@ -796,8 +878,13 @@ struct StarSpellerMenuView: View {
 
             Spacer(minLength: 0)
 
-            Button("Resume") {
-                resumeGame(session)
+            Button(storage.isVoiceEnabled ? "Resume" : "Turn on voice") {
+                if storage.isVoiceEnabled {
+                    resumeGame(session)
+                } else {
+                    storage.setVoiceEnabled(true)
+                    FeedbackManager.shared.haptic(.success)
+                }
             }
             .font(AppTypography.buttonMedium)
             .foregroundColor(AppTheme.backgroundDark)
@@ -805,6 +892,11 @@ struct StarSpellerMenuView: View {
             .frame(minHeight: 48)
             .background(Capsule().fill(AppTheme.cometGold))
             .buttonStyle(.plain)
+            .accessibilityHint(
+                storage.isVoiceEnabled
+                    ? "Continues the saved spelling mission"
+                    : "Enables the hidden-word voice prompt; activate Resume afterwards"
+            )
             .accessibilityIdentifier("star-speller-resume")
         }
         .padding(AppSpacing.md)
@@ -839,6 +931,8 @@ struct StarSpellerMenuView: View {
         sessionStartsReadyToWrite = false
         wordStore.clearActiveSpellingSession()
         wordStore.saveSpellingSession(words: sessionWords, currentIndex: 0)
+        UserDefaults.standard.set(true, forKey: tutorialDefaultsKey)
+        showsHowToPlay = false
         FeedbackManager.shared.haptic(.buttonRelease)
         destination = .game
     }
@@ -849,6 +943,8 @@ struct StarSpellerMenuView: View {
         sessionStartIndex = session.currentIndex
         sessionStartingScore = session.score ?? 0
         sessionStartsReadyToWrite = session.currentWordIsReadyToWrite ?? false
+        UserDefaults.standard.set(true, forKey: tutorialDefaultsKey)
+        showsHowToPlay = false
         FeedbackManager.shared.haptic(.buttonRelease)
         destination = .game
     }
@@ -908,6 +1004,7 @@ struct StarSpellerGameView: View {
     @State private var score: Int
     @State private var showsExitConfirmation = false
     @State private var isVoiceOverAlternativeActive = false
+    @State private var promptAudioState: StarSpellerPromptAudioState = .ready
     @State private var promptTask: Task<Void, Never>?
     @State private var focusTask: Task<Void, Never>?
     @State private var requiredAudioToken: UUID?
@@ -953,6 +1050,22 @@ struct StarSpellerGameView: View {
 
     private var isVoiceOverRunning: Bool {
         voiceOverEnabled || UIAccessibility.isVoiceOverRunning
+    }
+
+    private var forcesPromptAudioFailureForUITesting: Bool {
+        #if DEBUG
+        ProcessInfo.processInfo.arguments.contains("-ui-testing-force-spelling-audio-failure")
+        #else
+        false
+        #endif
+    }
+
+    private var usesSilentPromptAudioForUITesting: Bool {
+        #if DEBUG
+        ProcessInfo.processInfo.arguments.contains("-ui-testing-use-silent-spelling-audio")
+        #else
+        false
+        #endif
     }
 
     private var accessibilitySpellingPrompt: String {
@@ -1167,6 +1280,36 @@ struct StarSpellerGameView: View {
                     : "Plays the hidden word"
             )
             .accessibilityIdentifier("star-speller-hear-word")
+
+            if promptAudioState == .failed {
+                VStack(spacing: AppSpacing.sm) {
+                    Label(
+                        "The word could not play. Check the sound, then try again.",
+                        systemImage: "speaker.slash.fill"
+                    )
+                    .font(AppTypography.bodySmall)
+                    .foregroundColor(AppTheme.cometGold)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("star-speller-audio-error")
+
+                    Button {
+                        speakCurrentWord(announceForVoiceOver: true)
+                        FeedbackManager.shared.haptic(.light)
+                    } label: {
+                        Label("Try voice prompt again", systemImage: "arrow.clockwise")
+                            .font(AppTypography.buttonMedium)
+                            .foregroundColor(AppTheme.backgroundDark)
+                            .padding(.horizontal, AppSpacing.md)
+                            .frame(minHeight: 48)
+                            .background(Capsule().fill(AppTheme.cometGold))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityHint("Retries the hidden spelling word")
+                    .accessibilityIdentifier("star-speller-audio-retry")
+                }
+                .accessibilityElement(children: .contain)
+            }
 
             HStack(spacing: 7) {
                 ForEach(0..<currentWord.count, id: \.self) { _ in
@@ -1691,12 +1834,34 @@ struct StarSpellerGameView: View {
         let action = {
             speech.stop()
             customAudio.stopPlayback()
-            if let filename = wordStore.recordingFilename(forWord: currentWord) {
-                customAudio.play(filename: filename)
+            let succeeded: Bool
+            if forcesPromptAudioFailureForUITesting {
+                succeeded = false
+            } else if usesSilentPromptAudioForUITesting {
+                // UI automation validates the hidden-word interaction without depending on the
+                // simulator speech daemon, which can stall or terminate a test runner. Unit and
+                // device tests still exercise the real audio-session result path.
+                succeeded = true
             } else {
-                speech.speakSpellingPrompt(
-                    for: currentWord,
-                    contextSentence: wordStore.contextSentence(forWord: currentWord)
+                succeeded = StarSpellerPromptAudioPlayback.play(
+                    customRecordingFilename: wordStore.recordingFilename(forWord: currentWord),
+                    customPlayback: { filename in
+                        customAudio.play(filename: filename)
+                    },
+                    voicePlayback: {
+                        speech.speakSpellingPrompt(
+                            for: currentWord,
+                            contextSentence: wordStore.contextSentence(forWord: currentWord)
+                        )
+                    }
+                )
+            }
+            promptAudioState = .afterPlaybackAttempt(succeeded: succeeded)
+            if !succeeded {
+                feedbackMessage = "The word could not play. Use Try voice prompt again."
+                UIAccessibility.post(
+                    notification: .announcement,
+                    argument: "The spelling word could not play. Try the voice prompt again."
                 )
             }
         }

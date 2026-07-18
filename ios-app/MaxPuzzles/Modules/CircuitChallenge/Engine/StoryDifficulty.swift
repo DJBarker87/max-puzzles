@@ -261,27 +261,14 @@ enum StoryDifficulty {
     // MARK: - Star Calculation
 
     /// Calculate stars earned for a completed level
-    /// - Parameters:
-    ///   - livesLost: Number of lives lost during the level
-    ///   - timeSeconds: Total time to complete in seconds
-    ///   - tileCount: Number of tiles in the puzzle
+    /// Stars celebrate accuracy, not speed. Completion always earns a star and
+    /// the recorded best time remains available as a separate, non-gating stat.
+    /// - Parameter livesLost: Number of lives lost during the level
     /// - Returns: Stars earned (1-3)
-    static func calculateStars(livesLost: Int, timeSeconds: Double, tileCount: Int) -> Int {
-        // 1 star: Completed
-        var stars = 1
-
-        // 2 stars: No lives lost
-        if livesLost == 0 {
-            stars = 2
-
-            // 3 stars: Under 5 seconds per tile
-            let targetTime = Double(tileCount) * 5.0
-            if timeSeconds < targetTime {
-                stars = 3
-            }
-        }
-
-        return stars
+    static func calculateStars(livesLost: Int) -> Int {
+        if livesLost == 0 { return 3 }
+        if livesLost <= 2 { return 2 }
+        return 1
     }
 }
 
@@ -302,11 +289,7 @@ struct StoryLevelProgress: Codable {
             completed = true
 
             // Calculate stars for this attempt
-            let earnedStars = StoryDifficulty.calculateStars(
-                livesLost: livesLost,
-                timeSeconds: timeSeconds,
-                tileCount: tileCount
-            )
+            let earnedStars = StoryDifficulty.calculateStars(livesLost: livesLost)
 
             // Keep best stars
             stars = max(stars, earnedStars)

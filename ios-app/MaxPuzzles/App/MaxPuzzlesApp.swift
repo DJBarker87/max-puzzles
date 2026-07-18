@@ -37,6 +37,9 @@ struct MaxPuzzlesApp: App {
                 CometLearningStore.shared.renameActiveProfile("Test Player")
             }
         }
+        if launchArguments.contains("-ui-testing-disable-voice") {
+            StorageService.shared.setVoiceEnabled(false)
+        }
         #endif
 
         _appState = StateObject(wrappedValue: AppState())

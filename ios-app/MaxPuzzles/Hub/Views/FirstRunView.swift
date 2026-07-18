@@ -40,17 +40,21 @@ struct FirstRunView: View {
                 Spacer()
 
                 SpeechBubble(pointsUp: false) {
-                    Text("What’s your name?")
-                        .font(AppTypography.bodyLarge.weight(.bold))
-                        .foregroundColor(AppTheme.backgroundDark)
-                        .multilineTextAlignment(.center)
+                    VStack(spacing: 6) {
+                        Text("Let’s set up your players")
+                            .font(AppTypography.bodyLarge.weight(.bold))
+                        Text("Start with one child. You can add another on the next screen.")
+                            .font(AppTypography.bodySmall)
+                    }
+                    .foregroundColor(AppTheme.backgroundDark)
+                    .multilineTextAlignment(.center)
                 }
                 .padding(.horizontal, 40)
                 .opacity(bubbleOpacity)
 
                 // Name input field (appears above alien)
                 VStack(spacing: 16) {
-                    TextField("Your name", text: $playerName)
+                    TextField("Child’s name", text: $playerName)
                         .font(AppTypography.titleSmall.weight(.medium))
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 24)
@@ -75,11 +79,12 @@ struct FirstRunView: View {
                                 playerName = String(newValue.prefix(24))
                             }
                         }
+                        .accessibilityIdentifier("first-run-name")
 
                     // Continue button
                     Button(action: completeFirstRun) {
                         HStack {
-                            Text("Let's Play!")
+                            Text("Continue")
                                 .font(AppTypography.buttonLarge)
 
                             Image(systemName: "arrow.right")
@@ -93,8 +98,13 @@ struct FirstRunView: View {
                         .shadow(color: canContinue ? AppTheme.accentPrimary.opacity(0.4) : .clear, radius: 12)
                     }
                     .disabled(!canContinue)
-                    .accessibilityLabel("Let's Play!")
-                    .accessibilityHint(canContinue ? "Starts the games" : "Enter your name first")
+                    .accessibilityLabel("Continue")
+                    .accessibilityHint(
+                        canContinue
+                            ? "Opens the player list so you can add another child or start playing"
+                            : "Enter a child’s name first"
+                    )
+                    .accessibilityIdentifier("first-run-continue")
                 }
                 .frame(maxWidth: 400)
                 .padding(.horizontal, 24)
@@ -110,6 +120,7 @@ struct FirstRunView: View {
             }
             .padding(.bottom, -40) // Let alien overlap bottom edge slightly
         }
+        .dynamicTypeSize(...DynamicTypeSize.accessibility1)
         .opacity(isExiting ? 0 : 1)
         .onAppear {
             // Pick a random alien on appear (avoids init-time randomization issues)

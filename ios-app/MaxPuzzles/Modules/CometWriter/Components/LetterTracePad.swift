@@ -5,6 +5,10 @@ enum TraceInputPolicy {
     static func accepts(_ touchType: UITouch.TouchType, pencilOnly: Bool) -> Bool {
         !pencilOnly || touchType == .pencil
     }
+
+    static func resolvedPencilOnly(_ requested: Bool, supportsApplePencil: Bool) -> Bool {
+        requested && supportsApplePencil
+    }
 }
 
 enum TraceTouchPhase {
@@ -31,10 +35,6 @@ struct LetterTracePad: View {
 
     @State private var correctionShake: CGFloat = 0
 
-    private var displayTransform: LetterDisplayTransform {
-        LetterDisplayTransform(scale: letterScale)
-    }
-
     var body: some View {
         GeometryReader { geometry in
             let size = geometry.size
@@ -56,6 +56,13 @@ struct LetterTracePad: View {
                 }
                 .contentShape(Rectangle())
                 .allowsHitTesting(!viewModel.isDemonstrating)
+            }
+            // Resizing the surface during a live stroke changes UIKit's physical coordinates.
+            // Cancel that one unfinished stroke rather than joining points from two layouts.
+            .onChange(of: size) { _ in
+                if !viewModel.activeTrace.isEmpty {
+                    viewModel.cancelActiveTrace()
+                }
             }
         }
         .background(
@@ -156,17 +163,19 @@ struct LetterTracePad: View {
     }
 
     private func normalized(_ point: CGPoint, in size: CGSize) -> LetterPoint {
-        let displayedPoint = LetterCanvasGeometry(size: size, contentInset: contentInset)
-            .unrender(point)
-        let modelPoint = displayTransform.model(displayedPoint)
-        return LetterPoint(
-            x: min(max(modelPoint.x, 0), 1),
-            y: min(max(modelPoint.y, 0), LetterWritingMetrics.canvasHeight)
-        )
+        LetterTraceCoordinateMapper(
+            size: size,
+            contentInset: contentInset,
+            letterScale: letterScale
+        ).modelPoint(for: point)
     }
 
     private func renderedGlyph(_ point: LetterPoint, in size: CGSize) -> CGPoint {
-        renderedRaw(displayTransform.display(point), in: size)
+        LetterTraceCoordinateMapper(
+            size: size,
+            contentInset: contentInset,
+            letterScale: letterScale
+        ).location(for: point)
     }
 
     private func renderedRaw(_ point: LetterPoint, in size: CGSize) -> CGPoint {
@@ -174,18 +183,18 @@ struct LetterTracePad: View {
     }
 
     private func drawWritingLines(in context: inout GraphicsContext, size: CGSize) {
-        let top = renderedRaw(LetterPoint(x: 0.06, y: LetterWritingMetrics.topLineY), in: size).y
-        let mid = renderedRaw(LetterPoint(x: 0.06, y: LetterWritingMetrics.xHeightLineY), in: size).y
-        let baseline = renderedRaw(LetterPoint(x: 0.06, y: LetterWritingMetrics.baselineY), in: size).y
-        let bottom = renderedRaw(LetterPoint(x: 0.06, y: LetterWritingMetrics.descenderLineY), in: size).y
+        let linePositions = LetterWritingLineLayout.renderedYPositions(
+            size: size,
+            contentInset: contentInset
+        )
         let startX = contentInset + 8
         let endX = size.width - contentInset - 8
 
         let writingLines: [(y: CGFloat, opacity: Double, dash: [CGFloat])] = [
-            (top, 0.13, [5, 7]),
-            (mid, 0.18, [5, 7]),
-            (baseline, 0.30, []),
-            (bottom, 0.13, [5, 7])
+            (linePositions[0], 0.13, [5, 7]),
+            (linePositions[1], 0.18, [5, 7]),
+            (linePositions[2], 0.30, []),
+            (linePositions[3], 0.13, [5, 7])
         ]
 
         for (y, opacity, dash) in writingLines {

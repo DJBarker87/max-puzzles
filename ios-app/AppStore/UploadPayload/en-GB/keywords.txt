@@ -1,1 +1,1 @@
-alphabet,phonics,spelling,numerals,dot to dot,handwriting,subitising,maths,children,stylus
+alphabet,phonics,spelling,numbers,dot to dot,handwriting,subitising,maths,children,stylus

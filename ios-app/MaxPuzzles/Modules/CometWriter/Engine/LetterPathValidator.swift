@@ -90,10 +90,19 @@ struct LetterPathValidator {
             return point.distance(to: stroke.start) <= corridorTolerance ? .advanced(progress: 1) : .offTrack
         }
 
-        let localStart = max(0, progress - reverseTolerance)
-        let localEnd = min(1, progress + maximumForwardJump)
         let travelled = lastAcceptedPoint?.distance(to: point) ?? 0
-        let preferredProgress = min(1, progress + travelled / totalLength)
+        let expectedAdvance = travelled / totalLength
+        let preferredProgress = min(1, progress + expectedAdvance)
+        let localStart = max(0, progress - reverseTolerance)
+        // A broad fixed look-ahead can snap a slightly wobbly point onto a later overlapping
+        // downstroke (notably the retraces in m, n and h), then reject the child's next point as
+        // backwards. Scale the search window to the actual movement while retaining a generous
+        // floor for normal event coalescing and the existing cap for genuinely large moves.
+        let forwardAllowance = min(
+            maximumForwardJump,
+            max(0.08, expectedAdvance * 2.5)
+        )
+        let localEnd = min(1, progress + forwardAllowance)
 
         guard let projection = closestProjection(
             to: point,

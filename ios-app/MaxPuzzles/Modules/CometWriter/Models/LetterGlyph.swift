@@ -100,6 +100,48 @@ struct LetterDisplayTransform: Hashable, Sendable {
     }
 }
 
+/// Keeps rendering and touch validation on the same transform at every window size.
+/// A new mapper is intentionally cheap to create when an iPad window is resized or a device
+/// rotates; model-space traces remain stable while the visible surface changes around them.
+struct LetterTraceCoordinateMapper: Hashable, Sendable {
+    let geometry: LetterCanvasGeometry
+    let displayTransform: LetterDisplayTransform
+
+    init(size: CGSize, contentInset: CGFloat, letterScale: CGFloat) {
+        geometry = LetterCanvasGeometry(size: size, contentInset: contentInset)
+        displayTransform = LetterDisplayTransform(scale: letterScale)
+    }
+
+    func location(for modelPoint: LetterPoint) -> CGPoint {
+        geometry.render(displayTransform.display(modelPoint))
+    }
+
+    func modelPoint(for location: CGPoint, clamped: Bool = true) -> LetterPoint {
+        let modelPoint = displayTransform.model(geometry.unrender(location))
+        guard clamped else { return modelPoint }
+        return LetterPoint(
+            x: min(max(modelPoint.x, 0), 1),
+            y: min(max(modelPoint.y, 0), LetterWritingMetrics.canvasHeight)
+        )
+    }
+}
+
+enum LetterWritingLineLayout {
+    static let modelYPositions: [CGFloat] = [
+        LetterWritingMetrics.topLineY,
+        LetterWritingMetrics.xHeightLineY,
+        LetterWritingMetrics.baselineY,
+        LetterWritingMetrics.descenderLineY
+    ]
+
+    static func renderedYPositions(size: CGSize, contentInset: CGFloat) -> [CGFloat] {
+        let geometry = LetterCanvasGeometry(size: size, contentInset: contentInset)
+        return modelYPositions.map {
+            geometry.render(LetterPoint(x: 0.5, y: $0)).y
+        }
+    }
+}
+
 enum LetterStrokeStyle: Hashable, Sendable {
     /// Rounded handwriting movement, sampled once so drawing and validation use the same curve.
     case smooth
@@ -349,7 +391,7 @@ enum LetterFamily: String, CaseIterable, Identifiable, Sendable {
         case .bumps: return "Bump Robots"
         case .specials: return "Special Shapes"
         case .numbers: return "Number Nebula"
-        case .capitals: return "Capital Constellation"
+        case .capitals: return "A–Z Constellation"
         }
     }
 
@@ -361,7 +403,7 @@ enum LetterFamily: String, CaseIterable, Identifiable, Sendable {
         case .bumps: return "Down, back up, and over"
         case .specials: return "Watch each movement"
         case .numbers: return "Write 0 to 9"
-        case .capitals: return "Tall, clear capital letters"
+        case .capitals: return "Tall, clear letters A to Z"
         }
     }
 
@@ -397,7 +439,7 @@ struct LetterGlyph: Identifiable, Hashable, Sendable {
 
     var formationName: String {
         if isNumber { return "number \(character)" }
-        return isUppercase ? "capital \(character)" : "lowercase \(character)"
+        return "letter \(character)"
     }
 
     var promptTitle: String {
@@ -406,9 +448,9 @@ struct LetterGlyph: Identifiable, Hashable, Sendable {
 
     var spokenPrompt: String {
         if isNumber {
-            return "Number \(character). \(promptTitle). \(formationCue)"
+            return "Number \(character). \(promptTitle)."
         }
-        return "Letter \(character). \(promptTitle). \(formationCue)"
+        return "Letter \(character). \(promptTitle)."
     }
 }
 

@@ -1504,7 +1504,7 @@ private enum CometProgressReportRenderer {
 
     private static func drawFormationGrid(attempts: [CometAttemptRecord]) {
         draw("Formation map", at: CGRect(x: 42, y: 255, width: 510, height: 28), font: .systemFont(ofSize: 18, weight: .bold), color: .black)
-        draw("Best saved score for every lowercase, capital and number formation", at: CGRect(x: 42, y: 282, width: 510, height: 20), font: .systemFont(ofSize: 10), color: .darkGray)
+        draw("Best saved score for letters a–z, letters A–Z and number formations", at: CGRect(x: 42, y: 282, width: 510, height: 20), font: .systemFont(ofSize: 10), color: .darkGray)
 
         let best = Dictionary(grouping: attempts, by: \.character).mapValues { records in
             records.map(\.score).max() ?? 0

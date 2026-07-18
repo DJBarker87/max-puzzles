@@ -6,7 +6,6 @@ import SwiftUI
 /// Brings together the puzzle grid, status displays, and action buttons
 struct GameScreenView: View {
     @StateObject private var viewModel: GameViewModel
-    @ObservedObject private var feedback = FeedbackManager.shared
     @ObservedObject private var storage = StorageService.shared
     @EnvironmentObject var appState: AppState
     @EnvironmentObject var musicService: MusicService
@@ -15,10 +14,15 @@ struct GameScreenView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var showExitConfirm = false
+    @State private var showNewPuzzleConfirm = false
     @State private var navigateToSummary = false
     @State private var summaryData: SummaryData?
     @State private var coinsPersisted = false
     @State private var showCircuitTutorial = false
+    @State private var summaryScheduleTask: Task<Void, Never>?
+    @State private var summaryScheduleGeneration: UInt = 0
+    @AccessibilityFocusState private var isNewPuzzleConfirmationTitleFocused: Bool
+    @AccessibilityFocusState private var isExitConfirmationTitleFocused: Bool
 
     // Current level state (can change for "Next Level" / "Next Chapter")
     @State private var currentChapter: Int?
@@ -78,6 +82,10 @@ struct GameScreenView: View {
         verticalSizeClass == .compact
     }
 
+    private var isConfirmationPresented: Bool {
+        showExitConfirm || showNewPuzzleConfirm
+    }
+
     /// Title for the header - shows alien name for story mode
     private var storyModeTitle: String {
         if let alien = currentAlien, let level = currentLevel {
@@ -118,41 +126,24 @@ struct GameScreenView: View {
 
     var body: some View {
         ZStack {
-            // Starry background for gameplay
-            StarryBackground(
-                starCount: reduceMotion ? 24 : 40,
-                enableShootingStars: false,
-                enableParallax: false
-            )
-
-            if isLandscape {
-                landscapeLayout
+            if isConfirmationPresented {
+                gameplayLayer
+                    .accessibilityHidden(true)
+                    .allowsHitTesting(false)
+                    .id("circuit-gameplay-modal-underlay")
             } else {
-                portraitLayout
+                // Keep the active branch free of a toggled accessibilityHidden modifier.
+                // iOS 16 otherwise caches the subtree as hidden after a modal closes.
+                gameplayLayer
+                    .id("circuit-gameplay-active")
             }
 
-            // Game Over Overlay (brief flash before navigation)
-            if viewModel.state.isGameOver && !viewModel.state.showingSolution && !navigateToSummary {
-                gameOverOverlay
-            }
-
-            // Exit Confirmation
             if showExitConfirm {
                 exitConfirmationOverlay
             }
 
-            if showCircuitTutorial, viewModel.state.puzzle != nil {
-                circuitTutorialOverlay
-            }
-
-            // Level intro overlay (for "Next Level" transitions in story mode)
-            if showLevelIntro, let alien = currentAlien, let level = currentLevel {
-                levelIntroOverlay(alien: alien, level: level)
-                    .scaleEffect(introScale)
-                    .opacity(introOpacity)
-                    .onTapGesture {
-                        dismissLevelIntro()
-                    }
+            if showNewPuzzleConfirm {
+                newPuzzleConfirmationOverlay
             }
         }
         .navigationBarHidden(true)
@@ -168,6 +159,7 @@ struct GameScreenView: View {
         .onDisappear {
             nextPuzzleTask?.cancel()
             nextPuzzleTask = nil
+            cancelPendingSummary()
             viewModel.pauseTimer()
             appState.exitGame()
             // Stop game music when leaving
@@ -181,17 +173,13 @@ struct GameScreenView: View {
             }
         }
         .onChange(of: viewModel.state.puzzle?.id) { puzzleID in
+            if summaryScheduleTask != nil {
+                cancelPendingSummary()
+            }
             if puzzleID != nil &&
                 !storage.hasCompletedCircuitTutorial &&
                 viewModel.state.moveHistory.isEmpty {
                 showCircuitTutorial = true
-            }
-        }
-        .onChange(of: viewModel.state.moveHistory.count) { newCount in
-            // Watch for wrong moves and trigger shake
-            if let lastMove = viewModel.state.moveHistory.last,
-               !lastMove.correct && !viewModel.state.isHiddenMode {
-                feedback.triggerShake(enabled: !reduceMotion)
             }
         }
         .onChange(of: viewModel.state.status) { newStatus in
@@ -208,6 +196,7 @@ struct GameScreenView: View {
                     },
                     onNextLevel: data.isStoryMode && data.won && hasNextLevel ? {
                         navigateToSummary = false
+                        cancelPendingSummary()
 
                         // Level 6 completion: Return to level select to see unlock animation
                         if shouldReturnToLevelSelect {
@@ -267,14 +256,17 @@ struct GameScreenView: View {
                     } : nil,
                     onChangeDifficulty: {
                         navigateToSummary = false
+                        cancelPendingSummary()
                         dismiss()
                     },
                     onSeeSolution: data.won ? nil : {
                         navigateToSummary = false
+                        cancelPendingSummary()
                         viewModel.showSolution()
                     },
                     onExit: {
                         navigateToSummary = false
+                        cancelPendingSummary()
                         // Small delay to let fullScreenCover dismiss before navigation
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                             // If chapter changed, pop back to chapter select
@@ -292,22 +284,60 @@ struct GameScreenView: View {
         }
     }
 
+    private var gameplayLayer: some View {
+        ZStack {
+            // Starry background for gameplay
+            StarryBackground(
+                starCount: reduceMotion ? 24 : 40,
+                enableShootingStars: false,
+                enableParallax: false
+            )
+
+            if isLandscape {
+                landscapeLayout
+            } else {
+                portraitLayout
+            }
+
+            // Game Over Overlay (brief flash before navigation)
+            if viewModel.state.isGameOver && !viewModel.state.showingSolution && !navigateToSummary {
+                gameOverOverlay
+            }
+
+            if showCircuitTutorial, viewModel.state.puzzle != nil {
+                circuitTutorialOverlay
+            }
+
+            // Level intro overlay (for "Next Level" transitions in story mode)
+            if showLevelIntro, let alien = currentAlien, let level = currentLevel {
+                levelIntroOverlay(alien: alien, level: level)
+                    .scaleEffect(introScale)
+                    .opacity(introOpacity)
+                    .onTapGesture {
+                        dismissLevelIntro()
+                    }
+            }
+        }
+    }
+
     // MARK: - Portrait Layout
 
     private var portraitLayout: some View {
         VStack(spacing: 0) {
             // Header
-            GameHeaderView(
-                title: storyModeTitle,
-                lives: viewModel.state.lives,
-                maxLives: viewModel.state.maxLives,
-                elapsedMs: viewModel.state.elapsedMs,
-                isTimerRunning: viewModel.state.isTimerRunning,
-                coins: viewModel.state.puzzleCoins,
-                coinChange: latestCoinAnimation,
-                isHiddenMode: viewModel.state.isHiddenMode,
-                onBackClick: { showExitConfirm = true }
-            )
+            if !isConfirmationPresented {
+                GameHeaderView(
+                    title: storyModeTitle,
+                    lives: viewModel.state.lives,
+                    maxLives: viewModel.state.maxLives,
+                    elapsedMs: viewModel.state.elapsedMs,
+                    isTimerRunning: viewModel.state.isTimerRunning,
+                    coins: viewModel.state.puzzleCoins,
+                    coinChange: latestCoinAnimation,
+                    isHiddenMode: viewModel.state.isHiddenMode,
+                    onBackClick: { showExitConfirm = true }
+                )
+            }
 
             // Puzzle Grid
             gridContent
@@ -324,29 +354,35 @@ struct GameScreenView: View {
         HStack(spacing: 0) {
             // Left Panel: Back + Actions (minimal width)
             VStack(spacing: 8) {
-                Button(action: { showExitConfirm = true }) {
-                    Image(systemName: "chevron.left")
-                        .font(.scaledSystem(size: 16, weight: .semibold))
-                        .foregroundColor(.white)
-                        .frame(width: 44, height: 44)
-                        .background(AppTheme.backgroundMid)
-                        .cornerRadius(8)
-                }
+                if !isConfirmationPresented {
+                    Button(action: { showExitConfirm = true }) {
+                        Image(systemName: "chevron.left")
+                            .font(.scaledSystem(size: 16, weight: .semibold))
+                            .foregroundColor(.white)
+                            .frame(width: 44, height: 44)
+                            .background(AppTheme.backgroundMid)
+                            .cornerRadius(8)
+                    }
+                    .accessibilityLabel("Back")
+                    .accessibilityIdentifier("circuit-game-back")
 
-                MusicToggleButton(size: .small)
+                    MusicToggleButton(size: .small)
+                }
 
                 Spacer()
 
-                ActionButtons(
-                    onReset: isStoryMode ? nil : { viewModel.resetPuzzle() },
-                    onNewPuzzle: handleNewPuzzle,
-                    onViewSolution: viewModel.state.status == .lost ? { viewModel.showSolution() } : nil,
-                    onContinue: viewModel.state.showingSolution ? handleContinueToSummary : nil,
-                    showViewSolution: viewModel.state.status == .lost && !viewModel.state.showingSolution,
-                    showContinue: viewModel.state.showingSolution,
-                    vertical: true,
-                    compact: true
-                )
+                if !isConfirmationPresented {
+                    ActionButtons(
+                        onReset: isStoryMode ? nil : { viewModel.resetPuzzle() },
+                        onNewPuzzle: requestNewPuzzle,
+                        onViewSolution: viewModel.state.status == .lost ? { viewModel.showSolution() } : nil,
+                        onContinue: viewModel.state.showingSolution ? handleContinueToSummary : nil,
+                        showViewSolution: viewModel.state.status == .lost && !viewModel.state.showingSolution,
+                        showContinue: viewModel.state.showingSolution,
+                        vertical: true,
+                        compact: true
+                    )
+                }
 
                 Spacer()
             }
@@ -395,14 +431,18 @@ struct GameScreenView: View {
 
     private var actionButtonsSection: some View {
         HStack(spacing: 16) {
-            ActionButtons(
-                onReset: isStoryMode ? nil : { viewModel.resetPuzzle() },
-                onNewPuzzle: handleNewPuzzle,
-                onViewSolution: viewModel.state.status == .lost ? { viewModel.showSolution() } : nil,
-                onContinue: viewModel.state.showingSolution ? handleContinueToSummary : nil,
-                showViewSolution: viewModel.state.status == .lost && !viewModel.state.showingSolution,
-                showContinue: viewModel.state.showingSolution
-            )
+            if !isConfirmationPresented {
+                ActionButtons(
+                    onReset: isStoryMode ? nil : { viewModel.resetPuzzle() },
+                    onNewPuzzle: requestNewPuzzle,
+                    onViewSolution: viewModel.state.status == .lost ? { viewModel.showSolution() } : nil,
+                    onContinue: viewModel.state.showingSolution ? handleContinueToSummary : nil,
+                    showViewSolution: viewModel.state.status == .lost && !viewModel.state.showingSolution,
+                    showContinue: viewModel.state.showingSolution
+                )
+            } else {
+                Color.clear.frame(height: 44)
+            }
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 16)
@@ -427,7 +467,6 @@ struct GameScreenView: View {
                     viewModel.makeMove(to: coord)
                 } : nil
             )
-            .shake(isShaking: !reduceMotion && feedback.isShaking)
         } else if let error = viewModel.state.error {
             errorContent(error)
         } else {
@@ -559,6 +598,9 @@ struct GameScreenView: View {
                     Text("Exit Puzzle?")
                         .font(.scaledSystem(size: 22, weight: .bold))
                         .foregroundColor(.white)
+                        .accessibilityAddTraits(.isHeader)
+                        .accessibilityFocused($isExitConfirmationTitleFocused)
+                        .accessibilityIdentifier("circuit-exit-confirmation-title")
 
                     Text("Your progress on this puzzle will be lost.")
                         .font(.scaledSystem(size: 15))
@@ -595,6 +637,83 @@ struct GameScreenView: View {
                 .background(AppTheme.backgroundMid)
                 .cornerRadius(20)
                 .padding(24)
+                .accessibilityElement(children: .contain)
+                .accessibilityAddTraits(.isModal)
+            }
+            .accessibilityIdentifier("circuit-exit-confirmation")
+            .onAppear {
+                Task { @MainActor in
+                    await Task.yield()
+                    guard showExitConfirm else { return }
+                    isExitConfirmationTitleFocused = true
+                }
+            }
+            .onDisappear {
+                isExitConfirmationTitleFocused = false
+            }
+    }
+
+    private var newPuzzleConfirmationOverlay: some View {
+        Color.black.opacity(0.6)
+            .ignoresSafeArea()
+            .overlay {
+                VStack(spacing: 24) {
+                    Text("Try a New Puzzle?")
+                        .font(.scaledSystem(size: 22, weight: .bold))
+                        .foregroundColor(.white)
+                        .accessibilityAddTraits(.isHeader)
+                        .accessibilityFocused($isNewPuzzleConfirmationTitleFocused)
+                        .accessibilityIdentifier("circuit-new-puzzle-confirmation-title")
+
+                    Text("You will leave this puzzle and start a fresh one.")
+                        .font(.scaledSystem(size: 15))
+                        .foregroundColor(AppTheme.textSecondary)
+                        .multilineTextAlignment(.center)
+
+                    HStack(spacing: 16) {
+                        Button("Keep This One") {
+                            showNewPuzzleConfirm = false
+                            viewModel.resumeTimer()
+                            handleStatusChange(to: viewModel.state.status)
+                        }
+                        .font(.scaledSystem(size: 16, weight: .semibold))
+                        .foregroundColor(.white)
+                        .frame(minWidth: 120, minHeight: 48)
+                        .background(AppTheme.accentPrimary)
+                        .cornerRadius(10)
+
+                        Button("Start New") {
+                            showNewPuzzleConfirm = false
+                            handleNewPuzzle()
+                        }
+                        .font(.scaledSystem(size: 16, weight: .semibold))
+                        .foregroundColor(.white)
+                        .frame(minWidth: 108, minHeight: 48)
+                        .background(AppTheme.backgroundDark)
+                        .cornerRadius(10)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10)
+                                .stroke(Color.white.opacity(0.3), lineWidth: 1)
+                        )
+                    }
+                }
+                .padding(32)
+                .background(AppTheme.backgroundMid)
+                .cornerRadius(20)
+                .padding(24)
+                .accessibilityElement(children: .contain)
+                .accessibilityAddTraits(.isModal)
+            }
+            .accessibilityIdentifier("circuit-new-puzzle-confirmation")
+            .onAppear {
+                Task { @MainActor in
+                    await Task.yield()
+                    guard showNewPuzzleConfirm else { return }
+                    isNewPuzzleConfirmationTitleFocused = true
+                }
+            }
+            .onDisappear {
+                isNewPuzzleConfirmationTitleFocused = false
             }
     }
 
@@ -682,7 +801,20 @@ struct GameScreenView: View {
         viewModel.state.coinAnimations.first
     }
 
+    private func requestNewPuzzle() {
+        if CircuitNewPuzzleSafeguard.requiresConfirmation(isStoryMode: isStoryMode) {
+            // Do not let a terminal callback replace this explicit child choice with a summary.
+            // Keeping the puzzle below reschedules the appropriate terminal transition.
+            cancelPendingSummary()
+            viewModel.pauseTimer()
+            showNewPuzzleConfirm = true
+        } else {
+            handleNewPuzzle()
+        }
+    }
+
     private func handleNewPuzzle() {
+        cancelPendingSummary()
         coinsPersisted = false // Reset for new puzzle
         viewModel.requestNewPuzzle()
         viewModel.generateNewPuzzle()
@@ -691,28 +823,60 @@ struct GameScreenView: View {
     }
 
     private func handleContinueToSummary() {
+        cancelPendingSummary()
         createSummaryData()
         navigateToSummary = true
     }
 
     private func handleStatusChange(to newStatus: GameStatus) {
-        // Navigate to summary when game ends (but not if viewing solution)
-        if (newStatus == .won || newStatus == .lost) && !viewModel.state.showingSolution {
-            // Small delay to show final state before navigating to summary
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
-                createSummaryData()
-                navigateToSummary = true
-            }
-        }
+        let decision = CircuitSummarySchedulingPolicy.decision(
+            for: newStatus,
+            isHiddenMode: viewModel.state.isHiddenMode,
+            isShowingSolution: viewModel.state.showingSolution,
+            hasPendingSummary: summaryScheduleTask != nil
+        )
 
-        // Handle hidden mode revealing
-        if newStatus == .revealing && viewModel.state.isHiddenMode {
+        switch decision {
+        case .revealHiddenAndSchedule(let delayNanoseconds):
+            // Install the one authoritative task before `.revealing` synchronously publishes
+            // `.won`; the follow-up status notification then keeps this task instead of adding one.
+            scheduleSummary(afterNanoseconds: delayNanoseconds)
             viewModel.revealHiddenResults()
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                createSummaryData()
-                navigateToSummary = true
-            }
+        case .schedule(let delayNanoseconds):
+            scheduleSummary(afterNanoseconds: delayNanoseconds)
+        case .keepPending:
+            break
+        case .cancel:
+            cancelPendingSummary()
         }
+    }
+
+    private func scheduleSummary(afterNanoseconds delayNanoseconds: UInt64) {
+        cancelPendingSummary()
+        let scheduledGeneration = summaryScheduleGeneration
+        let scheduledPuzzleID = viewModel.state.puzzle?.id
+
+        summaryScheduleTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: delayNanoseconds)
+            guard !Task.isCancelled,
+                  CircuitSummarySchedulingPolicy.isCurrent(
+                    scheduledGeneration: scheduledGeneration,
+                    scheduledPuzzleID: scheduledPuzzleID,
+                    currentGeneration: summaryScheduleGeneration,
+                    currentPuzzleID: viewModel.state.puzzle?.id
+                  ),
+                  !navigateToSummary else { return }
+
+            summaryScheduleTask = nil
+            createSummaryData()
+            navigateToSummary = true
+        }
+    }
+
+    private func cancelPendingSummary() {
+        summaryScheduleGeneration &+= 1
+        summaryScheduleTask?.cancel()
+        summaryScheduleTask = nil
     }
 
     private func createSummaryData() {

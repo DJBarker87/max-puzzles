@@ -4,7 +4,6 @@ import SwiftUI
 struct MainHubView: View {
     @EnvironmentObject var appState: AppState
     @EnvironmentObject var musicService: MusicService
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @StateObject private var router = AppRouter()
     @ObservedObject private var profileStore = CometLearningStore.shared
 
@@ -12,8 +11,6 @@ struct MainHubView: View {
     @State private var showCometWriter = false
     @State private var showDotToDot = false
     @State private var showStarSpeller = false
-    @State private var selectedModulePage = 0
-
     var body: some View {
         NavigationStack(path: $router.path) {
             GeometryReader { geometry in
@@ -49,26 +46,24 @@ struct MainHubView: View {
                             .padding(.vertical, AppSpacing.lg)
 
                             // Module cards centered
-                            moduleSelectionView(
-                                isLandscape: true,
-                                usePortraitGrid: false
-                            )
+                            moduleSelectionView(isLandscape: true)
                                 .frame(maxWidth: .infinity)
                         }
                         .padding(.horizontal, AppSpacing.lg)
                     } else {
-                        // Portrait: vertical layout
-                        VStack(spacing: AppSpacing.xl) {
-                            headerView
-                            Spacer()
-                            moduleSelectionView(
-                                isLandscape: false,
-                                usePortraitGrid: geometry.size.width >= 700
-                            )
-                                .padding(.horizontal, AppSpacing.md)
-                            Spacer()
+                        // Portrait: every game stays visible. A two-by-two grid is easier for a
+                        // pre-reader to recognise than an unlabeled page-control carousel.
+                        ScrollView {
+                            VStack(spacing: AppSpacing.lg) {
+                                headerView
+                                moduleSelectionView(isLandscape: false)
+                                    .padding(.horizontal, AppSpacing.md)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.top, AppSpacing.md)
+                            .padding(.bottom, AppSpacing.xl)
                         }
-                        .padding(.top, AppSpacing.lg)
+                        .scrollIndicators(.hidden)
                     }
                 }
             }
@@ -96,6 +91,7 @@ struct MainHubView: View {
                     .environmentObject(musicService)
             }
         }
+        .dynamicTypeSize(...DynamicTypeSize.accessibility1)
         .environmentObject(router)
         .onAppear {
             // Start hub music when returning to menu
@@ -161,10 +157,7 @@ struct MainHubView: View {
 
     // MARK: - Module Selection
 
-    private func moduleSelectionView(
-        isLandscape: Bool,
-        usePortraitGrid: Bool
-    ) -> some View {
+    private func moduleSelectionView(isLandscape: Bool) -> some View {
         VStack(spacing: isLandscape ? AppSpacing.md : AppSpacing.lg) {
             Text("Choose a Puzzle")
                 .font(AppTypography.titleSmall)
@@ -177,7 +170,7 @@ struct MainHubView: View {
                     starSpellerCard
                     cometWriterCard
                 }
-            } else if usePortraitGrid {
+            } else {
                 LazyVGrid(
                     columns: [
                         GridItem(.flexible(), spacing: AppSpacing.md),
@@ -189,52 +182,6 @@ struct MainHubView: View {
                     dotToDotCard
                     starSpellerCard
                     cometWriterCard
-                }
-            } else {
-                VStack(spacing: AppSpacing.sm) {
-                    TabView(selection: $selectedModulePage) {
-                        circuitCard
-                            .frame(width: 235)
-                            .tag(0)
-                        dotToDotCard
-                            .frame(width: 235)
-                            .tag(1)
-                        starSpellerCard
-                            .frame(width: 235)
-                            .tag(2)
-                        cometWriterCard
-                            .frame(width: 235)
-                            .tag(3)
-                    }
-                    .tabViewStyle(.page(indexDisplayMode: .never))
-                    .frame(height: 370)
-                    .accessibilityLabel("Puzzle games")
-                    .accessibilityValue("Page \(selectedModulePage + 1) of 4")
-                    .accessibilityIdentifier("puzzle-game-carousel")
-
-                    HStack(spacing: 10) {
-                        ForEach(0..<4, id: \.self) { page in
-                            Button {
-                                withAnimation(reduceMotion ? nil : .easeOut(duration: 0.2)) {
-                                    selectedModulePage = page
-                                }
-                            } label: {
-                                Circle()
-                                    .fill(
-                                        page == selectedModulePage
-                                            ? AppTheme.cometCyan
-                                            : AppTheme.textSecondary.opacity(0.55)
-                                    )
-                                    .frame(width: 10, height: 10)
-                                    .frame(width: 44, height: 44)
-                                    .contentShape(Rectangle())
-                            }
-                            .buttonStyle(.plain)
-                            .accessibilityLabel(modulePageName(page))
-                            .accessibilityValue(page == selectedModulePage ? "Selected" : "")
-                        }
-                    }
-                    .accessibilityElement(children: .contain)
                 }
             }
         }
@@ -308,22 +255,13 @@ struct MainHubView: View {
     private var dotToDotCard: some View {
         ModuleCardView(
             title: "Dot-to-Dot Discovery",
-            description: "Recognise numerals, then colour 84 real pictures",
+            description: "Recognise numbers, then colour 84 real pictures",
             iconName: "point.3.connected.trianglepath.dotted",
             imageName: "dot_to_dot_icon",
             iconGlowColor: Color(hex: "5eead4"),
             isLocked: false
         ) {
             showDotToDot = true
-        }
-    }
-
-    private func modulePageName(_ page: Int) -> String {
-        switch page {
-        case 0: return "Show Circuit Challenge"
-        case 1: return "Show Dot-to-Dot Discovery"
-        case 2: return "Show Star Speller"
-        default: return "Show Comet Writer"
         }
     }
 
