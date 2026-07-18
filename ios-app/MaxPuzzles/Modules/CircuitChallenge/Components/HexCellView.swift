@@ -118,10 +118,49 @@ private let edgeGradient = LinearGradient(
     endPoint: .bottom
 )
 
+/// One sampled animation frame drives every active-cell effect. Keeping the original periods and
+/// equations here guarantees the electric border and outer pulse retain their existing motion while
+/// avoiding two independent 30 fps `TimelineView` trees for the same cell.
+struct CircuitCellAnimationFrame: Equatable {
+    let fastFlowPhase: CGFloat
+    let slowFlowPhase: CGFloat
+    let electricGlowOpacity: CGFloat
+    let shadowGlowAmount: CGFloat
+
+    static func values(
+        at time: TimeInterval,
+        size: CGFloat,
+        compact: Bool,
+        reduceMotion: Bool
+    ) -> CircuitCellAnimationFrame {
+        let resolvedTime = reduceMotion ? 0 : time
+        let sizeScale = size / 42.0
+        let fastProgress = resolvedTime.truncatingRemainder(dividingBy: 0.8) / 0.8
+        let slowProgress = resolvedTime.truncatingRemainder(dividingBy: 1.2) / 1.2
+        let electricPulse = (sin(resolvedTime * 2 * .pi / 1.5) + 1) / 2
+        let shadowPulse = (sin(resolvedTime * 2 * .pi) + 1) / 2
+        let maximumElectricGlow = compact ? 0.6 : 0.8
+        let maximumShadowGlow = compact ? 0.7 : 1.0
+
+        return CircuitCellAnimationFrame(
+            fastFlowPhase: reduceMotion ? 0 : CGFloat(-36 * fastProgress) * sizeScale,
+            slowFlowPhase: reduceMotion ? 0 : CGFloat(-36 * slowProgress) * sizeScale,
+            electricGlowOpacity: reduceMotion
+                ? 0.55
+                : CGFloat(0.5 + (maximumElectricGlow - 0.5) * electricPulse),
+            shadowGlowAmount: reduceMotion
+                ? 0.45
+                : CGFloat(0.4 + (maximumShadowGlow - 0.4) * shadowPulse)
+        )
+    }
+}
+
 // MARK: - HexCellView
 
 /// 3D hexagonal cell with poker chip effect matching web app exactly
 struct HexCellView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     let state: CellState
     let expression: String
     let size: CGFloat
@@ -177,6 +216,71 @@ struct HexCellView: View {
     }
 
     var body: some View {
+        Group {
+            if isPulsing {
+                if reduceMotion {
+                    animatedCell(
+                        frame: CircuitCellAnimationFrame.values(
+                            at: 0,
+                            size: size,
+                            compact: compactGlow,
+                            reduceMotion: true
+                        )
+                    )
+                } else {
+                    TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { context in
+                        animatedCell(
+                            frame: CircuitCellAnimationFrame.values(
+                                at: context.date.timeIntervalSinceReferenceDate,
+                                size: size,
+                                compact: compactGlow,
+                                reduceMotion: false
+                            )
+                        )
+                    }
+                }
+            } else {
+                interactiveCell(animationFrame: nil)
+            }
+        }
+        .accessibilityLabel(accessibilityLabelText)
+        .accessibilityHint(isClickable ? "Double tap to select this cell" : "")
+        .accessibilityAddTraits(isClickable ? .isButton : [])
+    }
+
+    private func animatedCell(frame: CircuitCellAnimationFrame) -> some View {
+        let sizeScale = size / 42.0
+        let innerRadius = (compactGlow ? 8.0 : 15.0) * sizeScale
+        let outerRadius = (compactGlow ? 16.0 : 30.0) * sizeScale
+
+        return interactiveCell(animationFrame: frame)
+            .shadow(
+                color: Color(hex: "00ffc8").opacity(frame.shadowGlowAmount),
+                radius: innerRadius
+            )
+            .shadow(
+                color: Color(hex: "00ffc8").opacity(frame.shadowGlowAmount * 0.5),
+                radius: outerRadius
+            )
+    }
+
+    private func interactiveCell(
+        animationFrame: CircuitCellAnimationFrame?
+    ) -> some View {
+        cellLayers(animationFrame: animationFrame)
+            .frame(width: cellWidth + 8, height: cellHeight + shadowOffset + 4)
+            .contentShape(Rectangle())
+            .onTapGesture {
+                if isClickable {
+                    onTap?()
+                }
+            }
+            .opacity(isClickable ? 1.0 : 0.85)
+    }
+
+    private func cellLayers(
+        animationFrame: CircuitCellAnimationFrame?
+    ) -> some View {
         ZStack {
             // Layer 1: Shadow
             HexagonShape()
@@ -230,22 +334,14 @@ struct HexCellView: View {
                 .shadow(color: .black, radius: 1, x: 1, y: 1)
 
             // Electric glow overlay for current/start cells
-            if isPulsing {
-                ElectricGlowOverlay(size: size, compact: compactGlow)
+            if let animationFrame {
+                ElectricGlowOverlay(
+                    size: size,
+                    compact: compactGlow,
+                    animationFrame: animationFrame
+                )
             }
         }
-        .frame(width: cellWidth + 8, height: cellHeight + shadowOffset + 4)
-        .contentShape(Rectangle())
-        .onTapGesture {
-            if isClickable {
-                onTap?()
-            }
-        }
-        .opacity(isClickable ? 1.0 : 0.85)
-        .modifier(CellPulseModifier(isPulsing: isPulsing, size: size, compact: compactGlow))
-        .accessibilityLabel(accessibilityLabelText)
-        .accessibilityHint(isClickable ? "Double tap to select this cell" : "")
-        .accessibilityAddTraits(isClickable ? .isButton : [])
     }
 
     private var accessibilityLabelText: String {
@@ -270,10 +366,9 @@ struct HexCellView: View {
 
 /// Electric energy flow effect for current/start cells matching web connector style exactly
 struct ElectricGlowOverlay: View {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
     let size: CGFloat
     var compact: Bool = false  // Reduced glow for phones with 4 rows
+    let animationFrame: CircuitCellAnimationFrame
 
     private var cellWidth: CGFloat { size * sqrt(3) }
     private var cellHeight: CGFloat { size * 2 }
@@ -283,7 +378,6 @@ struct ElectricGlowOverlay: View {
 
     // Scale down glow for compact mode (phones with small grids)
     private var glowScale: CGFloat { compact ? 0.5 : 1.0 }
-    private var maxGlowOpacity: CGFloat { compact ? 0.6 : 0.8 }
 
     // Scaled line widths
     private var glowLineWidth: CGFloat { (compact ? 10 : 18) * sizeScale }
@@ -298,23 +392,11 @@ struct ElectricGlowOverlay: View {
     private var dashFast: [CGFloat] { [4 * sizeScale, 20 * sizeScale] }
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: reduceMotion)) { context in
-            let time = reduceMotion ? 0 : context.date.timeIntervalSinceReferenceDate
-            let fastProgress = time.truncatingRemainder(dividingBy: 0.8) / 0.8
-            let slowProgress = time.truncatingRemainder(dividingBy: 1.2) / 1.2
-            let glowProgress = (sin(time * 2 * .pi / 1.5) + 1) / 2
-            let flowPhase1 = CGFloat(-36 * fastProgress) * sizeScale
-            let flowPhase2 = CGFloat(-36 * slowProgress) * sizeScale
-            let glowOpacity = reduceMotion
-                ? CGFloat(0.55)
-                : CGFloat(0.5 + (Double(maxGlowOpacity) - 0.5) * glowProgress)
-
-            electricLayers(
-                flowPhase1: flowPhase1,
-                flowPhase2: flowPhase2,
-                glowOpacity: glowOpacity
-            )
-        }
+        electricLayers(
+            flowPhase1: animationFrame.fastFlowPhase,
+            flowPhase2: animationFrame.slowFlowPhase,
+            glowOpacity: animationFrame.electricGlowOpacity
+        )
     }
 
     private func electricLayers(
@@ -366,42 +448,6 @@ struct ElectricGlowOverlay: View {
             HexagonShape()
                 .stroke(Color(hex: "aaffcc"), lineWidth: coreWidth)
                 .frame(width: cellWidth, height: cellHeight)
-        }
-    }
-}
-
-// MARK: - Cell Pulse Modifier
-
-/// Pulsing glow effect for current cells matching web animation exactly
-struct CellPulseModifier: ViewModifier {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    let isPulsing: Bool
-    let size: CGFloat  // Cell radius for scaling
-    var compact: Bool = false  // Reduced glow for phones with small grids
-
-    // Scale factor based on cell size (baseline is ~42px radius on phones)
-    private var sizeScale: CGFloat { size / 42.0 }
-
-    // Scaled shadow radii
-    private var innerRadius: CGFloat { (compact ? 8 : 15) * sizeScale }
-    private var outerRadius: CGFloat { (compact ? 16 : 30) * sizeScale }
-    private var maxGlow: CGFloat { compact ? 0.7 : 1.0 }
-
-    func body(content: Content) -> some View {
-        if isPulsing {
-            TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: reduceMotion)) { context in
-                let time = reduceMotion ? 0 : context.date.timeIntervalSinceReferenceDate
-                let pulse = (sin(time * 2 * .pi) + 1) / 2
-                let glowAmount = reduceMotion
-                    ? CGFloat(0.45)
-                    : CGFloat(0.4 + (Double(maxGlow) - 0.4) * pulse)
-                content
-                    .shadow(color: Color(hex: "00ffc8").opacity(glowAmount), radius: innerRadius)
-                    .shadow(color: Color(hex: "00ffc8").opacity(glowAmount * 0.5), radius: outerRadius)
-                }
-        } else {
-            content
         }
     }
 }

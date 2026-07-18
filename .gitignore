@@ -63,3 +63,9 @@ __pycache__/
 # App Store screenshots (large binaries, regenerate locally)
 ios-app/AppStore/Screenshots/**
 !ios-app/AppStore/Screenshots/README.md
+
+# Source phoneme recordings. These are bundled into local/App Store builds but are kept out of
+# the public source repository so the app remains the canonical distribution.
+ios-app/MaxPuzzles/Resources/PhonemeAudio/en-GB/v1/phoneme_*.m4a
+ios-app/MaxPuzzles/Resources/PhonemeAudio/en-GB/v1/import-manifest.local.json
+ios-app/LocalAssets/PhonemeAudio/**

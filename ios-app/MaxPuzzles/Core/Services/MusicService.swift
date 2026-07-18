@@ -360,18 +360,9 @@ enum MusicTrack: String {
     case hub = "hub_music"
     case game = "game_music"
     case victory = "victory_music"
-    case lose = "lose_music"
 
     var filename: String { rawValue }
-
-    var fileExtension: String {
-        switch self {
-        case .lose:
-            return "wav"
-        default:
-            return "m4a"
-        }
-    }
+    var fileExtension: String { "m4a" }
 }
 
 // MARK: - MusicService Extension for Tracks

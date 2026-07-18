@@ -167,7 +167,7 @@ enum LetterLibrary {
         LetterGlyph(character: "w", exampleWord: "web", family: .scoops, strokes: [
             stroke([(0.14, 0.36), (0.20, 0.59), (0.29, 0.82), (0.39, 0.61), (0.47, 0.82), (0.57, 0.61), (0.66, 0.36)], style: .angular)
         ]),
-        LetterGlyph(character: "x", exampleWord: "x-ray", family: .specials, strokes: [
+        LetterGlyph(character: "x", exampleWord: "box", family: .specials, strokes: [
             stroke([(0.28, 0.36), (0.42, 0.58), (0.59, 0.82)], style: .angular),
             stroke([(0.60, 0.36), (0.45, 0.58), (0.28, 0.82)], style: .angular)
         ]),
@@ -316,7 +316,7 @@ enum LetterLibrary {
         LetterGlyph(character: "W", exampleWord: "web", family: .capitals, strokes: [
             stroke([(0.12, 0.08), (0.28, 0.82), (0.47, 0.42), (0.64, 0.82), (0.82, 0.08)], style: .angular)
         ]),
-        LetterGlyph(character: "X", exampleWord: "x-ray", family: .capitals, strokes: [
+        LetterGlyph(character: "X", exampleWord: "box", family: .capitals, strokes: [
             stroke([(0.22, 0.08), (0.72, 0.82)], style: .angular),
             stroke([(0.72, 0.08), (0.22, 0.82)], style: .angular)
         ]),

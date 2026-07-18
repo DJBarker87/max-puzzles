@@ -41,6 +41,21 @@ enum DotColouringMode: String, CaseIterable, Identifiable {
     }
 }
 
+/// Keeps the completion status from replacing the longer opening instruction when mask loading
+/// finishes immediately, while still reporting a genuinely visible loading transition.
+enum DotColouringAccessibilityAnnouncementPolicy {
+    static let minimumReadyStatusDelay: TimeInterval = 1
+
+    static func opening(for mode: DotColouringMode) -> String {
+        "Colouring opened. \(mode.instruction)"
+    }
+
+    static func ready(afterPrewarm elapsed: TimeInterval, mode: DotColouringMode) -> String? {
+        guard elapsed >= minimumReadyStatusDelay else { return nil }
+        return "Colours ready. \(mode.instruction)"
+    }
+}
+
 /// One continuous, genuine input gesture in the free-shading mode. Points and width are stored in
 /// the artwork's normalised 0...1 coordinate space so a rotation or a different device never
 /// distorts the child's work.
@@ -89,23 +104,56 @@ actor DotColouringSnapshotStore {
         var snapshot: DotColouringSnapshot
     }
 
-    private let defaults: UserDefaults
+    private struct DecodedSnapshot {
+        let snapshot: DotColouringSnapshot
+        let wasCorrupt: Bool
+        let migratedDefaultsKeys: [String]
+    }
 
-    init(defaults: UserDefaults = .standard) {
+    private let defaults: UserDefaults
+    private let fileManager: FileManager
+    private let storageDirectory: URL
+    /// The current session envelope is kept in actor-isolated memory so a transient filesystem
+    /// failure never makes a valid on-screen token look stale until the next launch.
+    private var liveEnvelopes: [String: Envelope] = [:]
+
+    init(
+        defaults: UserDefaults = .standard,
+        fileManager: FileManager = .default,
+        storageDirectory: URL? = nil
+    ) {
         self.defaults = defaults
+        self.fileManager = fileManager
+        if let storageDirectory {
+            self.storageDirectory = storageDirectory
+        } else {
+            let applicationSupport = fileManager.urls(
+                for: .applicationSupportDirectory,
+                in: .userDomainMask
+            ).first ?? fileManager.temporaryDirectory
+            let namespace = Bundle.main.bundleIdentifier ?? "MaxPuzzles"
+            self.storageDirectory = applicationSupport
+                .appendingPathComponent(namespace, isDirectory: true)
+                .appendingPathComponent("DotColouringSnapshots", isDirectory: true)
+                .appendingPathComponent("v3", isDirectory: true)
+        }
     }
 
     func beginSession(puzzleID: String, profileID: UUID?) -> Session {
-        let storageKey = key(puzzleID: puzzleID, profileID: profileID)
-        let oldStorageKey = legacyKey(
+        let resourceKey = key(puzzleID: puzzleID, profileID: profileID)
+        let decoded = decodeSnapshot(
+            resourceKey: resourceKey,
             puzzleID: puzzleID,
             profileID: profileID
         )
-        let decoded = decodeSnapshot(forKey: storageKey, legacyKey: oldStorageKey)
         let token = UUID()
         let envelope = Envelope(token: token, revision: 0, snapshot: decoded.snapshot)
-        persist(envelope, forKey: storageKey)
-        defaults.removeObject(forKey: oldStorageKey)
+        if persist(envelope, resourceKey: resourceKey) {
+            for defaultsKey in decoded.migratedDefaultsKeys {
+                defaults.removeObject(forKey: defaultsKey)
+            }
+        }
+        liveEnvelopes[resourceKey] = envelope
         return Session(
             token: token,
             revision: 0,
@@ -124,14 +172,19 @@ actor DotColouringSnapshotStore {
         sessionToken: UUID,
         revision: Int
     ) -> Bool {
-        let storageKey = key(puzzleID: puzzleID, profileID: profileID)
-        guard let existing = decodeEnvelope(forKey: storageKey),
+        let resourceKey = key(puzzleID: puzzleID, profileID: profileID)
+        // Disk is authoritative across store instances (for example after a scene rebuild); the
+        // actor-local envelope is only the fallback when a transient read cannot reach the file.
+        guard let existing = decodeFileEnvelope(resourceKey: resourceKey) ?? liveEnvelopes[resourceKey],
               existing.token == sessionToken,
               revision > existing.revision else { return false }
-        persist(
-            Envelope(token: sessionToken, revision: revision, snapshot: bounded(snapshot)),
-            forKey: storageKey
+        let envelope = Envelope(
+            token: sessionToken,
+            revision: revision,
+            snapshot: bounded(snapshot)
         )
+        guard persist(envelope, resourceKey: resourceKey) else { return false }
+        liveEnvelopes[resourceKey] = envelope
         return true
     }
 
@@ -159,33 +212,88 @@ actor DotColouringSnapshotStore {
     }
 
     private func decodeSnapshot(
-        forKey storageKey: String,
-        legacyKey: String
-    ) -> (snapshot: DotColouringSnapshot, wasCorrupt: Bool) {
-        if let data = defaults.data(forKey: storageKey) {
-            guard let envelope = try? JSONDecoder().decode(Envelope.self, from: data) else {
-                defaults.removeObject(forKey: storageKey)
-                return (.empty, true)
+        resourceKey: String,
+        puzzleID: String,
+        profileID: UUID?
+    ) -> DecodedSnapshot {
+        let fileURL = fileURL(resourceKey: resourceKey)
+        if fileManager.fileExists(atPath: fileURL.path) {
+            guard let data = try? Data(contentsOf: fileURL, options: .mappedIfSafe),
+                  let envelope = try? JSONDecoder().decode(Envelope.self, from: data) else {
+                try? fileManager.removeItem(at: fileURL)
+                return DecodedSnapshot(
+                    snapshot: .empty,
+                    wasCorrupt: true,
+                    migratedDefaultsKeys: []
+                )
             }
-            return (bounded(envelope.snapshot), false)
+            return DecodedSnapshot(
+                snapshot: bounded(envelope.snapshot),
+                wasCorrupt: false,
+                migratedDefaultsKeys: []
+            )
         }
 
-        guard let legacyData = defaults.data(forKey: legacyKey) else { return (.empty, false) }
-        guard let legacySnapshot = try? JSONDecoder().decode(DotColouringSnapshot.self, from: legacyData) else {
-            defaults.removeObject(forKey: legacyKey)
-            return (.empty, true)
+        let defaultsV2Key = key(puzzleID: puzzleID, profileID: profileID)
+        if let data = defaults.data(forKey: defaultsV2Key) {
+            guard let envelope = try? JSONDecoder().decode(Envelope.self, from: data) else {
+                defaults.removeObject(forKey: defaultsV2Key)
+                return DecodedSnapshot(
+                    snapshot: .empty,
+                    wasCorrupt: true,
+                    migratedDefaultsKeys: []
+                )
+            }
+            return DecodedSnapshot(
+                snapshot: bounded(envelope.snapshot),
+                wasCorrupt: false,
+                migratedDefaultsKeys: [defaultsV2Key]
+            )
         }
-        return (bounded(legacySnapshot), false)
+
+        let defaultsV1Key = legacyKey(puzzleID: puzzleID, profileID: profileID)
+        guard let legacyData = defaults.data(forKey: defaultsV1Key) else {
+            return DecodedSnapshot(snapshot: .empty, wasCorrupt: false, migratedDefaultsKeys: [])
+        }
+        guard let legacySnapshot = try? JSONDecoder().decode(DotColouringSnapshot.self, from: legacyData) else {
+            defaults.removeObject(forKey: defaultsV1Key)
+            return DecodedSnapshot(snapshot: .empty, wasCorrupt: true, migratedDefaultsKeys: [])
+        }
+        return DecodedSnapshot(
+            snapshot: bounded(legacySnapshot),
+            wasCorrupt: false,
+            migratedDefaultsKeys: [defaultsV1Key]
+        )
     }
 
-    private func decodeEnvelope(forKey storageKey: String) -> Envelope? {
-        guard let data = defaults.data(forKey: storageKey) else { return nil }
+    private func decodeFileEnvelope(resourceKey: String) -> Envelope? {
+        guard let data = try? Data(contentsOf: fileURL(resourceKey: resourceKey), options: .mappedIfSafe)
+        else { return nil }
         return try? JSONDecoder().decode(Envelope.self, from: data)
     }
 
-    private func persist(_ envelope: Envelope, forKey storageKey: String) {
-        guard let data = try? JSONEncoder().encode(envelope) else { return }
-        defaults.set(data, forKey: storageKey)
+    @discardableResult
+    private func persist(_ envelope: Envelope, resourceKey: String) -> Bool {
+        do {
+            try fileManager.createDirectory(
+                at: storageDirectory,
+                withIntermediateDirectories: true
+            )
+            let data = try JSONEncoder().encode(envelope)
+            try data.write(to: fileURL(resourceKey: resourceKey), options: .atomic)
+            return true
+        } catch {
+            return false
+        }
+    }
+
+    private func fileURL(resourceKey: String) -> URL {
+        let filename = Data(resourceKey.utf8)
+            .base64EncodedString()
+            .replacingOccurrences(of: "/", with: "_")
+            .replacingOccurrences(of: "+", with: "-")
+            .replacingOccurrences(of: "=", with: "")
+        return storageDirectory.appendingPathComponent("\(filename).json", isDirectory: false)
     }
 
     private func key(puzzleID: String, profileID: UUID?) -> String {
@@ -320,65 +428,103 @@ enum DotColourStrokeSampler {
     }
 }
 
-enum DotColourCoverageEvaluator {
-    static let completionThreshold: CGFloat = 0.18
-    private static let gridSize = 30
+/// Immutable 30×30 occupancy sampled from a semantic mask once, when its 512×512 bitmap is decoded.
+/// The former evaluator performed the same 900 alpha lookups after every completed Pencil stroke.
+struct DotColourCoverageMask: Sendable {
+    static let gridSize = 30
 
-    static func coverage(
-        of strokes: [DotColourStroke],
-        in maskArt: DotPuzzleReferenceArt
-    ) -> CGFloat {
-        let relevantStrokes = DotColourStrokeSampler.bounded(strokes)
-        guard !relevantStrokes.isEmpty else { return 0 }
+    let occupied: [Bool]
+    let sampleCount: Int
 
-        var maskGrid = Array(repeating: false, count: gridSize * gridSize)
-        var maskSampleCount = 0
-        for row in 0..<gridSize {
-            for column in 0..<gridSize {
-                let point = gridPoint(column: column, row: row)
-                if DotSemanticMaskHitTester.contains(point, maskArt: maskArt) {
-                    maskGrid[row * gridSize + column] = true
-                    maskSampleCount += 1
+    init(width: Int, height: Int, alpha: [UInt8]) {
+        var occupied = Array(repeating: false, count: Self.gridSize * Self.gridSize)
+        var sampleCount = 0
+        guard width > 0, height > 0, alpha.count >= width * height else {
+            self.occupied = occupied
+            self.sampleCount = 0
+            return
+        }
+
+        for row in 0..<Self.gridSize {
+            for column in 0..<Self.gridSize {
+                let point = Self.gridPoint(column: column, row: row)
+                let x = min(max(Int(point.x * CGFloat(width)), 0), width - 1)
+                let y = min(max(Int(point.y * CGFloat(height)), 0), height - 1)
+                let index = row * Self.gridSize + column
+                if alpha[y * width + x] > 24 {
+                    occupied[index] = true
+                    sampleCount += 1
                 }
             }
         }
-        guard maskSampleCount > 0 else { return 0 }
-
-        var coveredGrid = Array(repeating: false, count: gridSize * gridSize)
-        for stroke in relevantStrokes {
-            let radius = max(stroke.normalizedLineWidth / 2, 0.012) + 0.006
-            if stroke.points.count == 1, let point = stroke.points.first {
-                markCoveredSamples(
-                    from: point,
-                    to: point,
-                    radius: radius,
-                    maskGrid: maskGrid,
-                    coveredGrid: &coveredGrid
-                )
-            } else {
-                for (start, end) in zip(stroke.points, stroke.points.dropFirst()) {
-                    markCoveredSamples(
-                        from: start,
-                        to: end,
-                        radius: radius,
-                        maskGrid: maskGrid,
-                        coveredGrid: &coveredGrid
-                    )
-                }
-            }
-        }
-        let coveredSampleCount = coveredGrid.enumerated().reduce(into: 0) { count, entry in
-            if maskGrid[entry.offset], entry.element { count += 1 }
-        }
-        return CGFloat(coveredSampleCount) / CGFloat(maskSampleCount)
+        self.occupied = occupied
+        self.sampleCount = sampleCount
     }
 
-    private static func markCoveredSamples(
+    static func gridPoint(column: Int, row: Int) -> CGPoint {
+        CGPoint(
+            x: (CGFloat(column) + 0.5) / CGFloat(gridSize),
+            y: (CGFloat(row) + 0.5) / CGFloat(gridSize)
+        )
+    }
+}
+
+/// Retains the union of covered samples for one semantic region. Normal play appends one immutable
+/// stroke, so only that stroke is evaluated. If bounded history evicts an old stroke, the small grid
+/// is rebuilt from the retained vectors to preserve the previous completion result exactly.
+struct DotColourCoverageAccumulator {
+    private let mask: DotColourCoverageMask
+    private var coveredGrid: [Bool]
+    private(set) var strokeIDs: [UUID] = []
+
+    init(mask: DotColourCoverageMask) {
+        self.mask = mask
+        coveredGrid = Array(repeating: false, count: DotColourCoverageMask.gridSize * DotColourCoverageMask.gridSize)
+    }
+
+    mutating func replaceStrokes(_ strokes: [DotColourStroke]) -> CGFloat {
+        let relevantStrokes = DotColourStrokeSampler.bounded(strokes)
+        let nextIDs = relevantStrokes.map(\.id)
+
+        if nextIDs == strokeIDs { return coverage }
+        if nextIDs.count == strokeIDs.count + 1,
+           Array(nextIDs.dropLast()) == strokeIDs,
+           let appended = relevantStrokes.last {
+            mark(appended)
+        } else {
+            coveredGrid = Array(
+                repeating: false,
+                count: DotColourCoverageMask.gridSize * DotColourCoverageMask.gridSize
+            )
+            for stroke in relevantStrokes { mark(stroke) }
+        }
+        strokeIDs = nextIDs
+        return coverage
+    }
+
+    var coverage: CGFloat {
+        guard mask.sampleCount > 0 else { return 0 }
+        let coveredSampleCount = coveredGrid.enumerated().reduce(into: 0) { count, entry in
+            if mask.occupied[entry.offset], entry.element { count += 1 }
+        }
+        return CGFloat(coveredSampleCount) / CGFloat(mask.sampleCount)
+    }
+
+    private mutating func mark(_ stroke: DotColourStroke) {
+        let radius = max(stroke.normalizedLineWidth / 2, 0.012) + 0.006
+        if stroke.points.count == 1, let point = stroke.points.first {
+            markCoveredSamples(from: point, to: point, radius: radius)
+        } else {
+            for (start, end) in zip(stroke.points, stroke.points.dropFirst()) {
+                markCoveredSamples(from: start, to: end, radius: radius)
+            }
+        }
+    }
+
+    private mutating func markCoveredSamples(
         from start: CGPoint,
         to end: CGPoint,
-        radius: CGFloat,
-        maskGrid: [Bool],
-        coveredGrid: inout [Bool]
+        radius: CGFloat
     ) {
         guard let columns = gridRange(
             from: min(start.x, end.x) - radius,
@@ -391,9 +537,9 @@ enum DotColourCoverageEvaluator {
         let squaredRadius = radius * radius
         for row in rows {
             for column in columns {
-                let index = row * gridSize + column
-                guard maskGrid[index], !coveredGrid[index] else { continue }
-                let sample = gridPoint(column: column, row: row)
+                let index = row * DotColourCoverageMask.gridSize + column
+                guard mask.occupied[index], !coveredGrid[index] else { continue }
+                let sample = DotColourCoverageMask.gridPoint(column: column, row: row)
                 if squaredDistance(from: sample, toSegmentFrom: start, to: end) <= squaredRadius {
                     coveredGrid[index] = true
                 }
@@ -401,22 +547,15 @@ enum DotColourCoverageEvaluator {
         }
     }
 
-    private static func gridPoint(column: Int, row: Int) -> CGPoint {
-        CGPoint(
-            x: (CGFloat(column) + 0.5) / CGFloat(gridSize),
-            y: (CGFloat(row) + 0.5) / CGFloat(gridSize)
-        )
-    }
-
-    private static func gridRange(from lowerValue: CGFloat, through upperValue: CGFloat) -> ClosedRange<Int>? {
-        let scale = CGFloat(gridSize)
+    private func gridRange(from lowerValue: CGFloat, through upperValue: CGFloat) -> ClosedRange<Int>? {
+        let scale = CGFloat(DotColourCoverageMask.gridSize)
         let lower = max(0, Int(ceil(lowerValue * scale - 0.5)))
-        let upper = min(gridSize - 1, Int(floor(upperValue * scale - 0.5)))
+        let upper = min(DotColourCoverageMask.gridSize - 1, Int(floor(upperValue * scale - 0.5)))
         guard lower <= upper else { return nil }
         return lower...upper
     }
 
-    private static func squaredDistance(
+    private func squaredDistance(
         from point: CGPoint,
         toSegmentFrom start: CGPoint,
         to end: CGPoint
@@ -438,6 +577,89 @@ enum DotColourCoverageEvaluator {
         let nearestDX = point.x - nearestX
         let nearestDY = point.y - nearestY
         return nearestDX * nearestDX + nearestDY * nearestDY
+    }
+}
+
+enum DotColourCoverageEvaluator {
+    static let completionThreshold: CGFloat = 0.18
+
+    static func makeAccumulator(
+        in maskArt: DotPuzzleReferenceArt
+    ) -> DotColourCoverageAccumulator? {
+        DotSemanticMaskHitTester.coverageMask(for: maskArt).map(DotColourCoverageAccumulator.init)
+    }
+
+    static func coverage(
+        of strokes: [DotColourStroke],
+        in maskArt: DotPuzzleReferenceArt
+    ) -> CGFloat {
+        guard var accumulator = makeAccumulator(in: maskArt) else { return 0 }
+        return accumulator.replaceStrokes(strokes)
+    }
+}
+
+/// A committed stroke's geometry is immutable. Converting its normalised samples into a Path once
+/// avoids remapping every historical sample whenever a pot, status label, or accessibility value
+/// changes elsewhere in the stage.
+private struct DotCommittedStrokeRenderPath {
+    let normalizedPath: Path?
+    let singlePoint: CGPoint?
+    let normalizedLineWidth: CGFloat
+
+    init(stroke: DotColourStroke) {
+        normalizedLineWidth = stroke.normalizedLineWidth
+        if stroke.points.count == 1 {
+            normalizedPath = nil
+            singlePoint = stroke.points.first
+        } else if let first = stroke.points.first {
+            var path = Path()
+            path.move(to: first)
+            for point in stroke.points.dropFirst() { path.addLine(to: point) }
+            normalizedPath = path
+            singlePoint = nil
+        } else {
+            normalizedPath = nil
+            singlePoint = nil
+        }
+    }
+}
+
+private struct DotCommittedStrokeRenderGroup {
+    let revision: Int
+    let strokeIDs: [UUID]
+    let paths: [DotCommittedStrokeRenderPath]
+}
+
+/// Groups committed paths by swatch and gives only a changed group a new revision. SwiftUI can
+/// consequently retain every other masked Canvas layer when one region receives another stroke.
+private struct DotCommittedStrokeRenderCache {
+    private(set) var groups: [Int: DotCommittedStrokeRenderGroup] = [:]
+    private var nextRevision = 0
+
+    init(strokes: [DotColourStroke]) {
+        replace(with: strokes)
+    }
+
+    mutating func replace(with strokes: [DotColourStroke]) {
+        let grouped = Dictionary(grouping: strokes, by: \DotColourStroke.swatchID)
+        let allSwatchIDs = Set(groups.keys).union(grouped.keys)
+
+        for swatchID in allSwatchIDs {
+            let nextStrokes = grouped[swatchID] ?? []
+            let nextIDs = nextStrokes.map(\.id)
+            if groups[swatchID]?.strokeIDs == nextIDs { continue }
+
+            nextRevision += 1
+            if nextStrokes.isEmpty {
+                groups.removeValue(forKey: swatchID)
+            } else {
+                groups[swatchID] = DotCommittedStrokeRenderGroup(
+                    revision: nextRevision,
+                    strokeIDs: nextIDs,
+                    paths: nextStrokes.map(DotCommittedStrokeRenderPath.init)
+                )
+            }
+        }
     }
 }
 
@@ -464,7 +686,8 @@ struct DotToDotColouringStage: View {
     @State private var selectedSwatchID: Int
     @State private var progress: DotColouringProgress
     @State private var strokes: [DotColourStroke] = []
-    @State private var activeStroke: DotColourStroke?
+    @State private var committedStrokeCache: DotCommittedStrokeRenderCache
+    @State private var coverageAccumulators: [Int: DotColourCoverageAccumulator] = [:]
     @State private var message: String?
     @State private var wrongRegionID: Int?
     @State private var showsLeaveConfirmation = false
@@ -507,6 +730,9 @@ struct DotToDotColouringStage: View {
             )
         )
         _strokes = State(initialValue: boundedStrokes)
+        _committedStrokeCache = State(
+            initialValue: DotCommittedStrokeRenderCache(strokes: boundedStrokes)
+        )
     }
 
     var body: some View {
@@ -560,7 +786,8 @@ struct DotToDotColouringStage: View {
             Text("Your colouring is saved. You can finish it next time.")
         }
         .task {
-            announce("Colouring opened. \(mode.instruction)")
+            let prewarmStartedAt = ProcessInfo.processInfo.systemUptime
+            announce(DotColouringAccessibilityAnnouncementPolicy.opening(for: mode))
             await DotSemanticMaskHitTester.prewarm(
                 plan,
                 referenceArt: puzzle.referenceArt
@@ -571,7 +798,13 @@ struct DotToDotColouringStage: View {
             }
             restoreInitialProgressAfterPrewarm()
             masksReady = true
-            announce("Colours ready")
+            let prewarmElapsed = ProcessInfo.processInfo.systemUptime - prewarmStartedAt
+            if let readyAnnouncement = DotColouringAccessibilityAnnouncementPolicy.ready(
+                afterPrewarm: prewarmElapsed,
+                mode: mode
+            ) {
+                announce(readyAnnouncement, queueBehindExistingSpeech: true)
+            }
         }
         .onDisappear {
             clearWrongRegionTask?.cancel()
@@ -684,11 +917,11 @@ struct DotToDotColouringStage: View {
                 selectedSwatchID: selectedSwatchID,
                 tapFilledRegionIDs: progress.tapFilledRegionIDs,
                 completedRegionIDs: progress.completedRegionIDs,
-                strokes: strokes,
-                activeStroke: activeStroke,
+                committedStrokeCache: committedStrokeCache,
                 wrongRegionID: wrongRegionID,
                 onTap: applyTap,
-                onShadeTouch: handleShadeTouch
+                onShadeBegin: beginShadeStroke,
+                onShadeComplete: commitShadeStroke
             )
             .frame(width: side, height: side)
             .position(x: geometry.size.width / 2, y: geometry.size.height / 2)
@@ -743,7 +976,6 @@ struct DotToDotColouringStage: View {
                     FeedbackManager.shared.haptic(.selection)
                     withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.20)) {
                         mode = candidate
-                        activeStroke = nil
                         wrongRegionID = nil
                         message = nil
                     }
@@ -867,80 +1099,69 @@ struct DotToDotColouringStage: View {
         announce(message ?? "Colour complete")
     }
 
-    private func handleShadeTouch(_ phase: TraceTouchPhase, _ location: CGPoint, _ size: CGSize) {
-        let point = DotColouringInteractionPolicy.normalizedPoint(location, in: size)
-
-        switch phase {
-        case .began:
-            let touchedRegion = DotSemanticMaskHitTester.regionID(at: point, in: plan)
-            guard DotColouringInteractionPolicy.accepts(
-                selectedSwatchID: selectedSwatchID,
-                semanticRegionID: touchedRegion
-            ) else {
-                wrongRegionID = touchedRegion
-                message = touchedRegion.map {
-                    "That space is number \($0). Choose its matching pot first."
-                } ?? "Start inside a numbered part of the picture."
-                FeedbackManager.shared.haptic(.light)
-                clearWrongRegion(after: 0.65)
-                activeStroke = nil
-                return
-            }
-            activeStroke = DotColourStroke(
-                regionID: selectedSwatchID,
-                swatchID: selectedSwatchID,
-                points: [point]
-            )
-            wrongRegionID = nil
-            message = "Keep shading—your pencil stays inside \(swatchName(selectedSwatchID))."
-
-        case .moved:
-            guard var stroke = activeStroke else { return }
-            guard DotColourStrokeSampler.append(point, to: &stroke) else { return }
-            activeStroke = stroke
-
-        case .ended:
-            guard var finished = activeStroke else { return }
-            _ = DotColourStrokeSampler.append(point, to: &finished)
-            guard isMeaningfulInMaskStroke(finished) else {
-                activeStroke = nil
-                message = "Make a longer shading stroke inside the numbered space."
-                FeedbackManager.shared.haptic(.light)
-                announce(message ?? "Make a longer stroke")
-                return
-            }
-            strokes.append(finished)
-            strokes = DotColourStrokeSampler.bounded(strokes)
-            activeStroke = nil
-
-            let regionStrokes = strokes.filter { $0.regionID == finished.regionID }
-            let coverage = plan.swatches.first(where: { $0.id == finished.regionID }).map {
-                DotColourCoverageEvaluator.coverage(of: regionStrokes, in: $0.maskArt)
-            } ?? 0
-            var updated = progress
-            let newlyCompleted = updated.recordStroke(in: finished.regionID, coverage: coverage)
-            progress = updated
-            if newlyCompleted { onRegionCompleted(finished.regionID) }
-            scheduleSnapshotPersistence()
-
-            if progress.isComplete {
-                message = "Beautiful shading—your picture is ready!"
-                SoundEffectsService.shared.play(.starReveal)
-                FeedbackManager.shared.haptic(.correctMove)
-            } else if newlyCompleted {
-                message = "Colour \(finished.regionID) is shaded. Choose another pot."
-                SoundEffectsService.shared.play(.correctMove)
-                FeedbackManager.shared.haptic(.correctMove)
-            } else {
-                let percent = min(Int((coverage * 100).rounded()), 99)
-                message = "Keep shading colour \(finished.regionID)—about \(percent)% covered."
-                FeedbackManager.shared.haptic(.light)
-            }
-            announce(message ?? "Shading saved")
-
-        case .cancelled:
-            activeStroke = nil
+    private func beginShadeStroke(_ point: CGPoint) -> Bool {
+        let touchedRegion = DotSemanticMaskHitTester.regionID(at: point, in: plan)
+        guard DotColouringInteractionPolicy.accepts(
+            selectedSwatchID: selectedSwatchID,
+            semanticRegionID: touchedRegion
+        ) else {
+            wrongRegionID = touchedRegion
+            message = touchedRegion.map {
+                "That space is number \($0). Choose its matching pot first."
+            } ?? "Start inside a numbered part of the picture."
+            FeedbackManager.shared.haptic(.light)
+            clearWrongRegion(after: 0.65)
+            return false
         }
+
+        wrongRegionID = nil
+        message = "Keep shading—your pencil stays inside \(swatchName(selectedSwatchID))."
+        return true
+    }
+
+    private func commitShadeStroke(_ finished: DotColourStroke) {
+        guard isMeaningfulInMaskStroke(finished) else {
+            message = "Make a longer shading stroke inside the numbered space."
+            FeedbackManager.shared.haptic(.light)
+            announce(message ?? "Make a longer stroke")
+            return
+        }
+
+        strokes.append(finished)
+        strokes = DotColourStrokeSampler.bounded(strokes)
+        committedStrokeCache.replace(with: strokes)
+
+        let regionStrokes = strokes.filter { $0.regionID == finished.regionID }
+        let coverage: CGFloat
+        if let swatch = plan.swatches.first(where: { $0.id == finished.regionID }),
+           var accumulator = coverageAccumulators[finished.regionID]
+                ?? DotColourCoverageEvaluator.makeAccumulator(in: swatch.maskArt) {
+            coverage = accumulator.replaceStrokes(regionStrokes)
+            coverageAccumulators[finished.regionID] = accumulator
+        } else {
+            coverage = 0
+        }
+
+        var updated = progress
+        let newlyCompleted = updated.recordStroke(in: finished.regionID, coverage: coverage)
+        progress = updated
+        if newlyCompleted { onRegionCompleted(finished.regionID) }
+        scheduleSnapshotPersistence()
+
+        if progress.isComplete {
+            message = "Beautiful shading—your picture is ready!"
+            SoundEffectsService.shared.play(.starReveal)
+            FeedbackManager.shared.haptic(.correctMove)
+        } else if newlyCompleted {
+            message = "Colour \(finished.regionID) is shaded. Choose another pot."
+            SoundEffectsService.shared.play(.correctMove)
+            FeedbackManager.shared.haptic(.correctMove)
+        } else {
+            let percent = min(Int((coverage * 100).rounded()), 99)
+            message = "Keep shading colour \(finished.regionID)—about \(percent)% covered."
+            FeedbackManager.shared.haptic(.light)
+        }
+        announce(message ?? "Shading saved")
     }
 
     private func reset() {
@@ -950,7 +1171,8 @@ struct DotToDotColouringStage: View {
         withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.20)) {
             progress.reset()
             strokes = []
-            activeStroke = nil
+            committedStrokeCache.replace(with: [])
+            coverageAccumulators = [:]
             wrongRegionID = nil
             selectedSwatchID = plan.swatches.first?.id ?? 1
             message = "Fresh canvas—start with pot 1."
@@ -1037,13 +1259,20 @@ struct DotToDotColouringStage: View {
     }
 
     private func restoreInitialProgressAfterPrewarm() {
-        let shadedRegions = Set(plan.swatches.compactMap { swatch in
-            let coverage = DotColourCoverageEvaluator.coverage(
-                of: strokes.filter { $0.regionID == swatch.id },
-                in: swatch.maskArt
+        var restoredAccumulators: [Int: DotColourCoverageAccumulator] = [:]
+        var shadedRegions: Set<Int> = []
+        for swatch in plan.swatches {
+            guard var accumulator = DotColourCoverageEvaluator.makeAccumulator(in: swatch.maskArt)
+            else { continue }
+            let coverage = accumulator.replaceStrokes(
+                strokes.filter { $0.regionID == swatch.id }
             )
-            return coverage >= DotColourCoverageEvaluator.completionThreshold ? swatch.id : nil
-        })
+            restoredAccumulators[swatch.id] = accumulator
+            if coverage >= DotColourCoverageEvaluator.completionThreshold {
+                shadedRegions.insert(swatch.id)
+            }
+        }
+        coverageAccumulators = restoredAccumulators
         let migratedTapRegions = progress.tapFilledRegionIDs
             .union(initialCompletedRegions.subtracting(shadedRegions))
         progress = DotColouringProgress(
@@ -1090,8 +1319,28 @@ struct DotToDotColouringStage: View {
         )
     }
 
-    private func announce(_ value: String) {
-        UIAccessibility.post(notification: .announcement, argument: value)
+    private func announce(_ value: String, queueBehindExistingSpeech: Bool = false) {
+        guard queueBehindExistingSpeech else {
+            UIAccessibility.post(notification: .announcement, argument: value)
+            return
+        }
+
+        let announcement = NSMutableAttributedString(string: value)
+        let fullRange = NSRange(location: 0, length: announcement.length)
+        if #available(iOS 17.0, *) {
+            announcement.addAttribute(
+                .accessibilitySpeechAnnouncementPriority,
+                value: UIAccessibilityPriority.low,
+                range: fullRange
+            )
+        } else {
+            announcement.addAttribute(
+                .accessibilitySpeechQueueAnnouncement,
+                value: true,
+                range: fullRange
+            )
+        }
+        UIAccessibility.post(notification: .announcement, argument: announcement)
     }
 }
 
@@ -1102,11 +1351,11 @@ private struct SemanticColourCanvas: View {
     let selectedSwatchID: Int
     let tapFilledRegionIDs: Set<Int>
     let completedRegionIDs: Set<Int>
-    let strokes: [DotColourStroke]
-    let activeStroke: DotColourStroke?
+    let committedStrokeCache: DotCommittedStrokeRenderCache
     let wrongRegionID: Int?
     let onTap: (Int?) -> Void
-    let onShadeTouch: (TraceTouchPhase, CGPoint, CGSize) -> Void
+    let onShadeBegin: (CGPoint) -> Bool
+    let onShadeComplete: (DotColourStroke) -> Void
 
     var body: some View {
         GeometryReader { geometry in
@@ -1124,15 +1373,29 @@ private struct SemanticColourCanvas: View {
                 }
 
                 ForEach(plan.swatches, id: \.id) { swatch in
-                    let swatchStrokes = strokesForSwatch(swatch.id)
-                    if !swatchStrokes.isEmpty {
-                        DotColourStrokeLayer(
-                            strokes: swatchStrokes,
-                            color: Color(hex: swatch.hex)
+                    if let group = committedStrokeCache.groups[swatch.id] {
+                        DotMaskedCommittedStrokeLayer(
+                            group: group,
+                            colorHex: swatch.hex,
+                            maskArt: swatch.maskArt
                         )
-                        .mask {
-                            DotColourAtlasTileView(art: swatch.maskArt, tint: .white)
-                        }
+                        .equatable()
+                    }
+                }
+
+                if mode == .shade,
+                   let selectedSwatch = plan.swatches.first(where: { $0.id == selectedSwatchID }) {
+                    DotShadeTouchCapture(
+                        swatchID: selectedSwatchID,
+                        color: UIColor(Color(hex: selectedSwatch.hex)),
+                        maskImage: DotSemanticMaskHitTester.croppedImage(for: selectedSwatch.maskArt),
+                        onBegin: onShadeBegin,
+                        onComplete: onShadeComplete
+                    )
+                    .accessibilityLabel("\(puzzle.title) shading canvas")
+                    .accessibilityHint("Choose a numbered pot, then draw in its matching space with a finger or Apple Pencil")
+                    .accessibilityAction(named: "Colour selected number") {
+                        onTap(selectedSwatchID)
                     }
                 }
 
@@ -1140,16 +1403,7 @@ private struct SemanticColourCanvas: View {
 
                 DotColourLineArtworkView(puzzle: puzzle)
 
-                if mode == .shade {
-                    TraceTouchCapture(pencilOnly: false) { phase, location in
-                        onShadeTouch(phase, location, geometry.size)
-                    }
-                    .accessibilityLabel("\(puzzle.title) shading canvas")
-                    .accessibilityHint("Choose a numbered pot, then draw in its matching space with a finger or Apple Pencil")
-                    .accessibilityAction(named: "Colour selected number") {
-                        onTap(selectedSwatchID)
-                    }
-                } else {
+                if mode == .tapToFill {
                     Color.clear
                         .contentShape(Rectangle())
                         .gesture(
@@ -1219,45 +1473,36 @@ private struct SemanticColourCanvas: View {
             }
         }
     }
-
-    private func strokesForSwatch(_ swatchID: Int) -> [DotColourStroke] {
-        var result = strokes.filter { $0.swatchID == swatchID }
-        if let activeStroke, activeStroke.swatchID == swatchID {
-            result.append(activeStroke)
-        }
-        return result
-    }
 }
 
-private struct DotColourStrokeLayer: View {
-    let strokes: [DotColourStroke]
-    let color: Color
+private struct DotMaskedCommittedStrokeLayer: View, Equatable {
+    let group: DotCommittedStrokeRenderGroup
+    let colorHex: String
+    let maskArt: DotPuzzleReferenceArt
 
     var body: some View {
         Canvas { context, size in
             let side = min(size.width, size.height)
-            for stroke in strokes {
-                let points = stroke.points.map {
-                    CGPoint(x: $0.x * size.width, y: $0.y * size.height)
-                }
-                guard let first = points.first else { continue }
-                let width = max(5, stroke.normalizedLineWidth * side)
+            let transform = CGAffineTransform(scaleX: size.width, y: size.height)
+            for renderPath in group.paths {
+                let width = max(5, renderPath.normalizedLineWidth * side)
 
-                if points.count == 1 {
+                if let normalizedPoint = renderPath.singlePoint {
+                    let point = normalizedPoint.applying(transform)
                     let mark = CGRect(
-                        x: first.x - width / 2,
-                        y: first.y - width / 2,
+                        x: point.x - width / 2,
+                        y: point.y - width / 2,
                         width: width,
                         height: width
                     )
-                    context.fill(Path(ellipseIn: mark), with: .color(color.opacity(0.92)))
-                } else {
-                    var path = Path()
-                    path.move(to: first)
-                    for point in points.dropFirst() { path.addLine(to: point) }
+                    context.fill(
+                        Path(ellipseIn: mark),
+                        with: .color(Color(hex: colorHex).opacity(0.92))
+                    )
+                } else if let normalizedPath = renderPath.normalizedPath {
                     context.stroke(
-                        path,
-                        with: .color(color.opacity(0.92)),
+                        normalizedPath.applying(transform),
+                        with: .color(Color(hex: colorHex).opacity(0.92)),
                         style: StrokeStyle(
                             lineWidth: width,
                             lineCap: .round,
@@ -1267,12 +1512,220 @@ private struct DotColourStrokeLayer: View {
                 }
             }
         }
+        .mask {
+            DotColourAtlasTileView(art: maskArt, tint: .white)
+        }
         .allowsHitTesting(false)
         .accessibilityHidden(true)
     }
+
+    static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.group.revision == rhs.group.revision
+            && lhs.colorHex == rhs.colorHex
+            && lhs.maskArt.assetName == rhs.maskArt.assetName
+            && lhs.maskArt.column == rhs.maskArt.column
+            && lhs.maskArt.row == rhs.maskArt.row
+            && lhs.maskArt.columns == rhs.maskArt.columns
+            && lhs.maskArt.rows == rhs.maskArt.rows
+    }
 }
 
-/// Crops one normalised tile from a transparent atlas. The same primitive renders semantic masks
+/// Keeps the in-progress gesture, coalesced touch samples, and live CAShapeLayer entirely inside
+/// UIKit. SwiftUI receives one begin decision and one immutable completed stroke instead of
+/// rebuilding the whole colouring stage for every Pencil sample.
+private struct DotShadeTouchCapture: UIViewRepresentable {
+    let swatchID: Int
+    let color: UIColor
+    let maskImage: UIImage?
+    let onBegin: (CGPoint) -> Bool
+    let onComplete: (DotColourStroke) -> Void
+
+    func makeUIView(context: Context) -> DotShadeTouchView {
+        let view = DotShadeTouchView()
+        update(view)
+        return view
+    }
+
+    func updateUIView(_ uiView: DotShadeTouchView, context: Context) {
+        update(uiView)
+    }
+
+    private func update(_ view: DotShadeTouchView) {
+        view.configure(
+            swatchID: swatchID,
+            color: color,
+            maskImage: maskImage,
+            onBegin: onBegin,
+            onComplete: onComplete
+        )
+    }
+}
+
+private final class DotShadeTouchView: UIView {
+    private let strokeLayer = CAShapeLayer()
+    private let maskLayer = CALayer()
+    private var activeTouch: UITouch?
+    private var activeStroke: DotColourStroke?
+    private var configuredSwatchID: Int?
+    private var configuredColor = UIColor.clear
+    private var onBegin: ((CGPoint) -> Bool)?
+    private var onComplete: ((DotColourStroke) -> Void)?
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        prepareLayers()
+    }
+
+    required init?(coder: NSCoder) {
+        super.init(coder: coder)
+        prepareLayers()
+    }
+
+    func configure(
+        swatchID: Int,
+        color: UIColor,
+        maskImage: UIImage?,
+        onBegin: @escaping (CGPoint) -> Bool,
+        onComplete: @escaping (DotColourStroke) -> Void
+    ) {
+        if configuredSwatchID != nil, configuredSwatchID != swatchID {
+            cancelActiveStroke()
+        }
+        configuredSwatchID = swatchID
+        configuredColor = color
+        self.onBegin = onBegin
+        self.onComplete = onComplete
+        maskLayer.contents = maskImage?.cgImage
+        maskLayer.contentsScale = maskImage?.scale ?? UIScreen.main.scale
+        updateStrokeLayer()
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        strokeLayer.frame = bounds
+        maskLayer.frame = strokeLayer.bounds
+        updateStrokeLayer()
+    }
+
+    override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
+        guard activeTouch == nil,
+              bounds.width > 0,
+              bounds.height > 0,
+              let swatchID = configuredSwatchID,
+              let touch = touches.first(where: {
+                  TraceInputPolicy.accepts($0.type, pencilOnly: false)
+              }) else { return }
+
+        let point = normalized(touch.location(in: self))
+        guard onBegin?(point) == true else { return }
+        activeTouch = touch
+        activeStroke = DotColourStroke(
+            regionID: swatchID,
+            swatchID: swatchID,
+            points: [point]
+        )
+        updateStrokeLayer()
+    }
+
+    override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
+        guard let touch = matchingActiveTouch(in: touches), var stroke = activeStroke else {
+            return
+        }
+        let samples = event?.coalescedTouches(for: touch) ?? [touch]
+        var changed = false
+        for sample in samples {
+            changed = DotColourStrokeSampler.append(
+                normalized(sample.location(in: self)),
+                to: &stroke
+            ) || changed
+        }
+        guard changed else { return }
+        activeStroke = stroke
+        updateStrokeLayer()
+    }
+
+    override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
+        guard let touch = matchingActiveTouch(in: touches), var stroke = activeStroke else {
+            return
+        }
+        _ = DotColourStrokeSampler.append(normalized(touch.location(in: self)), to: &stroke)
+        clearActiveStroke()
+        onComplete?(stroke)
+    }
+
+    override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
+        guard matchingActiveTouch(in: touches) != nil else { return }
+        cancelActiveStroke()
+    }
+
+    private func prepareLayers() {
+        backgroundColor = .clear
+        isOpaque = false
+        isMultipleTouchEnabled = false
+        strokeLayer.contentsScale = UIScreen.main.scale
+        strokeLayer.lineCap = .round
+        strokeLayer.lineJoin = .round
+        strokeLayer.mask = maskLayer
+        maskLayer.contentsGravity = .resize
+        layer.addSublayer(strokeLayer)
+    }
+
+    private func updateStrokeLayer() {
+        guard let stroke = activeStroke, let first = stroke.points.first else {
+            strokeLayer.path = nil
+            return
+        }
+
+        let lineWidth = max(5, stroke.normalizedLineWidth * min(bounds.width, bounds.height))
+        strokeLayer.lineWidth = lineWidth
+        strokeLayer.opacity = 0.92
+        if stroke.points.count == 1 {
+            let centre = denormalized(first)
+            strokeLayer.fillColor = configuredColor.cgColor
+            strokeLayer.strokeColor = nil
+            strokeLayer.path = UIBezierPath(
+                ovalIn: CGRect(
+                    x: centre.x - lineWidth / 2,
+                    y: centre.y - lineWidth / 2,
+                    width: lineWidth,
+                    height: lineWidth
+                )
+            ).cgPath
+        } else {
+            let path = UIBezierPath()
+            path.move(to: denormalized(first))
+            for point in stroke.points.dropFirst() { path.addLine(to: denormalized(point)) }
+            strokeLayer.fillColor = nil
+            strokeLayer.strokeColor = configuredColor.cgColor
+            strokeLayer.path = path.cgPath
+        }
+    }
+
+    private func cancelActiveStroke() {
+        clearActiveStroke()
+    }
+
+    private func clearActiveStroke() {
+        activeTouch = nil
+        activeStroke = nil
+        strokeLayer.path = nil
+    }
+
+    private func matchingActiveTouch(in touches: Set<UITouch>) -> UITouch? {
+        guard let activeTouch else { return nil }
+        return touches.first(where: { $0 === activeTouch })
+    }
+
+    private func normalized(_ point: CGPoint) -> CGPoint {
+        DotColouringInteractionPolicy.normalizedPoint(point, in: bounds.size)
+    }
+
+    private func denormalized(_ point: CGPoint) -> CGPoint {
+        CGPoint(x: point.x * bounds.width, y: point.y * bounds.height)
+    }
+}
+
+/// Renders one independently shipped transparent tile. The same primitive renders semantic masks
 /// as solid fills, clips pencil strokes, and restores the original black line art above the colour.
 private struct DotColourAtlasTileView: View {
     let art: DotPuzzleReferenceArt
@@ -1346,7 +1799,7 @@ private struct DotColourQuantityDots: View {
 }
 
 /// Pixel-accurate hit testing for alpha-only semantic masks. A tiny immutable bitmap is cached for
-/// each atlas tile, so a tap or Pencil start can identify spots, body, detail or background without
+/// each direct tile, so a tap or Pencil start can identify spots, body, detail or background without
 /// reducing them to generic vertical strips.
 enum DotSemanticMaskHitTester {
     static let maximumCacheCostBytes = 24 * 1_024 * 1_024
@@ -1355,12 +1808,14 @@ enum DotSemanticMaskHitTester {
         let width: Int
         let height: Int
         let alpha: [UInt8]
+        let coverageMask: DotColourCoverageMask
         let image: UIImage
 
         init(width: Int, height: Int, alpha: [UInt8], image: UIImage) {
             self.width = width
             self.height = height
             self.alpha = alpha
+            coverageMask = DotColourCoverageMask(width: width, height: height, alpha: alpha)
             self.image = image
         }
 
@@ -1405,6 +1860,16 @@ enum DotSemanticMaskHitTester {
         bitmap(for: art)?.image
     }
 
+    static func coverageMask(for art: DotPuzzleReferenceArt) -> DotColourCoverageMask? {
+        bitmap(for: art)?.coverageMask
+    }
+
+    /// Every colouring tile is shipped independently so semantic colouring never asks ImageIO to
+    /// decode a 2560×1536 worksheet just to retain one 512×512 square.
+    static func tileAssetName(for art: DotPuzzleReferenceArt) -> String {
+        "\(art.assetName)_tile_r\(art.row)_c\(art.column)"
+    }
+
     static func hasCachedImage(for art: DotPuzzleReferenceArt) -> Bool {
         cache.object(forKey: cacheKey(for: art)) != nil
     }
@@ -1445,19 +1910,11 @@ enum DotSemanticMaskHitTester {
             guard art.columns > 0, art.rows > 0,
                   art.column >= 0, art.column < art.columns,
                   art.row >= 0, art.row < art.rows,
-                  let atlas = UIImage(named: art.assetName)?.cgImage else { return nil }
+                  let tile = UIImage(named: tileAssetName(for: art))?.cgImage else { return nil }
 
-            let tileWidth = atlas.width / art.columns
-            let tileHeight = atlas.height / art.rows
-            guard tileWidth > 0, tileHeight > 0,
-                  let tile = atlas.cropping(
-                    to: CGRect(
-                        x: art.column * tileWidth,
-                        y: art.row * tileHeight,
-                        width: tileWidth,
-                        height: tileHeight
-                    )
-                  ) else { return nil }
+            let tileWidth = tile.width
+            let tileHeight = tile.height
+            guard tileWidth > 0, tileHeight > 0 else { return nil }
 
             var rgba = [UInt8](repeating: 0, count: tileWidth * tileHeight * 4)
             let rendered = rgba.withUnsafeMutableBytes { storage -> Bool in

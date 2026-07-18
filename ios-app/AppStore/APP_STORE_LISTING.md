@@ -1,6 +1,6 @@
 # App Store listing — English (UK)
 
-This is the copy-ready listing for iOS and iPadOS version 1.4 (build 6). Version 1.3 remains in Apple's review queue and must not be withdrawn without an explicit release decision.
+This is the draft replacement listing for iOS and iPadOS version 1.4 (build 7). Build 6 remains in Apple's review queue and predates the phoneme-audio integration; replacing it requires a separate withdrawal and submission decision.
 
 ## App information
 
@@ -8,7 +8,7 @@ This is the copy-ready listing for iOS and iPadOS version 1.4 (build 6). Version
 - Subtitle (25/30): `Handwriting & maths games`
 - Bundle ID: `com.maxpuzzles.app`
 - Version: `1.4`
-- Build: `6`
+- Build: `7`
 - Primary category: Education
 - Secondary category: Games
 - Games subcategories: Family and Puzzle
@@ -56,9 +56,10 @@ Practise all 26 lowercase letters, 26 capitals and the numbers 0–9. Every symb
 • Get immediate feedback on starting point, direction, path and line placement
 • See a formation score out of 100 and earn Comet Points for every attempt
 • Pick any symbol instantly in Quick Practice
-• Recall chosen letters from sight or by hearing their letter names
-• Hear ordinary letter names and write the match in Letter Name Mission
+• Recall chosen letters from sight or by hearing their sounds
+• Hear British-English phoneme recordings and write the match in Letter Sound Mission
 • Write a whole common word on one continuous writing line
+• Type a one-off word and practise writing it immediately
 • Build control first with Flight School's lines, curves, slants and loops
 • Move from the screen to real pencil-and-paper practice
 • Choose finger input or Apple Pencil-only input on compatible iPad models
@@ -110,7 +111,7 @@ Meet Dot-to-Dot Discovery:
 • Build subitising confidence with standard 1–5 dot patterns and quick star patterns
 • Occasionally practise writing a number in Comet Writer between pictures
 
-This update also adds Star Speller, private iCloud progress sync for family profiles and spoken letter-name practice. Comet Writer works with a finger, with a stylus remaining optional.
+This update also adds Star Speller, private iCloud progress sync for family profiles and British-English letter-sound practice. Comet Writer works with a finger, with a stylus remaining optional.
 
 ## App Review notes
 
@@ -123,7 +124,7 @@ Suggested review path:
 3. Complete Giraffe, then open its full-screen colouring stage. Switch between Tap and Pencil modes: the available colours and masks correspond to the giraffe, spots and background rather than generic strips. Completing every colour shows the reward; More Pictures returns directly to the gallery. A separate Star Spot prompt remains optional.
 4. Return to the gallery and choose Big Number Adventure to see selected 1–25 trails such as Ocean Ship, Dump Truck and Scooter. Every visible exterior turn corresponds to a numbered dot; there are no fake dots.
 5. Return to the hub, tap the round profile avatar, then Add profile. With multiple profiles, the “Who’s playing?” picker appears on launch and the active player can be changed from the hub or Settings.
-6. Open Comet Writer. The menu explains that children can write with a finger or use a stylus if they have one. Open Letter Name Mission to hear the target letter's ordinary name using Apple's on-device speech synthesizer.
+6. Open Comet Writer. The menu explains that children can write with a finger or use a stylus if they have one. Under More Practice → Sounds & Words, open Letter Sound Mission to hear the target phoneme from the bundled British-English recordings. The sound is repeated with an audible pause and the displayed letter is never sent to speech synthesis. Choose a Word lets a reviewer type a one-off 1–10-letter word and write it immediately.
 7. Open Star Speller, choose a Year 1 group and select a 3, 5 or 10-word mission. Built-in words are spoken in authored context sentences. A grown-up can use My Words behind the random multiplication gate to add or import words and optional example sentences. Microphone access is requested only if Record is explicitly chosen.
 8. Open Circuit Challenge, then Quick Play and Custom Settings. Enable multiplication or division to see the individual times-table picker.
 
@@ -145,7 +146,7 @@ Apple says data it collects through an Apple framework is not the developer's di
 
 ## Export compliance
 
-Version 1.4 build 6 contains no custom cryptography and declares `ITSAppUsesNonExemptEncryption = false`. Its only off-device data path is Apple's system-provided iCloud key-value service. If App Store Connect asks, answer that the app does not use non-exempt encryption. Re-audit before any release that adds custom cryptography, a developer backend or a third-party SDK.
+Version 1.4 build 7 contains no custom cryptography and declares `ITSAppUsesNonExemptEncryption = false`. Its only off-device data path is Apple's system-provided iCloud key-value service. If App Store Connect asks, answer that the app does not use non-exempt encryption. Re-audit before any release that adds custom cryptography, a developer backend or a third-party SDK.
 
 ## Screenshot upload order
 

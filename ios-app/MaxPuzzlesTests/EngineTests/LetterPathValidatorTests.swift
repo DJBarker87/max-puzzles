@@ -1,3 +1,4 @@
+import Combine
 import XCTest
 import UIKit
 @testable import MaxPuzzles
@@ -185,140 +186,392 @@ final class LetterPathValidatorTests: XCTestCase {
         XCTAssertEqual(store.activePoints, 10)
     }
 
-    func testSpeechPromptsUseOrdinaryLetterNamesWithoutPhonicOverrides() throws {
-        let c = try XCTUnwrap(LetterLibrary.glyph(for: "c"))
-        let g = try XCTUnwrap(LetterLibrary.glyph(for: "g"))
-        let k = try XCTUnwrap(LetterLibrary.glyph(for: "k"))
-        let capitalG = try XCTUnwrap(LetterLibrary.glyph(for: "G"))
-        XCTAssertEqual(LetterSpeechService.lessonPrompt(for: c), c.spokenPrompt)
-        XCTAssertEqual(LetterSpeechService.lessonPrompt(for: g), g.spokenPrompt)
-        XCTAssertEqual(LetterSpeechService.lessonPrompt(for: k), k.spokenPrompt)
-        XCTAssertEqual(
-            LetterSpeechService.letterNamePrompt(for: g),
-            "Listen for the letter name. Letter g. Write g."
-        )
-        XCTAssertEqual(
-            LetterSpeechService.letterNamePrompt(for: capitalG),
-            "Listen for the letter name. Letter G. Write G."
-        )
-        XCTAssertEqual(
-            LetterSpeechService.recallPrompt(for: g),
-            "Write the letter g. goat starts with the letter g."
-        )
-        XCTAssertEqual(
-            LetterSpeechService.pathPrompt(for: c, animated: true),
-            "Watch the comet write c, then have a go."
-        )
-        XCTAssertEqual(
-            LetterSpeechService.wordPrompt(
-                for: g,
-                word: "go",
-                introduction: "Write the word.",
-                contextSentence: nil
-            ),
-            "Write the word. go. Write it on one line. Now write g."
-        )
-        XCTAssertEqual(
-            LetterSpeechService.spellingPrompt(for: "g", contextSentence: nil),
-            "Spell the word g."
-        )
+    func testEveryLetterUsesTheAuthoredReceptionPhonemeMapping() {
+        let expected: [String: [BritishEnglishPhoneme.ID]] = [
+            "a": [.vowelTrap], "b": [.consonantB], "c": [.consonantK],
+            "d": [.consonantD], "e": [.vowelDress], "f": [.consonantF],
+            "g": [.consonantG], "h": [.consonantH], "i": [.vowelKit],
+            "j": [.consonantJ], "k": [.consonantK], "l": [.consonantL],
+            "m": [.consonantM], "n": [.consonantN], "o": [.vowelLot],
+            "p": [.consonantP], "q": [.consonantK, .consonantW],
+            "r": [.consonantR], "s": [.consonantS], "t": [.consonantT],
+            "u": [.vowelStrut], "v": [.consonantV], "w": [.consonantW],
+            "x": [.consonantK, .consonantS], "y": [.consonantY],
+            "z": [.consonantZ]
+        ]
 
-        let allPromptText = [
-            LetterSpeechService.lessonPrompt(for: c),
-            LetterSpeechService.lessonPrompt(for: g),
-            LetterSpeechService.lessonPrompt(for: k),
-            LetterSpeechService.lessonPrompt(for: capitalG),
-            LetterSpeechService.letterNamePrompt(for: g),
-            LetterSpeechService.letterNamePrompt(for: capitalG),
-            LetterSpeechService.recallPrompt(for: g),
-            LetterSpeechService.pathPrompt(for: c, animated: true),
-            LetterSpeechService.pathPrompt(for: capitalG, animated: false),
-            LetterSpeechService.wordPrompt(
-                for: g,
-                word: "go",
-                introduction: "Write the word.",
-                contextSentence: nil
+        XCTAssertEqual(expected.count, 26)
+        for (letter, phonemeIDs) in expected {
+            XCTAssertEqual(LetterSpeechService.phonemeIDs(forLetter: letter), phonemeIDs)
+            XCTAssertEqual(
+                LetterSpeechService.phonemeIDs(forLetter: letter.uppercased()),
+                phonemeIDs
             )
-        ].joined(separator: " ").lowercased()
-        XCTAssertTrue(allPromptText.contains("letter g"))
-        XCTAssertFalse(allPromptText.contains("curly"))
-        XCTAssertFalse(allPromptText.contains("kicking"))
-        XCTAssertFalse(allPromptText.contains("phoneme"))
-        XCTAssertFalse(allPromptText.contains("lowercase"))
-        XCTAssertFalse(allPromptText.contains("uppercase"))
-        XCTAssertFalse(allPromptText.contains("capital"))
+        }
+        XCTAssertNil(LetterSpeechService.phonemeIDs(forLetter: "2"))
+        XCTAssertNil(LetterSpeechService.phonemeIDs(forLetter: "ch"))
     }
 
-    func testEveryLessonQueuesTheLetterNameThenAnAudiblePauseBeforeItsExample() throws {
+    func testCUsesRecordedKSoundTwiceWithARealPauseAndNeverSaysSee() throws {
         let c = try XCTUnwrap(LetterLibrary.glyph(for: "c"))
         let capitalC = try XCTUnwrap(LetterLibrary.glyph(for: "C"))
+        let expected: [LetterSpeechStep] = [
+            .spoken("Letter."),
+            .pause(LetterSpeechService.lessonLeadInPause),
+            .phoneme(.consonantK),
+            .pause(LetterSpeechService.lessonRepetitionPause),
+            .phoneme(.consonantK),
+            .pause(LetterSpeechService.lessonExamplePause),
+            .spoken("is for cat.")
+        ]
 
-        let cSequence = LetterSpeechService.lessonSequence(for: c)
-        XCTAssertEqual(cSequence.map(\.text).first, "Letter c.")
-        XCTAssertEqual(cSequence[1].text, "c is for cat.")
+        XCTAssertEqual(LetterSpeechService.lessonPlan(for: c), expected)
+        XCTAssertEqual(LetterSpeechService.lessonPlan(for: capitalC), expected)
+        XCTAssertGreaterThanOrEqual(LetterSpeechService.lessonRepetitionPause, 0.9)
 
-        let capitalCSequence = LetterSpeechService.lessonSequence(for: capitalC)
-        XCTAssertEqual(capitalCSequence.map(\.text).first, "Letter C.")
-        XCTAssertEqual(capitalCSequence[1].text, "C is for cat.")
+        let spoken = LetterSpeechService.spokenText(in: expected).joined(separator: " ")
+        XCTAssertFalse(spoken.lowercased().contains("letter c"))
+        XCTAssertFalse(spoken.lowercased().contains("see"))
+    }
 
+    func testAll52LetterLessonsRepeatOnlyReviewedPhonemesAroundTheAudiblePause() throws {
         let allLetters = LetterLibrary.all.filter { !$0.isNumber }
         XCTAssertEqual(allLetters.count, 52)
+
         for glyph in allLetters {
-            let sequence = LetterSpeechService.lessonSequence(for: glyph)
-            XCTAssertEqual(sequence.count, 2, "\(glyph.character) must use two queued utterances")
-            XCTAssertEqual(
-                sequence[0].text,
-                "Letter \(glyph.character)."
+            let taughtIDs = try XCTUnwrap(
+                LetterSpeechService.phonemeIDs(forLetter: glyph.character)
             )
-            XCTAssertGreaterThanOrEqual(
-                sequence[0].postUtteranceDelay,
-                0.4,
-                "\(glyph.character) needs an audible pause after its introduction"
-            )
-            XCTAssertEqual(
-                sequence[0].postUtteranceDelay,
-                LetterSpeechService.lessonIntroductionPause,
-                accuracy: 0.000_001
-            )
-            XCTAssertEqual(
-                sequence[1].text,
-                "\(glyph.promptTitle).",
-                "The exact example phrase must follow the introduction"
-            )
-            XCTAssertEqual(sequence[1].postUtteranceDelay, 0)
-            XCTAssertEqual(
-                sequence.map(\.text).joined(separator: " "),
-                glyph.spokenPrompt,
-                "The queued speech must preserve the complete lesson copy"
-            )
-
-            let normalized = sequence.map(\.text).joined(separator: " ").lowercased()
-            for term in ["lowercase", "lower case", "uppercase", "upper case", "capital"] {
-                XCTAssertFalse(
-                    normalized.contains(term),
-                    "Queued child-facing speech for \(glyph.character) contains ‘\(term)’"
-                )
+            let plan = LetterSpeechService.lessonPlan(for: glyph)
+            let recordedIDs = plan.compactMap { step -> BritishEnglishPhoneme.ID? in
+                guard case let .phoneme(id) = step else { return nil }
+                return id
             }
-        }
+            XCTAssertEqual(recordedIDs, taughtIDs + taughtIDs, glyph.character)
 
+            let pauses = plan.compactMap { step -> TimeInterval? in
+                guard case let .pause(duration) = step else { return nil }
+                return duration
+            }
+            XCTAssertEqual(
+                pauses.filter {
+                    abs($0 - LetterSpeechService.lessonRepetitionPause) < 0.000_001
+                }.count,
+                1,
+                "\(glyph.character) needs exactly one repetition pause"
+            )
+
+            let spoken = LetterSpeechService.spokenText(in: plan)
+            XCTAssertEqual(spoken.first, "Letter.")
+            XCTAssertEqual(
+                spoken.last,
+                glyph.character.lowercased() == "x"
+                    ? "as in box."
+                    : "is for \(glyph.exampleWord)."
+            )
+            XCTAssertFalse(
+                spoken.joined(separator: " ").contains("Letter \(glyph.character)"),
+                "\(glyph.character) was passed to plain-text speech"
+            )
+
+            let soundMissionPlan = LetterSpeechService.letterSoundPlan(for: glyph)
+            XCTAssertEqual(Array(soundMissionPlan.prefix(plan.count)), plan)
+        }
+    }
+
+    func testNumberLessonsStillSayNumberAndNeverNumeral() {
         let allNumbers = LetterLibrary.all.filter(\.isNumber)
         XCTAssertEqual(allNumbers.count, 10)
         for glyph in allNumbers {
-            let sequence = LetterSpeechService.lessonSequence(for: glyph)
-            XCTAssertEqual(sequence.count, 2)
-            XCTAssertEqual(sequence[0].text, "Number \(glyph.character).")
+            let plan = LetterSpeechService.lessonPlan(for: glyph)
             XCTAssertEqual(
-                sequence[0].postUtteranceDelay,
-                LetterSpeechService.lessonIntroductionPause,
-                accuracy: 0.000_001
+                plan,
+                [
+                    .spoken("Number \(glyph.character)."),
+                    .pause(LetterSpeechService.lessonRepetitionPause),
+                    .spoken("\(glyph.character) is \(glyph.exampleWord).")
+                ]
             )
-            XCTAssertEqual(sequence[1].text, "\(glyph.promptTitle).")
-            XCTAssertEqual(sequence[1].postUtteranceDelay, 0)
-            XCTAssertEqual(sequence.map(\.text).joined(separator: " "), glyph.spokenPrompt)
+            let spoken = LetterSpeechService.spokenText(in: plan).joined(separator: " ")
+            XCTAssertTrue(spoken.contains("Number"))
+            XCTAssertFalse(spoken.lowercased().contains("numeral"))
         }
     }
 
-    func testEveryChildFacingFormationFormatterUsesOnlyLetterOrNumberNames() throws {
+    func testOtherWriterAndSpellingVoicePlansNeverSynthesizeAnIsolatedLetter() throws {
+        let c = try XCTUnwrap(LetterLibrary.glyph(for: "c"))
+        XCTAssertEqual(
+            LetterSpeechService.recallPlan(for: c),
+            LetterSpeechService.letterSoundPlan(for: c)
+        )
+        XCTAssertEqual(
+            LetterSpeechService.pathPlan(for: c, animated: true),
+            [.spoken("Watch the comet write this letter, then have a go.")]
+        )
+        XCTAssertEqual(
+            LetterSpeechService.wordPlan(
+                for: c,
+                word: "cat",
+                introduction: "Write the word.",
+                contextSentence: nil
+            ),
+            [.spoken("Write the word. cat. Write it on one line. Now write the highlighted letter.")]
+        )
+        XCTAssertEqual(
+            LetterSpeechService.wordPlan(
+                for: c,
+                word: "c",
+                introduction: "Write the word.",
+                contextSentence: nil
+            ),
+            [
+                .spoken("Write this one-letter sound."),
+                .pause(LetterSpeechService.lessonLeadInPause),
+                .phoneme(.consonantK),
+                .pause(LetterSpeechService.lessonExamplePause),
+                .spoken("Now write the highlighted letter.")
+            ]
+        )
+        XCTAssertEqual(
+            LetterSpeechService.spellingPlan(for: "c", contextSentence: nil),
+            [
+                .spoken("Spell the one-letter sound."),
+                .pause(LetterSpeechService.lessonLeadInPause),
+                .phoneme(.consonantK)
+            ]
+        )
+        XCTAssertEqual(
+            LetterSpeechService.spellingPlan(
+                for: "c",
+                contextSentence: "c is for cat"
+            ),
+            [
+                .spoken("Spell the one-letter sound."),
+                .pause(LetterSpeechService.lessonLeadInPause),
+                .phoneme(.consonantK)
+            ]
+        )
+        XCTAssertEqual(
+            LetterSpeechService.spellingPlan(for: "cat", contextSentence: nil),
+            [.spoken("Spell the word cat.")]
+        )
+        XCTAssertEqual(
+            LetterSpeechService.spellingPlan(for: "a", contextSentence: nil),
+            [.spoken("Spell the word a.")]
+        )
+        XCTAssertEqual(
+            LetterSpeechService.spellingPlan(for: "I", contextSentence: nil),
+            [.spoken("Spell the word I.")]
+        )
+    }
+
+    func testSpokenContextSanitizerDropsHostileLettersButPreservesNormalSentences() throws {
+        XCTAssertNil(SpokenPromptContextSanitizer.sanitized("c"))
+        XCTAssertNil(SpokenPromptContextSanitizer.sanitized("C is for cat"))
+        XCTAssertNil(SpokenPromptContextSanitizer.sanitized("Choose (X)."))
+        XCTAssertEqual(
+            SpokenPromptContextSanitizer.sanitized("I saw a cat."),
+            "I saw a cat."
+        )
+        XCTAssertEqual(
+            SpokenPromptContextSanitizer.sanitized("The cat isn't sleepy."),
+            "The cat isn't sleepy."
+        )
+
+        let c = try XCTUnwrap(LetterLibrary.glyph(for: "c"))
+        let contextFreeWordPlan = LetterSpeechService.wordPlan(
+            for: c,
+            word: "cat",
+            introduction: "Write the word.",
+            contextSentence: nil
+        )
+        XCTAssertEqual(
+            LetterSpeechService.wordPlan(
+                for: c,
+                word: "cat",
+                introduction: "Write the word.",
+                contextSentence: "c"
+            ),
+            contextFreeWordPlan
+        )
+        XCTAssertEqual(
+            LetterSpeechService.wordPlan(
+                for: c,
+                word: "cat",
+                introduction: "Write the word.",
+                contextSentence: "I saw a cat."
+            ),
+            [
+                .spoken(
+                    "Write the word. cat. Example: I saw a cat. Write it on one line. "
+                        + "Now write the highlighted letter."
+                )
+            ]
+        )
+        XCTAssertEqual(
+            LetterSpeechService.spellingPlan(
+                for: "cat",
+                contextSentence: "C is for cat"
+            ),
+            [.spoken("Spell the word cat.")]
+        )
+        XCTAssertEqual(
+            LetterSpeechService.spellingPlan(
+                for: "cat",
+                contextSentence: "I saw a cat."
+            ),
+            [.spoken("Spell the word cat. I saw a cat.")]
+        )
+    }
+
+    func testAutomaticWriterSpeechStartsPhonicsButNeverCompetesWithVoiceOver() {
+        XCTAssertTrue(
+            CometWriterAutomaticSpeechPolicy.shouldSpeak(
+                isVoiceOverRunning: false,
+                isHearCue: true,
+                isWordMission: false
+            ),
+            "The first Letter Sound Mission target starts in Hear mode and must not be silent"
+        )
+        XCTAssertTrue(
+            CometWriterAutomaticSpeechPolicy.shouldSpeak(
+                isVoiceOverRunning: false,
+                isHearCue: false,
+                isWordMission: true
+            )
+        )
+        XCTAssertFalse(
+            CometWriterAutomaticSpeechPolicy.shouldSpeak(
+                isVoiceOverRunning: false,
+                isHearCue: false,
+                isWordMission: false
+            )
+        )
+        XCTAssertFalse(
+            CometWriterAutomaticSpeechPolicy.shouldSpeak(
+                isVoiceOverRunning: true,
+                isHearCue: true,
+                isWordMission: true
+            )
+        )
+        XCTAssertTrue(
+            CometWriterAutomaticSpeechPolicy.shouldStartDeferredRecordingFallback(
+                isVoiceOverRunning: false
+            )
+        )
+        XCTAssertFalse(
+            CometWriterAutomaticSpeechPolicy.shouldStartDeferredRecordingFallback(
+                isVoiceOverRunning: true
+            )
+        )
+        XCTAssertEqual(
+            CometWriterAutomaticSpeechPolicy.deferredRecordingFailureAnnouncement,
+            "The recording could not play. Choose Hear to try again."
+        )
+    }
+
+    func testRecallSpeechSynchronousFailureRevealsCueAndOffersRetry() {
+        XCTAssertEqual(
+            CometWriterRecallSpeechRecovery.afterPlaybackAttempt(started: false),
+            CometWriterRecallSpeechRecovery(
+                shouldRevealCue: true,
+                shouldShowRetry: true
+            )
+        )
+        XCTAssertEqual(
+            CometWriterRecallSpeechRecovery.afterPlaybackAttempt(started: true),
+            CometWriterRecallSpeechRecovery(
+                shouldRevealCue: false,
+                shouldShowRetry: false
+            )
+        )
+    }
+
+    func testEveryNewPhonicsTargetRestoresTheAutomaticHearCue() {
+        XCTAssertTrue(CometWriterRecallCuePolicy.startsWithHearCue(for: .phonics))
+        XCTAssertFalse(CometWriterRecallCuePolicy.startsWithHearCue(for: .letterRecall))
+        XCTAssertFalse(CometWriterRecallCuePolicy.startsWithHearCue(for: .wordWriting))
+        XCTAssertFalse(CometWriterRecallCuePolicy.startsWithHearCue(for: .alienMail))
+    }
+
+    func testCompletedWriterFeedbackNeverExposesARawLetterToVoiceOver() {
+        XCTAssertEqual(
+            CometWriterFeedbackAccessibilityCopy.label(
+                visibleMessage: "You formed c!",
+                isLetterComplete: true
+            ),
+            "Letter complete."
+        )
+        XCTAssertEqual(
+            CometWriterFeedbackAccessibilityCopy.label(
+                visibleMessage: "Start at the green star.",
+                isLetterComplete: false
+            ),
+            "Start at the green star."
+        )
+    }
+
+    func testCustomOneLetterWriterAccessibilityUsesSoundCopyButKeepsAAndIAsWords() {
+        XCTAssertEqual(
+            CometWriterWordAccessibilityCopy.writingPromptLabel(
+                for: "c",
+                activeCharacter: "c",
+                activeIndex: 0,
+                characterCount: 1
+            ),
+            "Write the one-letter sound at the start of cat on one writing surface, letter 1 of 1"
+        )
+        XCTAssertEqual(
+            CometWriterWordAccessibilityCopy.hearLabel(for: "x"),
+            "Hear the one-letter sound at the end of box"
+        )
+        XCTAssertEqual(
+            CometWriterWordAccessibilityCopy.characterDescription("c", in: "cat"),
+            "the one-letter sound at the start of cat"
+        )
+        XCTAssertEqual(
+            CometWriterWordAccessibilityCopy.writingSurfaceDescription(for: "c"),
+            "the one-letter sound at the start of cat"
+        )
+        XCTAssertEqual(
+            CometWriterWordAccessibilityCopy.writingSurfaceDescription(for: "Max"),
+            "the word Max"
+        )
+        XCTAssertEqual(
+            CometWriterWordAccessibilityCopy.writingSurfaceDescription(for: "MONDAY"),
+            "the word Monday"
+        )
+        XCTAssertEqual(
+            CometWriterWordAccessibilityCopy.targetDescription(for: "MONDAY"),
+            "Monday"
+        )
+        XCTAssertEqual(
+            CometWriterWordAccessibilityCopy.hearLabel(for: "MONDAY"),
+            "Hear the word Monday"
+        )
+        XCTAssertEqual(
+            CometWriterWordAccessibilityCopy.writingPromptLabel(
+                for: "cat",
+                activeCharacter: "c",
+                activeIndex: 0,
+                characterCount: 3
+            ),
+            "Write cat on one writing surface, letter 1 of 3, "
+                + "the one-letter sound at the start of cat"
+        )
+        XCTAssertEqual(
+            CometWriterWordAccessibilityCopy.writingPromptLabel(
+                for: "a",
+                activeCharacter: "a",
+                activeIndex: 0,
+                characterCount: 1
+            ),
+            "Write a on one writing surface, letter 1 of 1, a"
+        )
+        XCTAssertEqual(CometWriterWordAccessibilityCopy.hearLabel(for: "I"), "Hear the word I")
+    }
+
+    func testEveryChildFacingFormationFormatterAvoidsCaseLabels() {
         let forbiddenTerms = ["lowercase", "lower case", "uppercase", "upper case", "capital"]
 
         for glyph in LetterLibrary.all {
@@ -330,18 +583,22 @@ final class LetterPathValidatorTests: XCTestCase {
             let outputs = [
                 glyph.formationName,
                 glyph.promptTitle,
-                glyph.spokenPrompt,
-                LetterSpeechService.lessonPrompt(for: glyph),
-                LetterSpeechService.letterNamePrompt(for: glyph),
-                LetterSpeechService.recallPrompt(for: glyph),
-                LetterSpeechService.pathPrompt(for: glyph, animated: true),
-                LetterSpeechService.pathPrompt(for: glyph, animated: false),
-                LetterSpeechService.wordPrompt(
+                LetterSpeechService.spokenText(in: LetterSpeechService.lessonPlan(for: glyph))
+                    .joined(separator: " "),
+                LetterSpeechService.spokenText(in: LetterSpeechService.recallPlan(for: glyph))
+                    .joined(separator: " "),
+                LetterSpeechService.spokenText(
+                    in: LetterSpeechService.pathPlan(for: glyph, animated: true)
+                ).joined(separator: " "),
+                LetterSpeechService.spokenText(
+                    in: LetterSpeechService.pathPlan(for: glyph, animated: false)
+                ).joined(separator: " "),
+                LetterSpeechService.spokenText(in: LetterSpeechService.wordPlan(
                     for: glyph,
                     word: "map",
                     introduction: "Write the word.",
                     contextSentence: "The map is here."
-                )
+                )).joined(separator: " ")
             ]
 
             for output in outputs {
@@ -362,6 +619,24 @@ final class LetterPathValidatorTests: XCTestCase {
                 XCTAssertFalse(normalized.contains(term), "Family copy contains ‘\(term)’: \(output)")
             }
         }
+    }
+
+    func testOneOffWordEntryPreservesCaseAndRejectsAnythingTheWriterCannotDraw() {
+        XCTAssertEqual(CometWriterWordEntry.validatedWord(from: " Max "), "Max")
+        XCTAssertEqual(CometWriterWordEntry.validatedWord(from: "a"), "a")
+        XCTAssertEqual(CometWriterWordEntry.validatedWord(from: "abcdefghij"), "abcdefghij")
+
+        XCTAssertNil(CometWriterWordEntry.validatedWord(from: ""))
+        XCTAssertNil(CometWriterWordEntry.validatedWord(from: "   "))
+        XCTAssertNil(CometWriterWordEntry.validatedWord(from: "abcdefghijk"))
+        XCTAssertNil(CometWriterWordEntry.validatedWord(from: "two words"))
+        XCTAssertNil(CometWriterWordEntry.validatedWord(from: "word!"))
+        XCTAssertNil(CometWriterWordEntry.validatedWord(from: "123"))
+        XCTAssertNil(CometWriterWordEntry.validatedWord(from: "café"))
+        XCTAssertEqual(
+            CometWriterWordEntry.maximumLength,
+            CometLearningStore.maximumCustomWordLength
+        )
     }
 
     @MainActor
@@ -1133,6 +1408,41 @@ final class LetterPathValidatorTests: XCTestCase {
         XCTAssertEqual(viewModel.feedbackMessage, "Start again at the green star.")
     }
 
+    @MainActor
+    func testLiveTraceSamplesInvalidateOnlyTheWritingSurface() throws {
+        let glyph = try XCTUnwrap(LetterLibrary.glyph(for: "l"))
+        let stroke = try XCTUnwrap(glyph.strokes.first)
+        let viewModel = CometWriterViewModel(glyph: glyph)
+        XCTAssertEqual(viewModel.beginTrace(at: stroke.start), .none)
+
+        var missionPublicationCount = 0
+        var surfacePublicationCount = 0
+        let missionObservation = viewModel.objectWillChange.sink {
+            missionPublicationCount += 1
+        }
+        let surfaceObservation = viewModel.traceSurfaceState.objectWillChange.sink {
+            surfacePublicationCount += 1
+        }
+        let samples = [CGFloat(0.08), 0.16, 0.24, 0.32, 0.40].map(stroke.point)
+
+        for sample in samples {
+            XCTAssertEqual(viewModel.continueTrace(at: sample), .none)
+        }
+
+        XCTAssertEqual(
+            viewModel.activeTrace,
+            [stroke.start] + samples,
+            "Moving trace state must not drop or alter samples while isolating its redraws"
+        )
+        XCTAssertEqual(
+            missionPublicationCount,
+            0,
+            "A live stroke must not invalidate the surrounding mission hierarchy"
+        )
+        XCTAssertEqual(surfacePublicationCount, samples.count)
+        withExtendedLifetime((missionObservation, surfaceObservation)) {}
+    }
+
     func testAllLetterPathsRenderAsVisualAuditSheet() throws {
         let columns = 5
         let cellSize = CGSize(width: 180, height: 190)
@@ -1317,6 +1627,49 @@ final class LetterPathValidatorTests: XCTestCase {
 
         XCTAssertEqual(validator.begin(at: stroke.start), .ready)
         XCTAssertEqual(validator.add(LetterPoint(x: stroke.start.x, y: 0.89)), .belowBaseline)
+    }
+
+    @MainActor
+    func testProductionWritingAllowsShallowDipBelowBaseline() throws {
+        let glyph = try XCTUnwrap(LetterLibrary.glyph(for: "l"))
+        let stroke = try XCTUnwrap(glyph.strokes.first)
+        let viewModel = CometWriterViewModel(glyph: glyph, assistance: .flySolo)
+
+        XCTAssertEqual(viewModel.beginTrace(at: stroke.start), .none)
+        for step in 1..<20 {
+            XCTAssertEqual(viewModel.continueTrace(at: stroke.point(at: CGFloat(step) / 20)), .none)
+        }
+
+        let shallowDip = LetterPoint(
+            x: stroke.end.x,
+            y: LetterWritingMetrics.baselineY + 0.07
+        )
+        XCTAssertEqual(viewModel.continueTrace(at: shallowDip), .none)
+        XCTAssertNil(viewModel.correctionKind)
+        XCTAssertEqual(viewModel.correctionCounts[.baseline, default: 0], 0)
+        XCTAssertEqual(viewModel.mistakeCount, 0)
+        XCTAssertEqual(viewModel.endTrace(at: stroke.end), .letterCompleted)
+    }
+
+    @MainActor
+    func testProductionWritingStillRejectsDeepDipBelowBaseline() throws {
+        let glyph = try XCTUnwrap(LetterLibrary.glyph(for: "l"))
+        let stroke = try XCTUnwrap(glyph.strokes.first)
+        let viewModel = CometWriterViewModel(glyph: glyph, assistance: .flySolo)
+
+        XCTAssertEqual(viewModel.beginTrace(at: stroke.start), .none)
+        for step in 1..<20 {
+            XCTAssertEqual(viewModel.continueTrace(at: stroke.point(at: CGFloat(step) / 20)), .none)
+        }
+
+        let deepDip = LetterPoint(
+            x: stroke.end.x,
+            y: LetterWritingMetrics.baselineY + 0.09
+        )
+        XCTAssertEqual(viewModel.continueTrace(at: deepDip), .mistake)
+        XCTAssertEqual(viewModel.correctionKind, .baseline)
+        XCTAssertEqual(viewModel.correctionCounts[.baseline, default: 0], 1)
+        XCTAssertEqual(viewModel.mistakeCount, 1)
     }
 
     func testTaughtDescendersMayTravelBelowTheBaseline() throws {

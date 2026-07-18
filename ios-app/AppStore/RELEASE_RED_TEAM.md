@@ -8,7 +8,7 @@ Version 1.3 (build 5) was withdrawn from App Review on 18 July 2026. The guarded
 
 Version 1.4 (build 6) is now submitted to App Review with status `WAITING_FOR_REVIEW`. The signed archive matches bundle `com.maxpuzzles.app`, version 1.4, build 6 and iOS 16.0 minimum; Xcode uploaded it successfully and Apple processed it as `VALID`. A pre-submission read-only audit byte-matched all 16 screenshots and verified the listing, categories, Kids band, review details, free pricing and attached build. A separate post-submission query confirms that 1.3 no longer exists, the sole active iOS review item is 1.4, build 6 remains valid and attached, and release is manual. Physical-device and TestFlight checks remain outstanding residual risks.
 
-## Version 1.4 implementation evidence
+## Submitted version 1.4 build 6 evidence
 
 - The unsigned generic-device Release build and Release static analysis both succeed with the iOS 16.0 deployment target.
 - All 172 unit tests pass on iOS 16.1, including exact 84-picture catalogue enforcement, atomic per-child Dot-to-Dot recovery, semantic colour plans, input-coordinate mapping, all 52 letter speech sequences, all 10 number speech sequences, profile/cloud merging, contextual Year 1 prompts, audio fallback, adaptive mastery, Circuit stars/progression and stale-navigation cancellation.
@@ -16,12 +16,18 @@ Version 1.4 (build 6) is now submitted to App Review with status `WAITING_FOR_RE
 - Five representative iPadOS 16.1 game paths pass across the equal four-game hub, Dot-to-Dot, Circuit Challenge, Comet Writer controls and Star Speller. The two-point iOS 16 accessibility-frame rounding between visually equal hub cards is covered by a three-point cross-runtime test tolerance.
 - The menu artwork is held in a fixed viewport, ambient animation work is lifecycle/Reduce Motion aware, the hub gives all four games equal 2×2 prominence, and Circuit text now scales with Dynamic Type.
 - App-owned audio-session changes are centralised. Star Speller, Dot-to-Dot speech, Comet Writer speech and custom recordings suppress music for the full required-audio flow.
-- Comet Writer now uses the system's ordinary British English letter names without spoken lowercase/uppercase labels. Every letter lesson queues `Letter C.` and `C is for cat.` (or the corresponding letter) as separate utterances with an explicit 0.45-second pause; number lessons say “number”, never “numeral”. The experimental custom phoneme/IPA pronunciation layer and its curly/kicking letter wording are intentionally excluded from this release.
 - The iCloud payload is compact and excludes detailed attempts, handwriting traces, custom words and recordings. Removed legacy Dot-to-Dot IDs are filtered from both local and cloud progress.
 - The serial simulator UI suite covers all integrated product flows and launch configurations, including semantic-colouring close and Finished → More Pictures paths.
 - Sixteen fresh native Simulator screenshots from the final source were visually inspected, then converted to opaque upload-ready JPEGs at 1320×2868 and 2048×2732.
 - A generic-device App Store archive was signed and uploaded from pushed commit `19443dd`; Apple processed build 6 as `VALID` with no non-exempt encryption.
 - The guarded 1.3 replacement, authenticated metadata/screenshot sync, independent read-only audit and review submission all completed successfully. The final App Store version and sole active review submission both report `WAITING_FOR_REVIEW`.
+
+## Unsubmitted version 1.4 build 7 working tree
+
+- Build 7 is a local draft and has not been archived, uploaded, attached or submitted. The pending build 6 does not contain the changes in this section.
+- Comet Writer uses the locally supplied British-English recordings for all 26 letter sounds in lowercase and capitals. Every lesson speaks only neutral prose, plays the phoneme sequence, waits through an explicit one-second pause, repeats the sequence, then speaks the example phrase. Bare letter characters are never sent to speech synthesis, so c cannot become “see”; q and x use real two-sound sequences. Number lessons say “number”, never “numeral”.
+- A Release preflight requires all 44 private clips, the private import-evidence manifest, exact SHA-256 matches and decodable mono 48 kHz AAC before a Release build can complete successfully.
+- Physical-device phoneme audition and explicit evidence of app-redistribution rights remain required before an App Store upload.
 
 ## Version 1.3 submission evidence (historical)
 
@@ -64,7 +70,7 @@ Version 1.4 (build 6) is now submitted to App Review with status `WAITING_FOR_RE
 | Resolved | Writing size, line controls, handedness and Pencil mode could be hidden in a partially expanded sheet. | Writing Tools now opens at the full-height detent; iPhone accurately says Finger drawing, while iPad exposes and tests Pencil-only mode. |
 | Resolved | App Store Connect previously inherited stale 6.5-inch, 6.1-inch and 11-inch screenshot sets, causing older images to override newer media on those devices. | Version 1.4 contains only the managed 6.9-inch iPhone and 13-inch iPad sets; the audit verifies the exact display types and MD5 checksum of every uploaded image. |
 | P1 | iPadOS 26 launches the app as a resizable window by default. The UI adapted in the capture audit, but this materially increases the number of supported sizes. | Manually test narrow, wide, portrait, landscape, full-screen and side-by-side windows, especially writing-pad coordinate transforms and Circuit Challenge rotation. |
-| P1 | The app contains generated/commissioned character art, icons, music and sound files. Code cannot establish their licence. | Keep provenance and commercial-use rights for every bundled visual and audio asset in the review file. |
+| P1 | The app contains generated/commissioned character art, icons, music and sound files. Code cannot establish their provenance or permitted commercial use. | Keep provenance and commercial-use documentation for every bundled visual and audio asset in the review file. |
 | P1 | App Store privacy answers must match the exact 1.4 binary. | Apple says developers are not responsible for data collected by Apple, and “collect” means off-device transmission that the developer or a third-party partner can access beyond servicing the request. Reconfirm the Data Not Collected answer in App Store Connect because private Apple iCloud progress is now implemented; change it before adding any developer backend, analytics or third-party SDK. |
 | P1 | The app asks for microphone access in a children's app. | Keep the request behind the existing adult gate, trigger it only from Record, and verify denial/recovery on a physical device. Explain this path in Review Notes. |
 | P2 | iPhone and iPad Accessibility Nutrition Labels remain unpublished drafts. | This is currently voluntary. Publish only after all common tasks pass Apple's device-specific evaluation criteria; do not make untested VoiceOver, Voice Control, Larger Text or Reduced Motion claims. |
@@ -133,7 +139,7 @@ Version 1.4 (build 6) is now submitted to App Review with status `WAITING_FOR_RE
 
 ## Prepared App Store Connect sync
 
-The release sync validates the bundle/app IDs, creates or updates the version and build declared in `UploadPayload/app.json` (currently 1.4 build 6) with manual release, writes the localisations, categories, truthful age-rating answers and review notes, uploads both ordered screenshot sets, and attaches the processed build. It intentionally never calls a submission or release endpoint.
+The release sync validates the bundle/app IDs, creates or updates the version and build declared in `UploadPayload/app.json` (currently the unsubmitted 1.4 build 7 draft) with manual release, writes the localisations, categories, truthful age-rating answers and review notes, uploads both ordered screenshot sets, and attaches the processed build. It intentionally never calls a submission or release endpoint. Do not run it while build 6 is pending without an explicit replacement decision.
 
 ```sh
 ASC_ISSUER_ID="<team issuer UUID>" ruby ios-app/AppStore/sync_app_store_connect.rb

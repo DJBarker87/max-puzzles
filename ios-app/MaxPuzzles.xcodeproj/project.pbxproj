@@ -70,7 +70,6 @@
 		MM0001011111111111111111 /* game_music.m4a in Resources */ = {isa = PBXBuildFile; fileRef = MM0001001111111111111111 /* game_music.m4a */; };
 		MM0001031111111111111111 /* hub_music.m4a in Resources */ = {isa = PBXBuildFile; fileRef = MM0001021111111111111111 /* hub_music.m4a */; };
 		MM0001051111111111111111 /* victory_music.m4a in Resources */ = {isa = PBXBuildFile; fileRef = MM0001041111111111111111 /* victory_music.m4a */; };
-		MM0001071111111111111111 /* lose_music.wav in Resources */ = {isa = PBXBuildFile; fileRef = MM0001061111111111111111 /* lose_music.wav */; };
 		NN0001011111111111111111 /* AnimatedCharacter.swift in Sources */ = {isa = PBXBuildFile; fileRef = NN0001001111111111111111 /* AnimatedCharacter.swift */; };
 		NN0001031111111111111111 /* ConfettiView.swift in Sources */ = {isa = PBXBuildFile; fileRef = NN0001021111111111111111 /* ConfettiView.swift */; };
 		OO0001011111111111111111 /* ChapterAlien.swift in Sources */ = {isa = PBXBuildFile; fileRef = OO0001001111111111111111 /* ChapterAlien.swift */; };
@@ -84,6 +83,12 @@
 		QQ0001031111111111111111 /* AlienIdleAnimation.swift in Sources */ = {isa = PBXBuildFile; fileRef = QQ0001021111111111111111 /* AlienIdleAnimation.swift */; };
 		RR0001011111111111111111 /* FirstRunView.swift in Sources */ = {isa = PBXBuildFile; fileRef = RR0001001111111111111111 /* FirstRunView.swift */; };
 		SS0001011111111111111111 /* SoundEffectsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = SS0001001111111111111111 /* SoundEffectsService.swift */; };
+		PH0000021111111111111111 /* BritishEnglishPhonemeCatalogue.swift in Sources */ = {isa = PBXBuildFile; fileRef = PH0000011111111111111111 /* BritishEnglishPhonemeCatalogue.swift */; };
+		PH0000041111111111111111 /* PhonemeAudioLabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = PH0000031111111111111111 /* PhonemeAudioLabView.swift */; };
+		PH0000061111111111111111 /* PhonemeAudioService.swift in Sources */ = {isa = PBXBuildFile; fileRef = PH0000051111111111111111 /* PhonemeAudioService.swift */; };
+		PH0000081111111111111111 /* PhonemeAudioFoundationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = PH0000071111111111111111 /* PhonemeAudioFoundationTests.swift */; };
+		PH0000091111111111111111 /* PhonemeAudio in Resources */ = {isa = PBXBuildFile; fileRef = PH00000A1111111111111111 /* PhonemeAudio */; };
+		PT0000021111111111111111 /* ParentPlayTimer.swift in Sources */ = {isa = PBXBuildFile; fileRef = PT0000011111111111111111 /* ParentPlayTimer.swift */; };
 		CW0001011111111111111111 /* LetterGlyph.swift in Sources */ = {isa = PBXBuildFile; fileRef = CW0001001111111111111111 /* LetterGlyph.swift */; };
 		CW0001031111111111111111 /* LetterLibrary.swift in Sources */ = {isa = PBXBuildFile; fileRef = CW0001021111111111111111 /* LetterLibrary.swift */; };
 		CW0001051111111111111111 /* LetterPathValidator.swift in Sources */ = {isa = PBXBuildFile; fileRef = CW0001041111111111111111 /* LetterPathValidator.swift */; };
@@ -194,7 +199,6 @@
 		MM0001001111111111111111 /* game_music.m4a */ = {isa = PBXFileReference; lastKnownFileType = "audio.x-m4a"; path = game_music.m4a; sourceTree = "<group>"; };
 		MM0001021111111111111111 /* hub_music.m4a */ = {isa = PBXFileReference; lastKnownFileType = "audio.x-m4a"; path = hub_music.m4a; sourceTree = "<group>"; };
 		MM0001041111111111111111 /* victory_music.m4a */ = {isa = PBXFileReference; lastKnownFileType = "audio.x-m4a"; path = victory_music.m4a; sourceTree = "<group>"; };
-		MM0001061111111111111111 /* lose_music.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = lose_music.wav; sourceTree = "<group>"; };
 		NN0001001111111111111111 /* AnimatedCharacter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnimatedCharacter.swift; sourceTree = "<group>"; };
 		NN0001021111111111111111 /* ConfettiView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfettiView.swift; sourceTree = "<group>"; };
 		OO0001001111111111111111 /* ChapterAlien.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChapterAlien.swift; sourceTree = "<group>"; };
@@ -208,6 +212,12 @@
 		QQ0001021111111111111111 /* AlienIdleAnimation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlienIdleAnimation.swift; sourceTree = "<group>"; };
 		RR0001001111111111111111 /* FirstRunView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FirstRunView.swift; sourceTree = "<group>"; };
 		SS0001001111111111111111 /* SoundEffectsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SoundEffectsService.swift; sourceTree = "<group>"; };
+		PH0000011111111111111111 /* BritishEnglishPhonemeCatalogue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BritishEnglishPhonemeCatalogue.swift; sourceTree = "<group>"; };
+		PH0000031111111111111111 /* PhonemeAudioLabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhonemeAudioLabView.swift; sourceTree = "<group>"; };
+		PH0000051111111111111111 /* PhonemeAudioService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhonemeAudioService.swift; sourceTree = "<group>"; };
+		PH0000071111111111111111 /* PhonemeAudioFoundationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhonemeAudioFoundationTests.swift; sourceTree = "<group>"; };
+		PH00000A1111111111111111 /* PhonemeAudio */ = {isa = PBXFileReference; explicitFileType = folder; path = PhonemeAudio; sourceTree = "<group>"; };
+		PT0000011111111111111111 /* ParentPlayTimer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParentPlayTimer.swift; sourceTree = "<group>"; };
 		CW0001001111111111111111 /* LetterGlyph.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LetterGlyph.swift; sourceTree = "<group>"; };
 		CW0001021111111111111111 /* LetterLibrary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LetterLibrary.swift; sourceTree = "<group>"; };
 		CW0001041111111111111111 /* LetterPathValidator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LetterPathValidator.swift; sourceTree = "<group>"; };
@@ -316,6 +326,7 @@
 			isa = PBXGroup;
 			children = (
 				AA0000321111111111111111 /* Models */,
+				PH0000001111111111111111 /* Phonics */,
 				AA0000331111111111111111 /* Services */,
 				AA0000341111111111111111 /* Utilities */,
 			);
@@ -337,6 +348,8 @@
 			children = (
 				LL0001001111111111111111 /* MusicService.swift */,
 				SS0001001111111111111111 /* SoundEffectsService.swift */,
+				PH0000051111111111111111 /* PhonemeAudioService.swift */,
+				PT0000011111111111111111 /* ParentPlayTimer.swift */,
 				II0001001111111111111111 /* StorageService.swift */,
 				IC0000011111111111111111 /* ICloudProgressSyncService.swift */,
 			);
@@ -351,6 +364,15 @@
 				JJ0001001111111111111111 /* OrientationManager.swift */,
 			);
 			path = Utilities;
+			sourceTree = "<group>";
+		};
+		PH0000001111111111111111 /* Phonics */ = {
+			isa = PBXGroup;
+			children = (
+				PH0000011111111111111111 /* BritishEnglishPhonemeCatalogue.swift */,
+				PH0000031111111111111111 /* PhonemeAudioLabView.swift */,
+			);
+			path = Phonics;
 			sourceTree = "<group>";
 		};
 		AA0000411111111111111111 /* Hub */ = {
@@ -527,6 +549,7 @@
 			isa = PBXGroup;
 			children = (
 				AA0001401111111111111111 /* Assets.xcassets */,
+				PH00000A1111111111111111 /* PhonemeAudio */,
 				AA0000721111111111111111 /* Sounds */,
 			);
 			path = Resources;
@@ -538,7 +561,6 @@
 				MM0001001111111111111111 /* game_music.m4a */,
 				MM0001021111111111111111 /* hub_music.m4a */,
 				MM0001041111111111111111 /* victory_music.m4a */,
-				MM0001061111111111111111 /* lose_music.wav */,
 			);
 			path = Sounds;
 			sourceTree = "<group>";
@@ -570,6 +592,7 @@
 				CC0001061111111111111111 /* PuzzleGeneratorTests.swift */,
 				CW0001161111111111111111 /* LetterPathValidatorTests.swift */,
 				SP0000031111111111111111 /* SpellingWordImportTests.swift */,
+				PH0000071111111111111111 /* PhonemeAudioFoundationTests.swift */,
 			);
 			path = EngineTests;
 			sourceTree = "<group>";
@@ -688,7 +711,9 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = AA0000141111111111111111 /* Build configuration list for PBXNativeTarget "MaxPuzzles" */;
 			buildPhases = (
+				SZ0000011111111111111111 /* Verify Release Configuration */,
 				AA0000151111111111111111 /* Sources */,
+				PH00000B1111111111111111 /* Verify Phoneme Audio */,
 				AA0000121111111111111111 /* Frameworks */,
 				AA0000161111111111111111 /* Resources */,
 			);
@@ -786,10 +811,10 @@
 			buildActionMask = 2147483647;
 			files = (
 				AA0001411111111111111111 /* Assets.xcassets in Resources */,
+				PH0000091111111111111111 /* PhonemeAudio in Resources */,
 				MM0001011111111111111111 /* game_music.m4a in Resources */,
 				MM0001031111111111111111 /* hub_music.m4a in Resources */,
 				MM0001051111111111111111 /* victory_music.m4a in Resources */,
-				MM0001071111111111111111 /* lose_music.wav in Resources */,
 				PV0001011111111111111111 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -809,6 +834,51 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		SZ0000011111111111111111 /* Verify Release Configuration */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"$(SRCROOT)/Tools/verify_release_configuration.sh",
+				"$(SRCROOT)/MaxPuzzles/Resources",
+				"$(SRCROOT)/MaxPuzzles/Resources/Assets.xcassets/splash_background.imageset/splash_background.jpg",
+			);
+			name = "Verify Release Configuration";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "/bin/sh \"${SRCROOT}/Tools/verify_release_configuration.sh\"";
+		};
+		PH00000B1111111111111111 /* Verify Phoneme Audio */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+				"$(SRCROOT)/Tools/PhonemeAudioReleaseInputs.xcfilelist",
+			);
+			inputPaths = (
+			);
+			name = "Verify Phoneme Audio";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "/bin/sh \"${SRCROOT}/Tools/verify_phoneme_assets.sh\"";
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		AA0000151111111111111111 /* Sources */ = {
@@ -835,6 +905,10 @@
 				II0001011111111111111111 /* StorageService.swift in Sources */,
 				LL0001011111111111111111 /* MusicService.swift in Sources */,
 				SS0001011111111111111111 /* SoundEffectsService.swift in Sources */,
+				PH0000021111111111111111 /* BritishEnglishPhonemeCatalogue.swift in Sources */,
+				PH0000041111111111111111 /* PhonemeAudioLabView.swift in Sources */,
+				PH0000061111111111111111 /* PhonemeAudioService.swift in Sources */,
+				PT0000021111111111111111 /* ParentPlayTimer.swift in Sources */,
 				II0001031111111111111111 /* SettingsView.swift in Sources */,
 				JJ0001011111111111111111 /* OrientationManager.swift in Sources */,
 				BB0001011111111111111111 /* Types.swift in Sources */,
@@ -915,6 +989,7 @@
 				CC0001071111111111111111 /* PuzzleGeneratorTests.swift in Sources */,
 				CW0001171111111111111111 /* LetterPathValidatorTests.swift in Sources */,
 				SP0000041111111111111111 /* SpellingWordImportTests.swift in Sources */,
+				PH0000081111111111111111 /* PhonemeAudioFoundationTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1041,6 +1116,8 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				CLANG_COVERAGE_MAPPING = NO;
+				ENABLE_CODE_COVERAGE = NO;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
@@ -1070,7 +1147,7 @@
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
 				CODE_SIGN_STYLE = Automatic;
 				CODE_SIGN_ENTITLEMENTS = MaxPuzzles/MaxPuzzles.entitlements;
-				CURRENT_PROJECT_VERSION = 6;
+				CURRENT_PROJECT_VERSION = 7;
 				DEVELOPMENT_ASSET_PATHS = "";
 				DEVELOPMENT_TEAM = XAB7FWS6XP;
 				ENABLE_PREVIEWS = YES;
@@ -1105,11 +1182,13 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
+				CLANG_COVERAGE_MAPPING = NO;
 				CODE_SIGN_STYLE = Automatic;
 				CODE_SIGN_ENTITLEMENTS = MaxPuzzles/MaxPuzzles.entitlements;
-				CURRENT_PROJECT_VERSION = 6;
+				CURRENT_PROJECT_VERSION = 7;
 				DEVELOPMENT_ASSET_PATHS = "";
 				DEVELOPMENT_TEAM = XAB7FWS6XP;
+				ENABLE_CODE_COVERAGE = NO;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "Maxi's Mighty Mindgames";
@@ -1142,7 +1221,7 @@
 				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 6;
+				CURRENT_PROJECT_VERSION = 7;
 				DEVELOPMENT_TEAM = "";
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
@@ -1162,7 +1241,7 @@
 				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 6;
+				CURRENT_PROJECT_VERSION = 7;
 				DEVELOPMENT_TEAM = "";
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
@@ -1181,7 +1260,7 @@
 			buildSettings = {
 				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 6;
+				CURRENT_PROJECT_VERSION = 7;
 				DEVELOPMENT_TEAM = "";
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.4;
@@ -1199,7 +1278,7 @@
 			buildSettings = {
 				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 6;
+				CURRENT_PROJECT_VERSION = 7;
 				DEVELOPMENT_TEAM = "";
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.4;

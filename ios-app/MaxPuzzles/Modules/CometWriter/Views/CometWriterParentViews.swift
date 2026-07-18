@@ -1017,7 +1017,9 @@ struct CometCustomWordsView: View {
 
             if let filename = word.recordingFilename {
                 Button {
-                    audio.play(filename: filename)
+                    Task { @MainActor in
+                        _ = await audio.playAsync(filename: filename)
+                    }
                 } label: {
                     Image(systemName: audio.playingFilename == filename ? "stop.fill" : "play.fill")
                         .frame(width: 44, height: 44)

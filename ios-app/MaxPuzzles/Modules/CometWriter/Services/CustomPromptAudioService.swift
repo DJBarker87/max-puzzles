@@ -1,5 +1,26 @@
 import AVFAudio
 import Foundation
+import UIKit
+
+enum CustomPromptAudioPlaybackOutcome: Equatable, Sendable {
+    case finished
+    case failed
+
+    init(didFinishSuccessfully: Bool) {
+        self = didFinishSuccessfully ? .finished : .failed
+    }
+}
+
+/// AVAudioPlayer is prepared completely on one worker and is not touched again until ownership
+/// transfers to MainActor. This keeps file opening and codec priming out of the render loop.
+private final class PreparedCustomPromptPlayer: @unchecked Sendable {
+    let player: AVAudioPlayer
+
+    init(url: URL) throws {
+        player = try AVAudioPlayer(contentsOf: url)
+        player.prepareToPlay()
+    }
+}
 
 /// Records an adult's pronunciation for a custom word and keeps it entirely on-device.
 /// Audio is opt-in, never starts without a tap, and is stored outside Documents so it is not
@@ -14,7 +35,31 @@ final class CustomPromptAudioService: NSObject, ObservableObject, AVAudioPlayerD
 
     private var recorder: AVAudioRecorder?
     private var player: AVAudioPlayer?
+    private var cachedPlayer: AVAudioPlayer?
+    private var cachedFilename: String?
+    private var playbackCompletion: ((CustomPromptAudioPlaybackOutcome) -> Void)?
     private var requiredAudioToken: UUID?
+    private var playbackGeneration: UInt64 = 0
+
+    override init() {
+        super.init()
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(audioServicesWereReset(_:)),
+            name: AVAudioSession.mediaServicesWereResetNotification,
+            object: nil
+        )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(memoryWarningReceived(_:)),
+            name: UIApplication.didReceiveMemoryWarningNotification,
+            object: nil
+        )
+    }
+
+    deinit {
+        NotificationCenter.default.removeObserver(self)
+    }
 
     private static var recordingsDirectory: URL {
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
@@ -45,6 +90,10 @@ final class CustomPromptAudioService: NSObject, ObservableObject, AVAudioPlayerD
             )
             let filename = "prompt-\(word.id.uuidString).m4a"
             let url = Self.recordingsDirectory.appendingPathComponent(filename)
+            if cachedFilename == filename {
+                cachedPlayer = nil
+                cachedFilename = nil
+            }
             try? FileManager.default.removeItem(at: url)
 
             guard AppAudioSessionCoordinator.shared.activate(.promptRecording) else {
@@ -65,7 +114,9 @@ final class CustomPromptAudioService: NSObject, ObservableObject, AVAudioPlayerD
                 releaseAudioFocus()
                 return false
             }
-            guard nextRecorder.record() else {
+            // A custom prompt is a word or short sentence. Keep accidental unattended recording
+            // bounded without changing its sample rate, codec, or audible quality.
+            guard nextRecorder.record(forDuration: 120) else {
                 releaseAudioFocus()
                 return false
             }
@@ -100,56 +151,137 @@ final class CustomPromptAudioService: NSObject, ObservableObject, AVAudioPlayerD
         return filename
     }
 
+    /// Production playback path. Opening the file and preparing its decoder happen off-main;
+    /// cached clips still begin immediately. If a cached player was invalidated by the system,
+    /// recreate it from disk once before reporting failure.
     @discardableResult
-    func play(filename: String) -> Bool {
+    func playAsync(
+        filename: String,
+        onCompletion: ((CustomPromptAudioPlaybackOutcome) -> Void)? = nil
+    ) async -> Bool {
+        guard let request = beginPlaybackRequest(filename: filename) else { return false }
+
+        if cachedFilename == filename, let cachedPlayer {
+            self.cachedPlayer = nil
+            cachedFilename = nil
+            cachedPlayer.currentTime = 0
+            if startPreparedPlayer(
+                cachedPlayer,
+                filename: filename,
+                generation: request.generation,
+                onCompletion: onCompletion
+            ) {
+                return true
+            }
+            guard playbackGeneration == request.generation else { return false }
+        } else {
+            cachedPlayer = nil
+            cachedFilename = nil
+        }
+
+        let prepared = await Task.detached(priority: .userInitiated) {
+            try? PreparedCustomPromptPlayer(url: request.url)
+        }.value
+        if Task.isCancelled {
+            if playbackGeneration == request.generation { stopPlayback() }
+            return false
+        }
+        guard playbackGeneration == request.generation else { return false }
+        guard let prepared else {
+            releaseAudioFocus()
+            return false
+        }
+        return startPreparedPlayer(
+            prepared.player,
+            filename: filename,
+            generation: request.generation,
+            onCompletion: onCompletion
+        )
+    }
+
+    func stopPlayback(preservingPreparedAudio: Bool = true) {
+        stopPlayback(
+            releaseAudioFocus: true,
+            preservingPreparedAudio: preservingPreparedAudio
+        )
+    }
+
+    private func stopPlayback(
+        releaseAudioFocus shouldReleaseAudioFocus: Bool,
+        preservingPreparedAudio: Bool = true
+    ) {
+        playbackGeneration &+= 1
+        let previousPlayer = player
+        let previousFilename = playingFilename
+        player = nil
+        playingFilename = nil
+        playbackCompletion = nil
+        previousPlayer?.delegate = nil
+        previousPlayer?.stop()
+        if preservingPreparedAudio, let previousPlayer, let previousFilename {
+            previousPlayer.currentTime = 0
+            cachedPlayer = previousPlayer
+            cachedFilename = previousFilename
+        } else if !preservingPreparedAudio {
+            cachedPlayer = nil
+            cachedFilename = nil
+        }
+        if shouldReleaseAudioFocus { releaseAudioFocus() }
+    }
+
+    private func beginPlaybackRequest(
+        filename: String
+    ) -> (url: URL, generation: UInt64)? {
         if playingFilename == filename {
             stopPlayback()
-            return false
+            return nil
         }
         _ = stopRecording(releaseAudioFocus: false)
         stopPlayback(releaseAudioFocus: false)
-        acquireAudioFocus()
 
         let url = Self.recordingsDirectory.appendingPathComponent(filename)
         guard FileManager.default.fileExists(atPath: url.path) else {
             releaseAudioFocus()
-            return false
+            return nil
         }
-        do {
-            guard AppAudioSessionCoordinator.shared.activate(.spokenPlayback) else {
-                releaseAudioFocus()
-                return false
-            }
-            let nextPlayer = try AVAudioPlayer(contentsOf: url)
-            nextPlayer.delegate = self
-            nextPlayer.volume = StorageService.shared.voiceVolume
-            nextPlayer.prepareToPlay()
-            guard nextPlayer.play() else {
-                releaseAudioFocus()
-                return false
-            }
-            player = nextPlayer
-            playingFilename = filename
-            return true
-        } catch {
-            stopPlayback()
-            return false
-        }
+        return (url, playbackGeneration)
     }
 
-    func stopPlayback() {
-        stopPlayback(releaseAudioFocus: true)
-    }
+    private func startPreparedPlayer(
+        _ nextPlayer: AVAudioPlayer,
+        filename: String,
+        generation: UInt64,
+        onCompletion: ((CustomPromptAudioPlaybackOutcome) -> Void)?
+    ) -> Bool {
+        guard playbackGeneration == generation else { return false }
+        acquireAudioFocus()
+        guard AppAudioSessionCoordinator.shared.activate(.spokenPlayback) else {
+            releaseAudioFocus()
+            return false
+        }
 
-    private func stopPlayback(releaseAudioFocus shouldReleaseAudioFocus: Bool) {
-        player?.stop()
-        player = nil
-        playingFilename = nil
-        if shouldReleaseAudioFocus { releaseAudioFocus() }
+        nextPlayer.delegate = self
+        nextPlayer.volume = StorageService.shared.voiceVolume
+        player = nextPlayer
+        playingFilename = filename
+        playbackCompletion = onCompletion
+        guard nextPlayer.play() else {
+            nextPlayer.delegate = nil
+            player = nil
+            playingFilename = nil
+            playbackCompletion = nil
+            releaseAudioFocus()
+            return false
+        }
+        return true
     }
 
     func delete(filename: String) {
         if playingFilename == filename { stopPlayback() }
+        if cachedFilename == filename {
+            cachedPlayer = nil
+            cachedFilename = nil
+        }
         try? FileManager.default.removeItem(
             at: Self.recordingsDirectory.appendingPathComponent(filename)
         )
@@ -158,17 +290,65 @@ final class CustomPromptAudioService: NSObject, ObservableObject, AVAudioPlayerD
     func deleteAllRecordings() {
         _ = stopRecording(releaseAudioFocus: false)
         stopPlayback(releaseAudioFocus: false)
+        cachedPlayer = nil
+        cachedFilename = nil
         releaseAudioFocus()
         try? FileManager.default.removeItem(at: Self.recordingsDirectory)
     }
 
     nonisolated func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
         Task { @MainActor in
-            guard self.player === player else { return }
-            self.player = nil
-            self.playingFilename = nil
-            self.releaseAudioFocus()
+            self.finishPlayback(
+                player,
+                outcome: CustomPromptAudioPlaybackOutcome(didFinishSuccessfully: flag)
+            )
         }
+    }
+
+    @objc nonisolated private func audioServicesWereReset(_ notification: Notification) {
+        Task { @MainActor [weak self] in
+            self?.stopPlayback(preservingPreparedAudio: false)
+        }
+    }
+
+    @objc nonisolated private func memoryWarningReceived(_ notification: Notification) {
+        Task { @MainActor [weak self] in
+            self?.cachedPlayer = nil
+            self?.cachedFilename = nil
+        }
+    }
+
+    nonisolated func audioPlayerDecodeErrorDidOccur(
+        _ player: AVAudioPlayer,
+        error: Error?
+    ) {
+        Task { @MainActor in
+            self.finishPlayback(player, outcome: .failed)
+        }
+    }
+
+    private func finishPlayback(
+        _ completedPlayer: AVAudioPlayer,
+        outcome: CustomPromptAudioPlaybackOutcome
+    ) {
+        guard player === completedPlayer else { return }
+        let completion = playbackCompletion
+        let completedFilename = playingFilename
+        player = nil
+        playingFilename = nil
+        playbackCompletion = nil
+        completedPlayer.delegate = nil
+        completedPlayer.stop()
+        if outcome == .finished, let completedFilename {
+            completedPlayer.currentTime = 0
+            cachedPlayer = completedPlayer
+            cachedFilename = completedFilename
+        } else {
+            cachedPlayer = nil
+            cachedFilename = nil
+        }
+        releaseAudioFocus()
+        completion?(outcome)
     }
 
     private func requestPermission() async -> Bool {

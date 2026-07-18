@@ -89,9 +89,9 @@ private struct FlightShape: Identifiable, Hashable {
 @MainActor
 private final class FlightSchoolViewModel: ObservableObject {
     @Published private(set) var shapeIndex = 0
-    @Published private(set) var activeTrace: [LetterPoint] = []
+    let traceSurfaceState = CometTraceSurfaceState()
     @Published private(set) var completedTrace: [LetterPoint] = []
-    @Published private(set) var progress: CGFloat = 0
+    private(set) var progress: CGFloat = 0
     @Published private(set) var mistakes = 0
     @Published private(set) var correctionCounts: [String: Int] = [:]
     @Published private(set) var feedback = "Begin on the green launch star."
@@ -102,6 +102,7 @@ private final class FlightSchoolViewModel: ObservableObject {
     private var warnedDuringGesture = false
 
     var shape: FlightShape { FlightShape.all[shapeIndex] }
+    var activeTrace: [LetterPoint] { traceSurfaceState.points }
 
     func begin(at point: LetterPoint) -> Bool {
         guard !isShapeComplete else { return false }
@@ -113,7 +114,7 @@ private final class FlightSchoolViewModel: ObservableObject {
             return false
         }
         validator = next
-        activeTrace = [point]
+        traceSurfaceState.begin(at: point)
         feedback = "Great start — follow the flight path."
         return true
     }
@@ -125,8 +126,15 @@ private final class FlightSchoolViewModel: ObservableObject {
         switch result {
         case let .advanced(value):
             progress = value
-            if activeTrace.last?.distance(to: point) ?? 1 > 0.003 { activeTrace.append(point) }
-            feedback = value > 0.65 ? "Keep going to the finish star." : "Stay on the glowing route."
+            if activeTrace.last?.distance(to: point) ?? 1 > 0.003 {
+                traceSurfaceState.append(point)
+            }
+            let nextFeedback = value > 0.65
+                ? "Keep going to the finish star."
+                : "Stay on the glowing route."
+            if feedback != nextFeedback {
+                feedback = nextFeedback
+            }
             return true
         case .wrongDirection:
             return warnOnce("direction", "Turn around and follow the arrow.")
@@ -144,15 +152,17 @@ private final class FlightSchoolViewModel: ObservableObject {
         let result = next.end(at: point)
         validator = nil
         guard result == .complete else {
-            activeTrace = []
+            traceSurfaceState.clear()
             progress = 0
             if !warnedDuringGesture { mistake("finish", "Fly all the way to the finish star.") }
             return false
         }
 
-        if activeTrace.last?.distance(to: point) ?? 1 > 0.003 { activeTrace.append(point) }
+        if activeTrace.last?.distance(to: point) ?? 1 > 0.003 {
+            traceSurfaceState.append(point)
+        }
         completedTrace = activeTrace
-        activeTrace = []
+        traceSurfaceState.clear()
         progress = 1
         feedback = "Route complete!"
         isShapeComplete = true
@@ -161,14 +171,14 @@ private final class FlightSchoolViewModel: ObservableObject {
 
     func cancel() {
         validator = nil
-        activeTrace = []
+        traceSurfaceState.clear()
         progress = 0
         feedback = "Start again on the green star."
     }
 
     func retry() {
         validator = nil
-        activeTrace = []
+        traceSurfaceState.clear()
         completedTrace = []
         progress = 0
         mistakes = 0
@@ -198,6 +208,168 @@ private final class FlightSchoolViewModel: ObservableObject {
         mistakes += 1
         correctionCounts[kind, default: 0] += 1
         feedback = message
+    }
+}
+
+/// Owns the high-frequency Flight School trace subscription so individual touch samples redraw
+/// only this writing surface. The surrounding prompt, feedback and action hierarchy observes the
+/// lower-frequency lesson state on `FlightSchoolViewModel`.
+private struct FlightSchoolTraceSurface: View {
+    @ObservedObject var viewModel: FlightSchoolViewModel
+    @ObservedObject var traceSurfaceState: CometTraceSurfaceState
+
+    let pencilOnly: Bool
+    let onCorrection: () -> Void
+
+    var body: some View {
+        GeometryReader { geometry in
+            ZStack {
+                Canvas { context, size in
+                    FlightSchoolPadRenderer.draw(
+                        context: &context,
+                        size: size,
+                        shape: viewModel.shape,
+                        completedTrace: viewModel.completedTrace,
+                        activeTrace: traceSurfaceState.points
+                    )
+                }
+                TraceTouchCapture(pencilOnly: pencilOnly) { phase, location in
+                    let point = LetterCanvasGeometry(
+                        size: geometry.size,
+                        contentInset: 24
+                    ).unrender(location)
+                    let clamped = LetterPoint(
+                        x: min(max(point.x, 0), 1),
+                        y: min(max(point.y, 0), LetterWritingMetrics.canvasHeight)
+                    )
+                    let mistakeCountBeforeTouch = viewModel.mistakes
+                    switch phase {
+                    case .began: _ = viewModel.begin(at: clamped)
+                    case .moved: _ = viewModel.move(to: clamped)
+                    case .ended: _ = viewModel.end(at: clamped)
+                    case .cancelled: viewModel.cancel()
+                    }
+                    if viewModel.mistakes > mistakeCountBeforeTouch {
+                        onCorrection()
+                    }
+                }
+                .contentShape(Rectangle())
+                .allowsHitTesting(!viewModel.isShapeComplete)
+            }
+        }
+    }
+}
+
+private enum FlightSchoolPadRenderer {
+    static func draw(
+        context: inout GraphicsContext,
+        size: CGSize,
+        shape: FlightShape,
+        completedTrace: [LetterPoint],
+        activeTrace: [LetterPoint]
+    ) {
+        let geometry = LetterCanvasGeometry(size: size, contentInset: 24)
+        let stroke = shape.stroke
+        let guide = path(stroke.points.map(geometry.render))
+        context.stroke(
+            guide,
+            with: .color(AppTheme.cometCyan.opacity(0.12)),
+            style: StrokeStyle(lineWidth: 30, lineCap: .round, lineJoin: .round)
+        )
+        context.stroke(
+            guide,
+            with: .color(AppTheme.cometGuide.opacity(0.68)),
+            style: StrokeStyle(
+                lineWidth: 5,
+                lineCap: .round,
+                lineJoin: .round,
+                dash: [8, 7]
+            )
+        )
+
+        drawArrow(
+            from: geometry.render(stroke.point(at: 0.10)),
+            to: geometry.render(stroke.point(at: 0.18)),
+            context: &context
+        )
+        drawMarker(
+            number: "1",
+            point: geometry.render(stroke.start),
+            color: AppTheme.accentPrimary,
+            context: &context
+        )
+        let finish = geometry.render(stroke.end)
+        context.stroke(
+            Path(ellipseIn: CGRect(x: finish.x - 9, y: finish.y - 9, width: 18, height: 18)),
+            with: .color(AppTheme.cometGold),
+            lineWidth: 3
+        )
+
+        for trace in [completedTrace, activeTrace] where !trace.isEmpty {
+            let rendered = trace.map(geometry.render)
+            let tracePath = path(rendered)
+            context.stroke(
+                tracePath,
+                with: .color(AppTheme.cometCyan.opacity(0.25)),
+                style: StrokeStyle(lineWidth: 22, lineCap: .round, lineJoin: .round)
+            )
+            context.stroke(
+                tracePath,
+                with: .color(.white),
+                style: StrokeStyle(lineWidth: 9, lineCap: .round, lineJoin: .round)
+            )
+        }
+    }
+
+    private static func drawArrow(
+        from: CGPoint,
+        to: CGPoint,
+        context: inout GraphicsContext
+    ) {
+        let angle = atan2(to.y - from.y, to.x - from.x)
+        var arrow = Path()
+        arrow.move(to: from)
+        arrow.addLine(to: to)
+        for offset in [-CGFloat.pi / 6, CGFloat.pi / 6] {
+            arrow.move(to: to)
+            arrow.addLine(to: CGPoint(
+                x: to.x - 10 * cos(angle + offset),
+                y: to.y - 10 * sin(angle + offset)
+            ))
+        }
+        context.stroke(
+            arrow,
+            with: .color(AppTheme.cometGold),
+            style: StrokeStyle(lineWidth: 3, lineCap: .round, lineJoin: .round)
+        )
+    }
+
+    private static func drawMarker(
+        number: String,
+        point: CGPoint,
+        color: Color,
+        context: inout GraphicsContext
+    ) {
+        context.fill(
+            Path(ellipseIn: CGRect(x: point.x - 12, y: point.y - 12, width: 24, height: 24)),
+            with: .color(color)
+        )
+        context.draw(
+            Text(number)
+                .font(.system(size: 12, weight: .bold))
+                .foregroundColor(AppTheme.backgroundDark),
+            at: point
+        )
+    }
+
+    private static func path(_ points: [CGPoint]) -> Path {
+        var result = Path()
+        guard let first = points.first else { return result }
+        result.move(to: first)
+        for point in points.dropFirst() {
+            result.addLine(to: point)
+        }
+        return result
     }
 }
 
@@ -296,31 +468,12 @@ struct CometFlightSchoolView: View {
     }
 
     private var flightPad: some View {
-        GeometryReader { geometry in
-            ZStack {
-                Canvas { context, size in
-                    drawPad(context: &context, size: size)
-                }
-                TraceTouchCapture(pencilOnly: pencilOnly) { phase, location in
-                    let point = LetterCanvasGeometry(size: geometry.size, contentInset: 24).unrender(location)
-                    let clamped = LetterPoint(
-                        x: min(max(point.x, 0), 1),
-                        y: min(max(point.y, 0), LetterWritingMetrics.canvasHeight)
-                    )
-                    let mistakeCountBeforeTouch = viewModel.mistakes
-                    switch phase {
-                    case .began: _ = viewModel.begin(at: clamped)
-                    case .moved: _ = viewModel.move(to: clamped)
-                    case .ended: _ = viewModel.end(at: clamped)
-                    case .cancelled:
-                        viewModel.cancel()
-                    }
-                    if viewModel.mistakes > mistakeCountBeforeTouch { correctionFeedback() }
-                }
-                .contentShape(Rectangle())
-                .allowsHitTesting(!viewModel.isShapeComplete)
-            }
-        }
+        FlightSchoolTraceSurface(
+            viewModel: viewModel,
+            traceSurfaceState: viewModel.traceSurfaceState,
+            pencilOnly: pencilOnly,
+            onCorrection: correctionFeedback
+        )
         .frame(minHeight: 330)
         .background(
             RoundedRectangle(cornerRadius: 28)
@@ -475,56 +628,11 @@ struct CometFlightSchoolView: View {
         showsExitConfirmation = true
     }
 
-    private func drawPad(context: inout GraphicsContext, size: CGSize) {
-        let geometry = LetterCanvasGeometry(size: size, contentInset: 24)
-        let stroke = viewModel.shape.stroke
-        let guide = path(stroke.points.map(geometry.render))
-        context.stroke(guide, with: .color(AppTheme.cometCyan.opacity(0.12)), style: StrokeStyle(lineWidth: 30, lineCap: .round, lineJoin: .round))
-        context.stroke(guide, with: .color(AppTheme.cometGuide.opacity(0.68)), style: StrokeStyle(lineWidth: 5, lineCap: .round, lineJoin: .round, dash: [8, 7]))
-
-        let arrowFrom = geometry.render(stroke.point(at: 0.10))
-        let arrowTo = geometry.render(stroke.point(at: 0.18))
-        drawArrow(from: arrowFrom, to: arrowTo, context: &context)
-
-        drawMarker(number: "1", point: geometry.render(stroke.start), color: AppTheme.accentPrimary, context: &context)
-        let finish = geometry.render(stroke.end)
-        context.stroke(Path(ellipseIn: CGRect(x: finish.x - 9, y: finish.y - 9, width: 18, height: 18)), with: .color(AppTheme.cometGold), lineWidth: 3)
-
-        for trace in [viewModel.completedTrace, viewModel.activeTrace] where !trace.isEmpty {
-            let rendered = trace.map(geometry.render)
-            context.stroke(path(rendered), with: .color(AppTheme.cometCyan.opacity(0.25)), style: StrokeStyle(lineWidth: 22, lineCap: .round, lineJoin: .round))
-            context.stroke(path(rendered), with: .color(.white), style: StrokeStyle(lineWidth: 9, lineCap: .round, lineJoin: .round))
-        }
-    }
-
-    private func drawArrow(from: CGPoint, to: CGPoint, context: inout GraphicsContext) {
-        let angle = atan2(to.y - from.y, to.x - from.x)
-        var arrow = Path()
-        arrow.move(to: from)
-        arrow.addLine(to: to)
-        for offset in [-CGFloat.pi / 6, CGFloat.pi / 6] {
-            arrow.move(to: to)
-            arrow.addLine(to: CGPoint(x: to.x - 10 * cos(angle + offset), y: to.y - 10 * sin(angle + offset)))
-        }
-        context.stroke(arrow, with: .color(AppTheme.cometGold), style: StrokeStyle(lineWidth: 3, lineCap: .round, lineJoin: .round))
-    }
-
-    private func drawMarker(number: String, point: CGPoint, color: Color, context: inout GraphicsContext) {
-        context.fill(Path(ellipseIn: CGRect(x: point.x - 12, y: point.y - 12, width: 24, height: 24)), with: .color(color))
-        context.draw(Text(number).font(.system(size: 12, weight: .bold)).foregroundColor(AppTheme.backgroundDark), at: point)
-    }
-
-    private func path(_ points: [CGPoint]) -> Path {
-        var result = Path()
-        guard let first = points.first else { return result }
-        result.move(to: first)
-        for point in points.dropFirst() { result.addLine(to: point) }
-        return result
-    }
 }
 
 struct CometPaperTransferView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.accessibilityVoiceOverEnabled) private var voiceOverEnabled
     @EnvironmentObject private var musicService: MusicService
     @ObservedObject private var store = CometLearningStore.shared
     @AppStorage("maxpuzzles.cometWriter.cometPoints") private var cometPoints = 0
@@ -536,6 +644,9 @@ struct CometPaperTransferView: View {
     @State private var isComplete = false
     @State private var requiredAudioToken: UUID?
     @State private var showsExitConfirmation = false
+    @State private var didSpeechFail = false
+
+    private let speech = LetterSpeechService.shared
 
     init() {
         let recommended = CometLearningStore.shared.recommendedCharacters(
@@ -546,6 +657,10 @@ struct CometPaperTransferView: View {
     }
 
     private var glyph: LetterGlyph { LetterLibrary.glyph(for: characters[index])! }
+
+    private var isVoiceOverRunning: Bool {
+        voiceOverEnabled || UIAccessibility.isVoiceOverRunning
+    }
 
     var body: some View {
         ZStack {
@@ -574,13 +689,25 @@ struct CometPaperTransferView: View {
             if requiredAudioToken == nil {
                 requiredAudioToken = musicService.beginRequiredAudioSession()
             }
-            LetterSpeechService.shared.speak(glyph)
+            if !isVoiceOverRunning {
+                speakCurrentGlyph()
+            }
         }
         .onDisappear {
-            LetterSpeechService.shared.stop()
+            speech.stop()
             if let requiredAudioToken {
                 musicService.endRequiredAudioSession(requiredAudioToken)
                 self.requiredAudioToken = nil
+            }
+        }
+        .onReceive(speech.$playbackState) { state in
+            switch state {
+            case .idle:
+                break
+            case .playing:
+                didSpeechFail = false
+            case .failed:
+                didSpeechFail = true
             }
         }
         .alert("Leave Paper Mission?", isPresented: $showsExitConfirmation) {
@@ -622,9 +749,16 @@ struct CometPaperTransferView: View {
                 Text(glyph.formationCue)
                     .font(AppTypography.bodySmall)
                     .foregroundColor(AppTheme.textSecondary)
+                if didSpeechFail {
+                    Text("The voice could not play. Tap the speaker to try again.")
+                        .font(AppTypography.caption)
+                        .foregroundColor(AppTheme.cometGold)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("comet-paper-speech-error")
+                }
             }
             Spacer(minLength: 0)
-            PremiumIconButton(icon: "speaker.wave.2.fill", action: { LetterSpeechService.shared.speak(glyph) }, size: 44, iconColor: AppTheme.cometCyan, accessibilityLabelText: "Hear the formation")
+            PremiumIconButton(icon: "speaker.wave.2.fill", action: speakCurrentGlyph, size: 44, iconColor: AppTheme.cometCyan, accessibilityLabelText: "Hear the formation")
         }
         .padding(AppSpacing.md)
         .cometChildPanel()
@@ -770,7 +904,17 @@ struct CometPaperTransferView: View {
         } else {
             index += 1
             showsExample = true
-            LetterSpeechService.shared.speak(glyph)
+            didSpeechFail = false
+            if !isVoiceOverRunning {
+                speakCurrentGlyph()
+            }
+        }
+    }
+
+    private func speakCurrentGlyph() {
+        didSpeechFail = false
+        if !speech.speak(glyph) {
+            didSpeechFail = true
         }
     }
 

@@ -5,11 +5,14 @@ import SwiftUI
 /// Settings screen for app preferences
 /// Includes sound toggle (architecture only in V1), about section, and logout
 struct SettingsView: View {
+    let opensPlayTimerOnAppear: Bool
+
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject var appState: AppState
     @ObservedObject var storage = StorageService.shared
     @ObservedObject private var profileStore = CometLearningStore.shared
     @ObservedObject private var cloudSync = ICloudProgressSyncService.shared
+    @ObservedObject private var playTimer = ParentPlayTimer.shared
 
     @State private var showLogoutConfirmation = false
     @State private var showParentGate = false
@@ -21,6 +24,20 @@ struct SettingsView: View {
     @State private var parentChallengeAnswer = ""
     @State private var parentGateError: String?
     @State private var pendingClearConfirmation = false
+    @State private var parentGateForPlayTimer = false
+    @State private var pendingTimerSettings = false
+    @State private var showTimerPasscodeGate = false
+    @State private var showPlayTimerSettings = false
+    @State private var openTimerAfterPasscode = false
+    @State private var recoverTimerPasscode = false
+    @State private var requiresNewTimerPasscode = false
+    @State private var pendingTimerSetupAction: ParentPlayTimerSetupAction?
+    @State private var didOpenRequestedPlayTimer = false
+    @State private var showTimerPasscodeUnavailableAlert = false
+
+    init(opensPlayTimerOnAppear: Bool = false) {
+        self.opensPlayTimerOnAppear = opensPlayTimerOnAppear
+    }
 
     var body: some View {
         ZStack {
@@ -32,6 +49,8 @@ struct SettingsView: View {
                     if appState.isGuest {
                         profileSection
                     }
+
+                    playTimerSection
 
                     // Sound Settings Section
                     soundSection
@@ -70,27 +89,73 @@ struct SettingsView: View {
         } message: {
             Text("This will remove every profile and all progress from this device and synced iCloud devices. This cannot be undone.")
         }
+        .alert("Parent passcode unavailable", isPresented: $showTimerPasscodeUnavailableAlert) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text("The saved passcode could not be checked just now. Please try again; it has not been changed.")
+        }
         .sheet(isPresented: $showAbout) {
             AboutSheetView()
         }
-        .sheet(isPresented: $showParentGate) {
+        .sheet(isPresented: $showParentGate, onDismiss: handleParentGateDismissal) {
             ParentGateView(
                 left: parentChallengeLeft,
                 right: parentChallengeRight,
                 answer: $parentChallengeAnswer,
                 errorMessage: parentGateError,
+                message: parentGateForPlayTimer
+                    ? "To create or reset the play-timer passcode, ask a grown-up to solve this check."
+                    : "To protect the player's progress, solve this check before continuing.",
                 onCancel: {
                     pendingClearConfirmation = false
+                    pendingTimerSettings = false
+                    parentGateForPlayTimer = false
                     showParentGate = false
                 },
                 onContinue: validateParentGate
             )
             .presentationDetents([.large])
         }
-        .onChange(of: showParentGate) { isPresented in
-            guard !isPresented, pendingClearConfirmation else { return }
-            pendingClearConfirmation = false
-            showLogoutConfirmation = true
+        .sheet(isPresented: $showTimerPasscodeGate, onDismiss: handleTimerPasscodeDismissal) {
+            ParentPasscodeEntryView(
+                timer: playTimer,
+                onCancel: {
+                    openTimerAfterPasscode = false
+                    recoverTimerPasscode = false
+                    showTimerPasscodeGate = false
+                },
+                onSuccess: {
+                    openTimerAfterPasscode = true
+                    recoverTimerPasscode = false
+                    showTimerPasscodeGate = false
+                },
+                onForgotPasscode: {
+                    openTimerAfterPasscode = false
+                    recoverTimerPasscode = true
+                    showTimerPasscodeGate = false
+                }
+            )
+            .presentationDetents([.large])
+        }
+        .sheet(isPresented: $showPlayTimerSettings, onDismiss: applyPendingTimerSetupAction) {
+            ParentPlayTimerSetupView(
+                timer: playTimer,
+                requiresNewPasscode: requiresNewTimerPasscode
+            ) { action in
+                pendingTimerSetupAction = action
+                showPlayTimerSettings = false
+            }
+            .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
+        }
+        .onAppear {
+            guard opensPlayTimerOnAppear, !didOpenRequestedPlayTimer else { return }
+            didOpenRequestedPlayTimer = true
+            // Present after the navigation destination has joined the window hierarchy.
+            Task { @MainActor in
+                await Task.yield()
+                requestPlayTimerSettings()
+            }
         }
     }
 
@@ -156,6 +221,49 @@ struct SettingsView: View {
                     )
                 }
                 .accessibilityIdentifier("settings-switch-player")
+            }
+        }
+    }
+
+    private var playTimerSection: some View {
+        SettingsCard(title: "Play Timer", icon: "timer") {
+            VStack(alignment: .leading, spacing: AppSpacing.md) {
+                HStack(spacing: AppSpacing.sm) {
+                    Image(systemName: playTimer.isLocked ? "lock.fill" : "clock.fill")
+                        .foregroundColor(playTimer.isLocked ? AppTheme.cometGold : AppTheme.cometCyan)
+                        .frame(width: 24)
+                        .accessibilityHidden(true)
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(playTimer.statusText)
+                            .font(AppTypography.bodyMedium.weight(.semibold))
+                            .foregroundColor(AppTheme.textPrimary)
+                        Text(
+                            playTimerPasscodeStatus
+                        )
+                        .font(AppTypography.caption)
+                        .foregroundColor(AppTheme.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+
+                Text("When time runs out, play pauses without closing the child's current game.")
+                    .font(AppTypography.caption)
+                    .foregroundColor(AppTheme.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Divider().background(Color.white.opacity(0.1))
+
+                Button(action: requestPlayTimerSettings) {
+                    SettingsRow(
+                        icon: "lock.shield.fill",
+                        title: playTimer.hasLimit ? "Change play timer" : "Set play timer"
+                    )
+                }
+                .buttonStyle(.plain)
+                .accessibilityValue(playTimer.statusText)
+                .accessibilityHint(playTimerAccessibilityHint)
+                .accessibilityIdentifier("settings-play-timer")
             }
         }
     }
@@ -241,7 +349,10 @@ struct SettingsView: View {
                     get: { storage.isVoiceEnabled },
                     set: { enabled in
                         storage.setVoiceEnabled(enabled)
-                        if !enabled { LetterSpeechService.shared.stop() }
+                        if !enabled {
+                            LetterSpeechService.shared.stop()
+                            PhonemeAudioService.shared.stop()
+                        }
                     }
                 )) {
                     audioLabel(title: "Spoken instructions", detail: "Letters, words and formation prompts")
@@ -344,7 +455,25 @@ struct SettingsView: View {
     private var dataSection: some View {
         SettingsCard(title: "Data", icon: "externaldrive.fill") {
             VStack(spacing: 12) {
-                Button(action: beginParentGate) {
+                if profileStore.detailedHistoryNeedsAttention {
+                    Label(
+                        "A local learning-history file could not be recovered. It has been left untouched; clear app data only if you want to replace it.",
+                        systemImage: "exclamationmark.triangle.fill"
+                    )
+                    .font(AppTypography.caption)
+                    .foregroundColor(AppTheme.cometGold)
+                    .fixedSize(horizontal: false, vertical: true)
+                } else if profileStore.recoveredDamagedDetailedHistory {
+                    Label(
+                        "A damaged local history file was safely preserved. New progress can continue normally.",
+                        systemImage: "externaldrive.badge.checkmark"
+                    )
+                    .font(AppTypography.caption)
+                    .foregroundColor(AppTheme.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                }
+
+                Button(action: beginClearDataParentGate) {
                     SettingsRow(
                         icon: "trash.fill",
                         title: "Clear All Data",
@@ -367,6 +496,7 @@ struct SettingsView: View {
         LetterSpeechService.shared.stop()
         CustomPromptAudioService.shared.deleteAllRecordings()
         MusicService.shared.stop()
+        playTimer.resetAll()
         storage.clearAllData()
         CometLearningStore.shared.resetAfterDataClear()
         cloudSync.resetCloudProgressAfterLocalClear()
@@ -377,12 +507,60 @@ struct SettingsView: View {
         dismiss()
     }
 
+    private func beginClearDataParentGate() {
+        parentGateForPlayTimer = false
+        beginParentGate()
+    }
+
+    private func requestPlayTimerSettings() {
+        requiresNewTimerPasscode = false
+        switch playTimer.resolvePasscodeAvailabilityForParentAccess() {
+        case .present:
+            openTimerAfterPasscode = false
+            recoverTimerPasscode = false
+            showTimerPasscodeGate = true
+        case .absent:
+            requiresNewTimerPasscode = true
+            parentGateForPlayTimer = true
+            beginParentGate()
+        case .loading, .unavailable:
+            showTimerPasscodeUnavailableAlert = true
+        }
+    }
+
+    private var playTimerPasscodeStatus: String {
+        switch playTimer.passcodeAvailability {
+        case .loading:
+            return "Checking the parent passcode"
+        case .present:
+            return "Protected by a four-digit parent passcode"
+        case .absent:
+            return "Set a limit and create a four-digit parent passcode"
+        case .unavailable:
+            return "Parent passcode temporarily unavailable"
+        }
+    }
+
+    private var playTimerAccessibilityHint: String {
+        switch playTimer.passcodeAvailability {
+        case .loading:
+            return "The saved parent passcode is still being checked"
+        case .present:
+            return "Requires the four-digit parent passcode"
+        case .absent:
+            return "Requires a grown-up check and creates a four-digit passcode"
+        case .unavailable:
+            return "The saved parent passcode cannot be checked just now"
+        }
+    }
+
     private func beginParentGate() {
         parentChallengeLeft = Int.random(in: 14...29)
         parentChallengeRight = Int.random(in: 17...38)
         parentChallengeAnswer = ""
         parentGateError = nil
         pendingClearConfirmation = false
+        pendingTimerSettings = false
         showParentGate = true
     }
 
@@ -393,14 +571,57 @@ struct SettingsView: View {
         }
 
         parentGateError = nil
-        pendingClearConfirmation = true
+        if parentGateForPlayTimer {
+            pendingTimerSettings = true
+        } else {
+            pendingClearConfirmation = true
+        }
         showParentGate = false
+    }
+
+    private func handleParentGateDismissal() {
+        if pendingClearConfirmation {
+            pendingClearConfirmation = false
+            parentGateForPlayTimer = false
+            showLogoutConfirmation = true
+        } else if pendingTimerSettings {
+            pendingTimerSettings = false
+            parentGateForPlayTimer = false
+            showPlayTimerSettings = true
+        }
+    }
+
+    private func handleTimerPasscodeDismissal() {
+        if recoverTimerPasscode {
+            recoverTimerPasscode = false
+            requiresNewTimerPasscode = true
+            parentGateForPlayTimer = true
+            beginParentGate()
+            return
+        }
+
+        guard openTimerAfterPasscode else { return }
+        openTimerAfterPasscode = false
+        requiresNewTimerPasscode = false
+        showPlayTimerSettings = true
+    }
+
+    private func applyPendingTimerSetupAction() {
+        defer { requiresNewTimerPasscode = false }
+        guard let pendingTimerSetupAction else { return }
+        self.pendingTimerSetupAction = nil
+        switch pendingTimerSetupAction {
+        case .start(let minutes):
+            playTimer.start(minutes: minutes)
+        case .removeLimit:
+            playTimer.removeLimit()
+        }
     }
 }
 
 // MARK: - Parent Gate
 
-private struct ParentGateView: View {
+struct ParentGateView: View {
     let left: Int
     let right: Int
     @Binding var answer: String

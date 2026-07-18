@@ -289,8 +289,7 @@ struct GameScreenView: View {
             // Starry background for gameplay
             StarryBackground(
                 starCount: reduceMotion ? 24 : 40,
-                enableShootingStars: false,
-                enableParallax: false
+                enableShootingStars: false
             )
 
             if isLandscape {
@@ -722,8 +721,7 @@ struct GameScreenView: View {
             // Fully opaque backdrop with starry background (hides grid sizing behind it)
             StarryBackground(
                 starCount: reduceMotion ? 24 : 40,
-                enableShootingStars: false,
-                enableParallax: false
+                enableShootingStars: false
             )
 
             VStack(spacing: 24) {

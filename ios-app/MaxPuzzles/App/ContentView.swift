@@ -11,7 +11,9 @@ struct ContentView: View {
                 .ignoresSafeArea()
 
             #if DEBUG
-            if let dotPreviewIndex {
+            if phonemeAudioLab {
+                PhonemeAudioLabView()
+            } else if let dotPreviewIndex {
                 DotToDotSinglePreview(index: dotPreviewIndex)
             } else if let dotReviewPage {
                 DotToDotReviewSheet(page: dotReviewPage)
@@ -47,6 +49,10 @@ struct ContentView: View {
     }
 
     #if DEBUG
+    private var phonemeAudioLab: Bool {
+        ProcessInfo.processInfo.arguments.contains("-ui-testing-phoneme-audio-lab")
+    }
+
     private var appStoreScreen: String? {
         let arguments = ProcessInfo.processInfo.arguments
         guard let flagIndex = arguments.firstIndex(of: "-app-store-screen"),

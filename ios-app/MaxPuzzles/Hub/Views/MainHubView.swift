@@ -6,6 +6,7 @@ struct MainHubView: View {
     @EnvironmentObject var musicService: MusicService
     @StateObject private var router = AppRouter()
     @ObservedObject private var profileStore = CometLearningStore.shared
+    @ObservedObject private var playTimer = ParentPlayTimer.shared
 
     @State private var showCircuitChallenge = false
     @State private var showCometWriter = false
@@ -38,8 +39,12 @@ struct MainHubView: View {
 
                                 Spacer()
 
-                                IconButton("gear") {
-                                    router.navigate(to: .settings)
+                                VStack(spacing: AppSpacing.sm) {
+                                    playTimerButton
+
+                                    IconButton("gear") {
+                                        router.navigate(to: .settings)
+                                    }
                                 }
                             }
                             .frame(width: 140)
@@ -122,6 +127,8 @@ struct MainHubView: View {
 
             profileButton(showsName: false)
 
+            playTimerButton
+
             IconButton("gear") {
                 router.navigate(to: .settings)
             }
@@ -153,6 +160,15 @@ struct MainHubView: View {
         .accessibilityValue("Current player \(profileStore.activeProfile.name)")
         .accessibilityHint("Opens the profile picker")
         .accessibilityIdentifier("switch-player")
+    }
+
+    private var playTimerButton: some View {
+        IconButton("timer", accessibilityLabel: "Parent play timer") {
+            router.navigate(to: .playTimerSettings)
+        }
+        .accessibilityValue(playTimer.statusText)
+        .accessibilityHint("Opens the grown-up controls for the play timer")
+        .accessibilityIdentifier("parent-play-timer")
     }
 
     // MARK: - Module Selection
@@ -285,6 +301,8 @@ struct MainHubView: View {
         switch route {
         case .settings:
             SettingsView()
+        case .playTimerSettings:
+            SettingsView(opensPlayTimerOnAppear: true)
         default:
             // All routes should be handled - redirect to settings as fallback
             SettingsView()

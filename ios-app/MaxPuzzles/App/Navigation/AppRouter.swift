@@ -7,6 +7,7 @@ enum AppRoute: Hashable {
     case familySelect
     case pinEntry(childId: UUID)
     case settings
+    case playTimerSettings
     case parentDashboard
 
     // Circuit Challenge routes

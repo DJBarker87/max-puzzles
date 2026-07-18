@@ -33,7 +33,7 @@ enum CometActivityMode: String, Codable, CaseIterable, Sendable {
         case .guided: return "Guided practice"
         case .recall: return "Letter recall"
         case .word: return "Word mission"
-        case .phonics: return "Letter name mission"
+        case .phonics: return "Letter sound mission"
         case .alienMail: return "Alien Mail"
         case .flightSchool: return "Flight School"
         case .paperTransfer: return "Paper transfer"
@@ -196,6 +196,239 @@ struct StarSpellerProfileSummary: Sendable {
     }
 }
 
+/// Serialises and coalesces the two large, local-only history streams. The shipping app stores
+/// them as atomic files rather than copying multi-megabyte JSON blobs through UserDefaults;
+/// isolated test stores retain the legacy target for deterministic in-memory tests.
+private final class CometDetailedHistoryPersistence: @unchecked Sendable {
+    struct LoadResult: Sendable {
+        let attempts: [CometAttemptRecord]
+        let spellingAttempts: [StarSpellerAttemptRecord]
+        let attemptsCameFromLegacyDefaults: Bool
+        let spellingAttemptsCameFromLegacyDefaults: Bool
+        let recoveredCorruptAttemptsFile: Bool
+        let recoveredCorruptSpellingAttemptsFile: Bool
+        let attemptsWritesBlocked: Bool
+        let spellingAttemptsWritesBlocked: Bool
+    }
+
+    private enum Target {
+        case defaults(CometPersistenceDefaults)
+        case files(directory: URL, legacyDefaults: CometPersistenceDefaults)
+    }
+
+    private enum Stream {
+        case attempts
+        case spellingAttempts
+    }
+
+    private let target: Target
+    private let queue = DispatchQueue(
+        label: "com.maxpuzzles.learning-history-persistence",
+        qos: .utility
+    )
+    private var pendingAttempts: [CometAttemptRecord]?
+    private var pendingSpellingAttempts: [StarSpellerAttemptRecord]?
+    private var drainScheduled = false
+    private var writeBlockedStreams = Set<Stream>()
+
+    private static let attemptsFilename = "writing-attempts.json"
+    private static let spellingAttemptsFilename = "spelling-attempts.json"
+    private static let attemptsDefaultsKey = "maxpuzzles.cometWriter.attempts"
+    private static let spellingAttemptsDefaultsKey = "maxpuzzles.starSpeller.attempts"
+
+    init(defaults: CometPersistenceDefaults, directory: URL?) {
+        if let directory {
+            target = .files(directory: directory, legacyDefaults: defaults)
+        } else {
+            target = .defaults(defaults)
+        }
+    }
+
+    func loadSynchronously() -> LoadResult {
+        queue.sync { load() }
+    }
+
+    func load(
+        completion: @escaping @Sendable (LoadResult) -> Void
+    ) {
+        queue.async { [self] in
+            completion(load())
+        }
+    }
+
+    func enqueue(attempts: [CometAttemptRecord]) {
+        queue.async { [self] in
+            pendingAttempts = attempts
+            scheduleDrainIfNeeded()
+        }
+    }
+
+    func enqueue(spellingAttempts: [StarSpellerAttemptRecord]) {
+        queue.async { [self] in
+            pendingSpellingAttempts = spellingAttempts
+            scheduleDrainIfNeeded()
+        }
+    }
+
+    func waitForPendingWrites() async {
+        await withCheckedContinuation { continuation in
+            queue.async { [self] in
+                drainNow()
+                continuation.resume()
+            }
+        }
+    }
+
+    /// A confirmed destructive reset is the only operation allowed to replace a history file
+    /// that could not be decoded or safely quarantined.
+    func resetHistories() {
+        queue.async { [self] in
+            writeBlockedStreams.removeAll()
+            pendingAttempts = []
+            pendingSpellingAttempts = []
+            drainNow()
+        }
+    }
+
+    private func scheduleDrainIfNeeded() {
+        guard !drainScheduled else { return }
+        drainScheduled = true
+        // A short debounce collapses rapid lesson updates into one full-history encode.
+        queue.asyncAfter(deadline: .now() + 0.12) { [self] in
+            guard drainScheduled else { return }
+            drainNow()
+        }
+    }
+
+    private func drainNow() {
+        drainScheduled = false
+        let attempts = pendingAttempts
+        let spellingAttempts = pendingSpellingAttempts
+        pendingAttempts = nil
+        pendingSpellingAttempts = nil
+
+        if let attempts,
+           !writeBlockedStreams.contains(.attempts),
+           let data = try? JSONEncoder().encode(attempts) {
+            write(data, stream: .attempts)
+        }
+        if let spellingAttempts,
+           !writeBlockedStreams.contains(.spellingAttempts),
+           let data = try? JSONEncoder().encode(spellingAttempts) {
+            write(data, stream: .spellingAttempts)
+        }
+    }
+
+    private func load() -> LoadResult {
+        let attempts = load([CometAttemptRecord].self, stream: .attempts)
+        let spelling = load([StarSpellerAttemptRecord].self, stream: .spellingAttempts)
+        if attempts.blocksWrites { writeBlockedStreams.insert(.attempts) }
+        if spelling.blocksWrites { writeBlockedStreams.insert(.spellingAttempts) }
+        return LoadResult(
+            attempts: attempts.value,
+            spellingAttempts: spelling.value,
+            attemptsCameFromLegacyDefaults: attempts.fromLegacyDefaults,
+            spellingAttemptsCameFromLegacyDefaults: spelling.fromLegacyDefaults,
+            recoveredCorruptAttemptsFile: attempts.recoveredCorruptFile,
+            recoveredCorruptSpellingAttemptsFile: spelling.recoveredCorruptFile,
+            attemptsWritesBlocked: attempts.blocksWrites,
+            spellingAttemptsWritesBlocked: spelling.blocksWrites
+        )
+    }
+
+    private func load<Value: Decodable>(
+        _ type: Value.Type,
+        stream: Stream
+    ) -> (
+        value: Value,
+        fromLegacyDefaults: Bool,
+        recoveredCorruptFile: Bool,
+        blocksWrites: Bool
+    ) where Value: RangeReplaceableCollection {
+        let decoder = JSONDecoder()
+        switch target {
+        case .defaults(let defaults):
+            let data = defaults.value.data(forKey: defaultsKey(for: stream))
+            guard let data else { return (Value(), false, false, false) }
+            guard let decoded = try? decoder.decode(type, from: data) else {
+                // Preserve an unreadable isolated-test/defaults blob instead of replacing it with
+                // an empty history on the next child action.
+                return (Value(), false, false, true)
+            }
+            return (decoded, false, false, false)
+
+        case .files(let directory, let legacyDefaults):
+            // A legacy value is present only before migration or after a newer file write failed;
+            // every successful atomic file write removes it. It is therefore authoritative when
+            // both sources exist.
+            let legacyData = legacyDefaults.value.data(forKey: defaultsKey(for: stream))
+            if let legacyData,
+               let decoded = try? decoder.decode(type, from: legacyData) {
+                return (decoded, true, false, false)
+            }
+
+            let url = fileURL(in: directory, for: stream)
+            guard FileManager.default.fileExists(atPath: url.path) else {
+                // A corrupt legacy blob is left untouched and blocks future writes just as a
+                // corrupt file would.
+                return (Value(), false, false, legacyData != nil)
+            }
+
+            if let data = try? Data(contentsOf: url),
+               let decoded = try? decoder.decode(type, from: data) {
+                return (decoded, false, false, false)
+            }
+
+            // Keep the unreadable bytes for support/recovery. Once safely quarantined, a fresh
+            // history can be written without ever overwriting the damaged source.
+            let quarantineURL = url
+                .deletingPathExtension()
+                .appendingPathExtension("corrupt-\(UUID().uuidString).json")
+            do {
+                try FileManager.default.moveItem(at: url, to: quarantineURL)
+                return (Value(), false, true, false)
+            } catch {
+                return (Value(), false, false, true)
+            }
+        }
+    }
+
+    private func write(_ data: Data, stream: Stream) {
+        switch target {
+        case .defaults(let defaults):
+            defaults.value.set(data, forKey: defaultsKey(for: stream))
+
+        case .files(let directory, let legacyDefaults):
+            do {
+                try FileManager.default.createDirectory(
+                    at: directory,
+                    withIntermediateDirectories: true
+                )
+                try data.write(to: fileURL(in: directory, for: stream), options: .atomic)
+                // Remove the old blob only after its atomic replacement is durable.
+                legacyDefaults.value.removeObject(forKey: defaultsKey(for: stream))
+            } catch {
+                // Preserve durability if Application Support is temporarily unavailable. A later
+                // launch migrates this fallback blob through the same atomic path.
+                legacyDefaults.value.set(data, forKey: defaultsKey(for: stream))
+            }
+        }
+    }
+
+    private func fileURL(in directory: URL, for stream: Stream) -> URL {
+        directory.appendingPathComponent(
+            stream == .attempts ? Self.attemptsFilename : Self.spellingAttemptsFilename,
+            isDirectory: false
+        )
+    }
+
+    private func defaultsKey(for stream: Stream) -> String {
+        stream == .attempts
+            ? Self.attemptsDefaultsKey
+            : Self.spellingAttemptsDefaultsKey
+    }
+}
+
 enum CometMasteryLevel: Int, Comparable, Sendable {
     case new
     case practising
@@ -217,20 +450,34 @@ enum CometMasteryLevel: Int, Comparable, Sendable {
 }
 
 /// Local-only learning records. Traces are deliberately downsampled and capped so progress
-/// reporting stays responsive and UserDefaults never grows without bound.
+/// reporting stays responsive and detailed history files never grow without bound.
 @MainActor
 final class CometLearningStore: ObservableObject {
-    static let shared = CometLearningStore()
+    static let shared = CometLearningStore(
+        detailedHistoryDirectory: applicationSupportHistoryDirectory,
+        deferDetailedHistoryLoad: true
+    )
     static let maximumCustomWords = 100
-    static let maximumCustomWordLength = 10
+    nonisolated static let maximumCustomWordLength = 10
     nonisolated static let maximumContextSentenceLength = 160
 
     @Published private(set) var profiles: [CometChildProfile]
     @Published private(set) var activeProfileID: UUID
     @Published private(set) var customWords: [CometCustomWord]
-    @Published private(set) var attempts: [CometAttemptRecord]
-    @Published private(set) var spellingAttempts: [StarSpellerAttemptRecord]
+    @Published private var storedAttempts: [CometAttemptRecord]
+    @Published private var storedSpellingAttempts: [StarSpellerAttemptRecord]
     @Published private(set) var spellingSessions: [StarSpellerSessionSnapshot]
+    @Published private(set) var detailedHistoriesAreLoaded: Bool
+    @Published private(set) var recoveredDamagedDetailedHistory = false
+    @Published private(set) var detailedHistoryNeedsAttention = false
+
+    var attempts: [CometAttemptRecord] {
+        return storedAttempts
+    }
+
+    var spellingAttempts: [StarSpellerAttemptRecord] {
+        return storedSpellingAttempts
+    }
 
     static let coreWords = [
         "a", "I", "am", "an", "as", "at", "be", "by", "go", "he", "in", "is", "it", "me",
@@ -250,17 +497,36 @@ final class CometLearningStore: ObservableObject {
     }
 
     private let defaults: UserDefaults
-    private let persistenceDefaults: CometPersistenceDefaults
+    private let detailedHistoryPersistence: CometDetailedHistoryPersistence
     private let encoder = JSONEncoder()
     private let decoder = JSONDecoder()
-    private let attemptPersistenceQueue = DispatchQueue(
-        label: "com.maxpuzzles.learning-attempt-persistence",
-        qos: .utility
-    )
+    private var detailedHistoriesLoaded: Bool
+    private var detailedHistoryLoadStarted = false
+    private var detailedHistoryLoadGeneration = 0
+    private var detailedHistoryLoadWaiters: [CheckedContinuation<Void, Never>] = []
+    private var profileIDsPendingHistoryDeletion = Set<UUID>()
 
-    init(defaults: UserDefaults = .standard) {
+    nonisolated private static var applicationSupportHistoryDirectory: URL {
+        let base = FileManager.default.urls(
+            for: .applicationSupportDirectory,
+            in: .userDomainMask
+        ).first ?? FileManager.default.temporaryDirectory
+        return base
+            .appendingPathComponent("MaxPuzzles", isDirectory: true)
+            .appendingPathComponent("LearningHistory", isDirectory: true)
+    }
+
+    init(
+        defaults: UserDefaults = .standard,
+        detailedHistoryDirectory: URL? = nil,
+        deferDetailedHistoryLoad: Bool = false
+    ) {
         self.defaults = defaults
-        persistenceDefaults = CometPersistenceDefaults(defaults)
+        let wrappedDefaults = CometPersistenceDefaults(defaults)
+        detailedHistoryPersistence = CometDetailedHistoryPersistence(
+            defaults: wrappedDefaults,
+            directory: detailedHistoryDirectory
+        )
 
         let decodedProfiles: [CometChildProfile] = Self.decode(
             [CometChildProfile].self,
@@ -289,23 +555,74 @@ final class CometLearningStore: ObservableObject {
             from: defaults.data(forKey: Keys.customWords),
             using: decoder
         ) ?? []
-        attempts = Self.decode(
-            [CometAttemptRecord].self,
-            from: defaults.data(forKey: Keys.attempts),
-            using: decoder
-        ) ?? []
-        spellingAttempts = Self.decode(
-            [StarSpellerAttemptRecord].self,
-            from: defaults.data(forKey: Keys.spellingAttempts),
-            using: decoder
-        ) ?? []
+        if deferDetailedHistoryLoad {
+            storedAttempts = []
+            storedSpellingAttempts = []
+            detailedHistoriesLoaded = false
+            detailedHistoriesAreLoaded = false
+        } else {
+            let histories = detailedHistoryPersistence.loadSynchronously()
+            storedAttempts = Self.cappedAttempts(histories.attempts)
+            storedSpellingAttempts = Self.cappedSpellingAttempts(histories.spellingAttempts)
+            detailedHistoriesLoaded = true
+            detailedHistoriesAreLoaded = true
+            recoveredDamagedDetailedHistory = histories.recoveredCorruptAttemptsFile
+                || histories.recoveredCorruptSpellingAttemptsFile
+            detailedHistoryNeedsAttention = histories.attemptsWritesBlocked
+                || histories.spellingAttemptsWritesBlocked
+        }
         spellingSessions = Self.decode(
             [StarSpellerSessionSnapshot].self,
             from: defaults.data(forKey: Keys.spellingSessions),
             using: decoder
         ) ?? []
 
-        persistProfiles()
+        if decodedProfiles.isEmpty {
+            persistProfiles()
+        } else if defaults.string(forKey: Keys.activeProfileID) != activeProfileID.uuidString {
+            defaults.set(activeProfileID.uuidString, forKey: Keys.activeProfileID)
+        }
+    }
+
+    private func installDetailedHistories(
+        _ result: CometDetailedHistoryPersistence.LoadResult
+    ) {
+        let pendingWriting = storedAttempts
+        let pendingSpelling = storedSpellingAttempts
+        let deletedProfileIDs = profileIDsPendingHistoryDeletion
+        let writingIDs = Set(result.attempts.map(\.id))
+        let spellingIDs = Set(result.spellingAttempts.map(\.id))
+        let mergedWriting = result.attempts.filter {
+            !deletedProfileIDs.contains($0.profileID)
+        } + pendingWriting.filter { !writingIDs.contains($0.id) }
+        let mergedSpelling = result.spellingAttempts.filter {
+            !deletedProfileIDs.contains($0.profileID)
+        } + pendingSpelling.filter { !spellingIDs.contains($0.id) }
+        let cappedWriting = Self.cappedAttempts(mergedWriting)
+        let cappedSpelling = Self.cappedSpellingAttempts(mergedSpelling)
+        storedAttempts = cappedWriting
+        storedSpellingAttempts = cappedSpelling
+        detailedHistoriesLoaded = true
+        detailedHistoriesAreLoaded = true
+        resumeDetailedHistoryLoadWaiters()
+        profileIDsPendingHistoryDeletion.removeAll()
+        recoveredDamagedDetailedHistory = result.recoveredCorruptAttemptsFile
+            || result.recoveredCorruptSpellingAttemptsFile
+        detailedHistoryNeedsAttention = result.attemptsWritesBlocked
+            || result.spellingAttemptsWritesBlocked
+
+        if result.attemptsCameFromLegacyDefaults
+            || cappedWriting.count != result.attempts.count
+            || !pendingWriting.isEmpty
+            || !deletedProfileIDs.isEmpty {
+            detailedHistoryPersistence.enqueue(attempts: cappedWriting)
+        }
+        if result.spellingAttemptsCameFromLegacyDefaults
+            || cappedSpelling.count != result.spellingAttempts.count
+            || !pendingSpelling.isEmpty
+            || !deletedProfileIDs.isEmpty {
+            detailedHistoryPersistence.enqueue(spellingAttempts: cappedSpelling)
+        }
     }
 
     var activeProfile: CometChildProfile {
@@ -313,6 +630,36 @@ final class CometLearningStore: ObservableObject {
     }
 
     var activeWritingHand: WritingHand { activeProfile.writingHand }
+
+    /// Starts the large history read after the first usable frame. Views remain responsive with an
+    /// explicit loading state and publish the merged records when the utility-queue read finishes.
+    func preloadDetailedHistoriesAfterLaunch() {
+        guard !detailedHistoriesLoaded, !detailedHistoryLoadStarted else { return }
+        detailedHistoryLoadStarted = true
+        let generation = detailedHistoryLoadGeneration
+        detailedHistoryPersistence.load { [weak self] result in
+            Task { @MainActor [weak self] in
+                guard let self,
+                      !self.detailedHistoriesLoaded,
+                      self.detailedHistoryLoadGeneration == generation else { return }
+                self.installDetailedHistories(result)
+            }
+        }
+    }
+
+    /// Deterministic async barrier for lifecycle work and tests; normal child-facing views observe
+    /// `detailedHistoriesAreLoaded` and never block MainActor on file I/O or JSON decoding.
+    func waitForDetailedHistoriesToLoad() async {
+        if detailedHistoriesLoaded { return }
+        preloadDetailedHistoriesAfterLaunch()
+        await withCheckedContinuation { continuation in
+            if detailedHistoriesLoaded {
+                continuation.resume()
+            } else {
+                detailedHistoryLoadWaiters.append(continuation)
+            }
+        }
+    }
 
     var activeCustomWords: [CometCustomWord] {
         customWords
@@ -396,12 +743,15 @@ final class CometLearningStore: ObservableObject {
 
     func deleteProfile(_ id: UUID) {
         guard profiles.count > 1, let index = profiles.firstIndex(where: { $0.id == id }) else { return }
+        if !detailedHistoriesLoaded {
+            profileIDsPendingHistoryDeletion.insert(id)
+        }
         markProfileDeleted(id)
         StorageService.shared.deleteProgress(for: id)
         profiles.remove(at: index)
         customWords.removeAll { $0.profileID == id }
-        attempts.removeAll { $0.profileID == id }
-        spellingAttempts.removeAll { $0.profileID == id }
+        storedAttempts.removeAll { $0.profileID == id }
+        storedSpellingAttempts.removeAll { $0.profileID == id }
         spellingSessions.removeAll { $0.profileID == id }
         if activeProfileID == id { setActiveProfile(profiles[0].id) }
         persistAll()
@@ -546,11 +896,13 @@ final class CometLearningStore: ObservableObject {
             timestamp: Date(),
             traces: compactTraces
         )
-        attempts.append(record)
-        let activeIndices = attempts.indices.filter { attempts[$0].profileID == activeProfileID }
+        storedAttempts.append(record)
+        let activeIndices = storedAttempts.indices.filter {
+            storedAttempts[$0].profileID == activeProfileID
+        }
         if activeIndices.count > 300 {
             for index in activeIndices.prefix(activeIndices.count - 300).reversed() {
-                attempts.remove(at: index)
+                storedAttempts.remove(at: index)
             }
         }
         persistAttempts()
@@ -567,7 +919,7 @@ final class CometLearningStore: ObservableObject {
         let normalizedWord = Self.normalizedCustomWord(word)
         guard !normalizedWord.isEmpty else { return }
 
-        spellingAttempts.append(
+        storedSpellingAttempts.append(
             StarSpellerAttemptRecord(
                 id: UUID(),
                 profileID: activeProfileID,
@@ -581,12 +933,12 @@ final class CometLearningStore: ObservableObject {
             )
         )
 
-        let activeIndices = spellingAttempts.indices.filter {
-            spellingAttempts[$0].profileID == activeProfileID
+        let activeIndices = storedSpellingAttempts.indices.filter {
+            storedSpellingAttempts[$0].profileID == activeProfileID
         }
         if activeIndices.count > 500 {
             for index in activeIndices.prefix(activeIndices.count - 500).reversed() {
-                spellingAttempts.remove(at: index)
+                storedSpellingAttempts.remove(at: index)
             }
         }
         persistSpellingAttempts()
@@ -788,17 +1140,7 @@ final class CometLearningStore: ObservableObject {
     /// Normal play never blocks the main thread on JSON work; tests and app lifecycle hand-off can
     /// await this barrier when they need a deterministic durability point.
     func waitForPendingAttemptPersistence() async {
-        await withCheckedContinuation { continuation in
-            attemptPersistenceQueue.async {
-                continuation.resume()
-            }
-        }
-    }
-
-    /// Scene suspension has a very small execution window, so finish any JSON write already
-    /// queued before returning control to iOS. The queue is private and never targets MainActor.
-    func flushPendingAttemptPersistence() {
-        attemptPersistenceQueue.sync {}
+        await detailedHistoryPersistence.waitForPendingWrites()
     }
 
     func mastery(for character: String) -> CometMasteryLevel {
@@ -833,14 +1175,33 @@ final class CometLearningStore: ObservableObject {
     }
 
     func resetAfterDataClear() {
+        detailedHistoryLoadGeneration += 1
+        detailedHistoryLoadStarted = true
+        detailedHistoriesLoaded = true
+        detailedHistoriesAreLoaded = true
+        resumeDetailedHistoryLoadWaiters()
+        recoveredDamagedDetailedHistory = false
+        detailedHistoryNeedsAttention = false
+        profileIDsPendingHistoryDeletion.removeAll()
         let profile = CometChildProfile(name: "Explorer")
         profiles = [profile]
         activeProfileID = profile.id
         customWords = []
-        attempts = []
-        spellingAttempts = []
+        storedAttempts = []
+        storedSpellingAttempts = []
         spellingSessions = []
-        persistAll()
+        persistProfiles()
+        persistCustomWords()
+        persistSpellingSessions()
+        // Clear pending snapshots and replace both streams on the utility queue. The parent UI no
+        // longer waits behind a large encode; the app lifecycle barrier still awaits durability.
+        detailedHistoryPersistence.resetHistories()
+    }
+
+    private func resumeDetailedHistoryLoadWaiters() {
+        let waiters = detailedHistoryLoadWaiters
+        detailedHistoryLoadWaiters.removeAll()
+        waiters.forEach { $0.resume() }
     }
 
     /// Refreshes observable profile state after the iCloud service has merged a remote family.
@@ -878,21 +1239,13 @@ final class CometLearningStore: ObservableObject {
     }
 
     private func persistAttempts() {
-        let snapshot = attempts
-        let targetDefaults = persistenceDefaults
-        attemptPersistenceQueue.async {
-            guard let data = try? JSONEncoder().encode(snapshot) else { return }
-            targetDefaults.value.set(data, forKey: Keys.attempts)
-        }
+        guard detailedHistoriesLoaded else { return }
+        detailedHistoryPersistence.enqueue(attempts: storedAttempts)
     }
 
     private func persistSpellingAttempts() {
-        let snapshot = spellingAttempts
-        let targetDefaults = persistenceDefaults
-        attemptPersistenceQueue.async {
-            guard let data = try? JSONEncoder().encode(snapshot) else { return }
-            targetDefaults.value.set(data, forKey: Keys.spellingAttempts)
-        }
+        guard detailedHistoriesLoaded else { return }
+        detailedHistoryPersistence.enqueue(spellingAttempts: storedSpellingAttempts)
     }
 
     private func persistSpellingSessions() {
@@ -929,6 +1282,40 @@ final class CometLearningStore: ObservableObject {
     ) -> Value? {
         guard let data else { return nil }
         return try? decoder.decode(type, from: data)
+    }
+
+    private static func cappedAttempts(
+        _ records: [CometAttemptRecord]
+    ) -> [CometAttemptRecord] {
+        cappedPerProfile(records, maximumPerProfile: 300, profileID: \CometAttemptRecord.profileID)
+    }
+
+    private static func cappedSpellingAttempts(
+        _ records: [StarSpellerAttemptRecord]
+    ) -> [StarSpellerAttemptRecord] {
+        cappedPerProfile(
+            records,
+            maximumPerProfile: 500,
+            profileID: \StarSpellerAttemptRecord.profileID
+        )
+    }
+
+    private static func cappedPerProfile<Record>(
+        _ records: [Record],
+        maximumPerProfile: Int,
+        profileID: KeyPath<Record, UUID>
+    ) -> [Record] {
+        var keptCounts: [UUID: Int] = [:]
+        var newestFirst: [Record] = []
+        newestFirst.reserveCapacity(records.count)
+
+        for record in records.reversed() {
+            let id = record[keyPath: profileID]
+            guard keptCounts[id, default: 0] < maximumPerProfile else { continue }
+            keptCounts[id, default: 0] += 1
+            newestFirst.append(record)
+        }
+        return newestFirst.reversed()
     }
 
     private static func cleanName(_ name: String) -> String {

@@ -1,0 +1,19 @@
+{
+  "datasetID": "en_gb_primary_phonemes_v1",
+  "locale": "en-GB",
+  "version": 1,
+  "assetStatus": "source-files-supplied-locally",
+  "humanReviewStatus": "owner-authorized-for-integration-device-audition-pending",
+  "integrationStatus": "comet-writer-and-star-speller-enabled",
+  "sourceProduct": "The Sound of English (2023) interactive IPA chart",
+  "rawAudioIncludedInPublicRepository": false,
+  "expectedStableIDs": [
+    "c_p", "c_b", "c_t", "c_d", "c_k", "c_g", "c_f", "c_v",
+    "c_th_vl", "c_th_vd", "c_s", "c_z", "c_sh", "c_zh", "c_h",
+    "c_tsh", "c_dzh", "c_m", "c_n", "c_ng", "c_l", "c_r", "c_yod", "c_w",
+    "v_fleece", "v_kit", "v_dress", "v_trap", "v_strut", "v_lot",
+    "v_foot", "v_goose", "v_face", "v_price", "v_mouth", "v_goat",
+    "v_choice", "v_thought", "v_nurse", "v_palm", "v_square", "v_near",
+    "v_schwa", "v_cure"
+  ]
+}

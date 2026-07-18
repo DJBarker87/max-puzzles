@@ -54,9 +54,9 @@ private func dotArtworkPath(
     }
 }
 
-/// Draws one normalised tile from a source-art atlas in exactly the same fitted square used by
-/// the numbered trail. The atlas contains only transparent line work, so it can be recoloured for
-/// dark gameplay boards or the light paint-by-number canvas without losing any source details.
+/// Draws the independently shipped source-art tile in exactly the same fitted square used by the
+/// numbered trail. The transparent line work can be recoloured for dark gameplay boards or the
+/// light paint-by-number canvas without decoding its former 5×3 worksheet atlas.
 private struct DotPuzzleReferenceArtworkView: View {
     let art: DotPuzzleReferenceArt
     let inset: CGFloat
@@ -71,19 +71,13 @@ private struct DotPuzzleReferenceArtworkView: View {
             let originY = (geometry.size.height - side) / 2
 
             ZStack(alignment: .topLeading) {
-                Image(art.assetName)
+                Image(DotSemanticMaskHitTester.tileAssetName(for: art))
                     .renderingMode(.template)
                     .resizable()
                     .interpolation(.high)
                     .foregroundStyle(tint)
-                    .frame(
-                        width: side * CGFloat(art.columns),
-                        height: side * CGFloat(art.rows)
-                    )
-                    .offset(
-                        x: originX - CGFloat(art.column) * side,
-                        y: originY - CGFloat(art.row) * side
-                    )
+                    .frame(width: side, height: side)
+                    .offset(x: originX, y: originY)
             }
             .frame(width: geometry.size.width, height: geometry.size.height, alignment: .topLeading)
             .clipped()
@@ -939,7 +933,7 @@ struct DotToDotPlayView: View {
                 }
             }
         }
-        .disabled(!hasLoadedConnectionProgress || isRestarting)
+        .disabled(!hasLoadedConnectionProgress || isRestarting || isComplete)
     }
 
     private func controlButton(_ title: String, icon: String, action: @escaping () -> Void) -> some View {
@@ -965,9 +959,12 @@ struct DotToDotPlayView: View {
 
         if index == currentIndex {
             let foundNumeral = index + 1
+            let completesPuzzle = foundNumeral == puzzle.points.count
             SoundEffectsService.shared.play(.correctMove)
             FeedbackManager.shared.haptic(.correctMove)
-            NumeralSpeechService.shared.speakNumber(foundNumeral)
+            if !completesPuzzle {
+                NumeralSpeechService.shared.speakNumber(foundNumeral)
+            }
 
             withAnimation(.spring(response: 0.35, dampingFraction: 0.72)) {
                 currentIndex += 1
@@ -977,12 +974,12 @@ struct DotToDotPlayView: View {
             }
             persistConnectionProgress()
 
-            if currentIndex >= puzzle.points.count {
+            if completesPuzzle {
                 UIAccessibility.post(
                     notification: .announcement,
                     argument: "All \(puzzle.points.count) numbers found. Picture revealed."
                 )
-                completePuzzle()
+                completePuzzle(finalNumber: foundNumeral)
             } else {
                 UIAccessibility.post(
                     notification: .announcement,
@@ -1017,17 +1014,31 @@ struct DotToDotPlayView: View {
         }
     }
 
-    private func completePuzzle() {
+    private func completePuzzle(finalNumber: Int) {
         SoundEffectsService.shared.play(.levelComplete)
         FeedbackManager.shared.haptic(.levelComplete)
-        NumeralSpeechService.shared.speakCelebration(puzzle.title)
 
-        // Let the child see the joined trail dissolve into the finished picture before the
-        // next activity takes over. The colouring stage then follows automatically.
+        // Keep the finished trail visible while one owned utterance says both the final number
+        // and the celebration. Moving on from this screen is chained to natural speech completion,
+        // so presenting colour-by-numbers cannot truncate either part of the message.
+        let speechStarted = NumeralSpeechService.shared.speakCompletion(
+            finalNumber: finalNumber,
+            picture: puzzle.title
+        ) {
+            beginCompletionTransition(after: 0)
+        }
+        if !speechStarted {
+            let fallbackDelay: UInt64 = reduceMotion ? 350_000_000 : 2_000_000_000
+            beginCompletionTransition(after: fallbackDelay)
+        }
+    }
+
+    private func beginCompletionTransition(after delay: UInt64) {
         completionTransitionTask?.cancel()
         completionTransitionTask = Task { @MainActor in
-            let delay: UInt64 = reduceMotion ? 350_000_000 : 2_000_000_000
-            try? await Task.sleep(nanoseconds: delay)
+            if delay > 0 {
+                try? await Task.sleep(nanoseconds: delay)
+            }
             guard !Task.isCancelled, isComplete else { return }
             if semanticColourPlan != nil {
                 await loadColouringSnapshot()
@@ -1959,16 +1970,20 @@ private struct SubitizingPatternView: View {
 }
 
 @MainActor
-final class NumeralSpeechService {
+final class NumeralSpeechService: NSObject {
     static let shared = NumeralSpeechService()
 
     private var synthesizer: AVSpeechSynthesizer?
+    private var activeUtterance: AVSpeechUtterance?
+    private var activeCompletion: (() -> Void)?
     private let storage = StorageService.shared
 
-    private init() {}
+    private override init() {
+        super.init()
+    }
 
     func speakPrompt(_ numeral: Int) {
-        speak(Self.promptText(for: numeral))
+        _ = speak(Self.promptText(for: numeral))
     }
 
     static func promptText(for number: Int) -> String {
@@ -1976,23 +1991,37 @@ final class NumeralSpeechService {
     }
 
     func speakNumber(_ numeral: Int) {
-        speak(Self.numberText(for: numeral))
+        _ = speak(Self.numberText(for: numeral))
     }
 
     static func numberText(for number: Int) -> String {
         "\(number)"
     }
 
-    func speakCelebration(_ picture: String) {
-        speak(Self.celebrationText(for: picture))
-    }
-
     static func celebrationText(for picture: String) -> String {
         "Well done! You found the \(picture)."
     }
 
+    /// The last number and reward share one utterance so a second `speak` call can never replace
+    /// the number before it reaches the audio output. The completion belongs to that utterance.
+    @discardableResult
+    func speakCompletion(
+        finalNumber: Int,
+        picture: String,
+        onFinish: @escaping () -> Void
+    ) -> Bool {
+        speak(
+            Self.completionText(finalNumber: finalNumber, picture: picture),
+            onFinish: onFinish
+        )
+    }
+
+    static func completionText(finalNumber: Int, picture: String) -> String {
+        "\(numberText(for: finalNumber)). \(celebrationText(for: picture))"
+    }
+
     func speakStarCount(_ count: Int) {
-        speak(Self.starCountText(for: count))
+        _ = speak(Self.starCountText(for: count))
     }
 
     static func starCountText(for count: Int) -> String {
@@ -2000,30 +2029,74 @@ final class NumeralSpeechService {
     }
 
     func stop() {
-        synthesizer?.stopSpeaking(at: .immediate)
+        cancelActiveSpeech()
     }
 
-    private func speak(_ text: String) {
-        guard storage.isVoiceEnabled else { return }
-        guard !UIAccessibility.isVoiceOverRunning else { return }
-        guard AppAudioSessionCoordinator.shared.activate(.spokenPlayback) else { return }
+    @discardableResult
+    private func speak(_ text: String, onFinish: (() -> Void)? = nil) -> Bool {
+        cancelActiveSpeech()
+        guard storage.isVoiceEnabled else { return false }
+        guard !UIAccessibility.isVoiceOverRunning else { return false }
+        guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return false }
+        guard AppAudioSessionCoordinator.shared.activate(.spokenPlayback) else { return false }
 
         let engine: AVSpeechSynthesizer
         if let synthesizer {
             engine = synthesizer
         } else {
             let newSynthesizer = AVSpeechSynthesizer()
+            newSynthesizer.delegate = self
             synthesizer = newSynthesizer
             engine = newSynthesizer
         }
 
-        engine.stopSpeaking(at: .immediate)
         let utterance = AVSpeechUtterance(string: text)
         utterance.voice = AVSpeechSynthesisVoice(language: "en-GB")
         utterance.rate = 0.46
         utterance.pitchMultiplier = 1.04
         utterance.volume = min(max(storage.voiceVolume, 0), 1)
+        activeUtterance = utterance
+        activeCompletion = onFinish
         engine.speak(utterance)
+        return true
+    }
+
+    private func cancelActiveSpeech() {
+        activeUtterance = nil
+        activeCompletion = nil
+        synthesizer?.stopSpeaking(at: .immediate)
+    }
+
+    private func finishUtterance(
+        synthesizer: AVSpeechSynthesizer,
+        utterance: AVSpeechUtterance
+    ) {
+        guard self.synthesizer === synthesizer,
+              activeUtterance === utterance else { return }
+        activeUtterance = nil
+        let completion = activeCompletion
+        activeCompletion = nil
+        completion?()
+    }
+}
+
+extension NumeralSpeechService: AVSpeechSynthesizerDelegate {
+    nonisolated func speechSynthesizer(
+        _ synthesizer: AVSpeechSynthesizer,
+        didFinish utterance: AVSpeechUtterance
+    ) {
+        Task { @MainActor [weak self] in
+            self?.finishUtterance(synthesizer: synthesizer, utterance: utterance)
+        }
+    }
+
+    nonisolated func speechSynthesizer(
+        _ synthesizer: AVSpeechSynthesizer,
+        didCancel utterance: AVSpeechUtterance
+    ) {
+        Task { @MainActor [weak self] in
+            self?.finishUtterance(synthesizer: synthesizer, utterance: utterance)
+        }
     }
 }
 

@@ -104,6 +104,139 @@ final class SpellingWordImportTests: XCTestCase {
         )
     }
 
+    func testVoiceOverPromptOmitsHostileContextButKeepsNormalContext() {
+        XCTAssertEqual(
+            StarSpellerWordLibrary.spokenPrompt(
+                for: "cat",
+                contextSentence: "c"
+            ),
+            "Spell the word cat."
+        )
+        XCTAssertEqual(
+            StarSpellerWordLibrary.spokenPrompt(
+                for: "cat",
+                contextSentence: "C is for cat"
+            ),
+            "Spell the word cat."
+        )
+        XCTAssertEqual(
+            StarSpellerWordLibrary.spokenPrompt(
+                for: "cat",
+                contextSentence: "I saw a cat."
+            ),
+            "Spell the word cat. I saw a cat."
+        )
+    }
+
+    func testVoiceOverPromptNeverTurnsASingleLetterSoundIntoALetterName() {
+        XCTAssertEqual(
+            StarSpellerWordLibrary.spokenPrompt(for: "c"),
+            "Spell the one-letter sound at the start of cat."
+        )
+        XCTAssertEqual(
+            StarSpellerWordLibrary.spokenPrompt(for: "C"),
+            "Spell the one-letter sound at the start of cat."
+        )
+        XCTAssertEqual(
+            StarSpellerWordLibrary.spokenPrompt(for: "x"),
+            "Spell the one-letter sound at the end of box."
+        )
+        XCTAssertEqual(
+            StarSpellerWordLibrary.spokenPrompt(
+                for: "c",
+                contextSentence: "c is for cat"
+            ),
+            "Spell the one-letter sound at the start of cat."
+        )
+        XCTAssertFalse(StarSpellerWordLibrary.spokenPrompt(for: "c").lowercased().contains("see"))
+    }
+
+    func testVoiceOverHandoffCopyUsesOneSafeFocusedInstruction() {
+        XCTAssertEqual(
+            StarSpellerAccessibilityCopy.practiceWordLabel(for: "c"),
+            "Practice the one-letter sound at the start of cat"
+        )
+        XCTAssertEqual(
+            StarSpellerAccessibilityCopy.practiceWordLabel(for: "x"),
+            "Practice the one-letter sound at the end of box"
+        )
+        XCTAssertEqual(StarSpellerAccessibilityCopy.practiceWordLabel(for: "a"), "a")
+        XCTAssertEqual(StarSpellerAccessibilityCopy.practiceWordLabel(for: "i"), "i")
+        XCTAssertEqual(StarSpellerAccessibilityCopy.practiceWordLabel(for: "I"), "I")
+        XCTAssertEqual(StarSpellerAccessibilityCopy.practiceWordLabel(for: "cat"), "cat")
+        XCTAssertEqual(StarSpellerAccessibilityCopy.practiceWordLabel(for: "Monday"), "MONDAY")
+        XCTAssertEqual(
+            StarSpellerAccessibilityCopy.readyWordLabel(for: "c"),
+            "Spelled the one-letter sound at the start of cat."
+        )
+        XCTAssertEqual(
+            StarSpellerAccessibilityCopy.readyWordLabel(for: "x"),
+            "Spelled the one-letter sound at the end of box."
+        )
+        XCTAssertEqual(StarSpellerAccessibilityCopy.readyWordLabel(for: "a"), "a")
+        XCTAssertEqual(StarSpellerAccessibilityCopy.readyWordLabel(for: "I"), "I")
+        XCTAssertEqual(
+            StarSpellerAccessibilityCopy.handwritingActionLabel(for: "c"),
+            "Correct. You spelled the one-letter sound at the start of cat. "
+                + "Choose Handwrite to continue."
+        )
+        XCTAssertEqual(
+            StarSpellerAccessibilityCopy.handwritingActionLabel(for: "x"),
+            "Correct. You spelled the one-letter sound at the end of box. "
+                + "Choose Handwrite to continue."
+        )
+        XCTAssertEqual(
+            StarSpellerAccessibilityCopy.handwritingActionLabel(for: "cat"),
+            "Correct. cat. Choose Handwrite to continue."
+        )
+        XCTAssertEqual(
+            StarSpellerAccessibilityCopy.spellAloudCompletionLabel(for: "cat"),
+            "Spell cat aloud, letter by letter: C, A, T. "
+                + "When you finish, choose Done spelling aloud."
+        )
+        XCTAssertEqual(
+            StarSpellerAccessibilityCopy.spellAloudCompletionLabel(for: "c"),
+            "Say the one-letter sound at the start of cat aloud. "
+                + "When you finish, choose Done spelling aloud."
+        )
+        XCTAssertEqual(
+            StarSpellerAccessibilityCopy.spellAloudCompletionLabel(for: "x"),
+            "Say the one-letter sound at the end of box aloud. "
+                + "When you finish, choose Done spelling aloud."
+        )
+        XCTAssertEqual(
+            StarSpellerAccessibilityCopy.spellAloudCompletionLabel(for: "a"),
+            "Spell a aloud, letter by letter: A. "
+                + "When you finish, choose Done spelling aloud."
+        )
+        XCTAssertEqual(
+            StarSpellerAccessibilityCopy.spellAloudCompletionLabel(for: "I"),
+            "Spell I aloud, letter by letter: I. "
+                + "When you finish, choose Done spelling aloud."
+        )
+    }
+
+    func testEveryOneLetterNonwordUsesSafeVoiceOverCopy() {
+        let oneLetterNonwords = "bcdefghjklmnopqrstuvwxyz".map(String.init)
+
+        for word in oneLetterNonwords {
+            guard let description = StarSpellerWordLibrary.oneLetterSoundDescription(for: word) else {
+                XCTFail("Missing safe sound description for \(word)")
+                continue
+            }
+            XCTAssertEqual(
+                StarSpellerAccessibilityCopy.practiceWordLabel(for: word),
+                "Practice \(description)",
+                word
+            )
+            XCTAssertEqual(
+                StarSpellerAccessibilityCopy.spellAloudCompletionLabel(for: word),
+                "Say \(description) aloud. When you finish, choose Done spelling aloud.",
+                word
+            )
+        }
+    }
+
     func testPracticeGroupsExposeClearPhonicsAndDifficultyChoices() {
         XCTAssertEqual(
             Set(StarSpellerPracticeGroup.starterPhonics.words(customWords: [])),
@@ -129,10 +262,10 @@ final class SpellingWordImportTests: XCTestCase {
         )
     }
 
-    func testDaysOfWeekDisplayWithProperNounCapitalisationWithoutChangingOtherWords() {
-        XCTAssertEqual(StarSpellerWordLibrary.displayForm(for: "Monday"), "Monday")
-        XCTAssertEqual(StarSpellerWordLibrary.displayForm(for: "monday"), "Monday")
-        XCTAssertEqual(StarSpellerWordLibrary.displayForm(for: "MONDAY"), "Monday")
+    func testDaysOfWeekDisplayInCapitalsWithoutChangingOtherWords() {
+        XCTAssertEqual(StarSpellerWordLibrary.displayForm(for: "Monday"), "MONDAY")
+        XCTAssertEqual(StarSpellerWordLibrary.displayForm(for: "monday"), "MONDAY")
+        XCTAssertEqual(StarSpellerWordLibrary.displayForm(for: "MONDAY"), "MONDAY")
         XCTAssertEqual(StarSpellerWordLibrary.displayForm(for: "friend"), "friend")
     }
 
@@ -153,7 +286,7 @@ final class SpellingWordImportTests: XCTestCase {
 
         let succeeded = StarSpellerPromptAudioPlayback.play(
             customRecordingFilename: "missing-family-prompt.m4a",
-            customPlayback: { filename in
+            customPlayback: { filename, _ in
                 requestedCustomFilename = filename
                 return false
             },
@@ -173,7 +306,7 @@ final class SpellingWordImportTests: XCTestCase {
 
         let succeeded = StarSpellerPromptAudioPlayback.play(
             customRecordingFilename: "family-prompt.m4a",
-            customPlayback: { _ in true },
+            customPlayback: { _, _ in true },
             voicePlayback: {
                 voiceAttempts += 1
                 return true
@@ -182,6 +315,100 @@ final class SpellingWordImportTests: XCTestCase {
 
         XCTAssertTrue(succeeded)
         XCTAssertEqual(voiceAttempts, 0)
+    }
+
+    @MainActor
+    func testAsyncCustomPromptPreparationPreservesFallbackPolicy() async {
+        var voiceAttempts = 0
+        let succeeded = await StarSpellerPromptAudioPlayback.playAsync(
+            customRecordingFilename: "unreadable-family-prompt.m4a",
+            customPlayback: { _, _ in false },
+            voicePlayback: {
+                voiceAttempts += 1
+                return true
+            }
+        )
+
+        XCTAssertTrue(succeeded)
+        XCTAssertEqual(voiceAttempts, 1)
+    }
+
+    @MainActor
+    func testAsyncCustomPromptPreparationDoesNotDoubleSpeak() async {
+        var voiceAttempts = 0
+        let succeeded = await StarSpellerPromptAudioPlayback.playAsync(
+            customRecordingFilename: "family-prompt.m4a",
+            customPlayback: { _, _ in true },
+            voicePlayback: {
+                voiceAttempts += 1
+                return true
+            }
+        )
+
+        XCTAssertTrue(succeeded)
+        XCTAssertEqual(voiceAttempts, 0)
+    }
+
+    func testFailedCustomPromptAfterStartingFallsBackToBuiltInVoiceOnce() {
+        var customCompletion: ((CustomPromptAudioPlaybackOutcome) -> Void)?
+        var voiceAttempts = 0
+        var deferredResults: [Bool] = []
+
+        let started = StarSpellerPromptAudioPlayback.play(
+            customRecordingFilename: "corrupt-family-prompt.m4a",
+            customPlayback: { _, completion in
+                customCompletion = completion
+                return true
+            },
+            voicePlayback: {
+                voiceAttempts += 1
+                return true
+            },
+            onDeferredFallback: { deferredResults.append($0) }
+        )
+
+        XCTAssertTrue(started)
+        XCTAssertEqual(voiceAttempts, 0)
+
+        customCompletion?(.failed)
+
+        XCTAssertEqual(voiceAttempts, 1)
+        XCTAssertEqual(deferredResults, [true])
+    }
+
+    func testSuccessfulCustomPromptCompletionNeverStartsBuiltInVoice() {
+        var customCompletion: ((CustomPromptAudioPlaybackOutcome) -> Void)?
+        var voiceAttempts = 0
+        var deferredResults: [Bool] = []
+
+        let started = StarSpellerPromptAudioPlayback.play(
+            customRecordingFilename: "family-prompt.m4a",
+            customPlayback: { _, completion in
+                customCompletion = completion
+                return true
+            },
+            voicePlayback: {
+                voiceAttempts += 1
+                return true
+            },
+            onDeferredFallback: { deferredResults.append($0) }
+        )
+
+        XCTAssertTrue(started)
+        customCompletion?(.finished)
+        XCTAssertEqual(voiceAttempts, 0)
+        XCTAssertTrue(deferredResults.isEmpty)
+    }
+
+    func testCustomPromptPlayerMapsUnsuccessfulFinishesToFailure() {
+        XCTAssertEqual(
+            CustomPromptAudioPlaybackOutcome(didFinishSuccessfully: true),
+            .finished
+        )
+        XCTAssertEqual(
+            CustomPromptAudioPlaybackOutcome(didFinishSuccessfully: false),
+            .failed
+        )
     }
 
     func testEnglandYearOneStarterListIncludesTheCurriculumExceptionWords() {
@@ -374,6 +601,187 @@ final class SpellingWordImportTests: XCTestCase {
     }
 
     @MainActor
+    func testDetailedHistoryMigratesFromDefaultsToAtomicApplicationSupportFiles() async throws {
+        let suiteName = "SpellingWordImportTests.file-migration.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("MaxPuzzlesHistoryTests-\(UUID().uuidString)", isDirectory: true)
+        defer {
+            defaults.removePersistentDomain(forName: suiteName)
+            try? FileManager.default.removeItem(at: directory)
+        }
+
+        let profileStore = CometLearningStore(defaults: defaults)
+        let profileID = profileStore.activeProfileID
+        let legacy = (0..<12).map { index in
+            StarSpellerAttemptRecord(
+                id: UUID(),
+                profileID: profileID,
+                word: "moon",
+                checkAttempts: 1,
+                errorCount: 0,
+                hintUses: 0,
+                wasSuccessful: true,
+                pointsEarned: 100,
+                timestamp: Date(timeIntervalSinceReferenceDate: Double(index))
+            )
+        }
+        defaults.set(
+            try JSONEncoder().encode(legacy),
+            forKey: "maxpuzzles.starSpeller.attempts"
+        )
+
+        let migrated = CometLearningStore(
+            defaults: defaults,
+            detailedHistoryDirectory: directory,
+            deferDetailedHistoryLoad: true
+        )
+        await migrated.waitForDetailedHistoriesToLoad()
+        XCTAssertEqual(migrated.activeSpellingAttempts.map(\.id), legacy.map(\.id))
+        await migrated.waitForPendingAttemptPersistence()
+
+        XCTAssertNil(defaults.data(forKey: "maxpuzzles.starSpeller.attempts"))
+        let historyFile = directory.appendingPathComponent("spelling-attempts.json")
+        XCTAssertGreaterThan(try Data(contentsOf: historyFile).count, 0)
+
+        let reloaded = CometLearningStore(
+            defaults: defaults,
+            detailedHistoryDirectory: directory
+        )
+        XCTAssertEqual(reloaded.activeSpellingAttempts.map(\.id), legacy.map(\.id))
+    }
+
+    @MainActor
+    func testNewerFallbackHistoryWinsOverAnOlderAtomicFile() async throws {
+        let suiteName = "SpellingWordImportTests.newer-fallback.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("MaxPuzzlesHistoryTests-\(UUID().uuidString)", isDirectory: true)
+        defer {
+            defaults.removePersistentDomain(forName: suiteName)
+            try? FileManager.default.removeItem(at: directory)
+        }
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+
+        let profileStore = CometLearningStore(defaults: defaults)
+        let profileID = profileStore.activeProfileID
+        let oldRecord = spellingRecord(profileID: profileID, word: "old")
+        let newerRecord = spellingRecord(profileID: profileID, word: "new")
+        try JSONEncoder().encode([oldRecord]).write(
+            to: directory.appendingPathComponent("spelling-attempts.json"),
+            options: .atomic
+        )
+        defaults.set(
+            try JSONEncoder().encode([newerRecord]),
+            forKey: "maxpuzzles.starSpeller.attempts"
+        )
+
+        let store = CometLearningStore(
+            defaults: defaults,
+            detailedHistoryDirectory: directory,
+            deferDetailedHistoryLoad: true
+        )
+        await store.waitForDetailedHistoriesToLoad()
+        XCTAssertEqual(store.activeSpellingAttempts.map(\.id), [newerRecord.id])
+        await store.waitForPendingAttemptPersistence()
+
+        XCTAssertNil(defaults.data(forKey: "maxpuzzles.starSpeller.attempts"))
+        let persisted = try JSONDecoder().decode(
+            [StarSpellerAttemptRecord].self,
+            from: Data(contentsOf: directory.appendingPathComponent("spelling-attempts.json"))
+        )
+        XCTAssertEqual(persisted.map(\.id), [newerRecord.id])
+    }
+
+    @MainActor
+    func testCorruptHistoryIsQuarantinedBeforeFreshProgressIsWritten() async throws {
+        let suiteName = "SpellingWordImportTests.corrupt-history.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("MaxPuzzlesHistoryTests-\(UUID().uuidString)", isDirectory: true)
+        defer {
+            defaults.removePersistentDomain(forName: suiteName)
+            try? FileManager.default.removeItem(at: directory)
+        }
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let corruptBytes = Data("not-json-progress".utf8)
+        let historyURL = directory.appendingPathComponent("spelling-attempts.json")
+        try corruptBytes.write(to: historyURL)
+
+        let store = CometLearningStore(
+            defaults: defaults,
+            detailedHistoryDirectory: directory
+        )
+        XCTAssertTrue(store.recoveredDamagedDetailedHistory)
+        XCTAssertFalse(store.detailedHistoryNeedsAttention)
+        XCTAssertTrue(store.activeSpellingAttempts.isEmpty)
+        let quarantined = try FileManager.default.contentsOfDirectory(
+            at: directory,
+            includingPropertiesForKeys: nil
+        ).filter { $0.lastPathComponent.hasPrefix("spelling-attempts.corrupt-") }
+        XCTAssertEqual(quarantined.count, 1)
+        XCTAssertEqual(try Data(contentsOf: XCTUnwrap(quarantined.first)), corruptBytes)
+
+        store.recordSpellingAttempt(
+            word: "moon",
+            checkAttempts: 1,
+            errorCount: 0,
+            hintUses: 0,
+            wasSuccessful: true,
+            pointsEarned: 100
+        )
+        await store.waitForPendingAttemptPersistence()
+        let fresh = try JSONDecoder().decode(
+            [StarSpellerAttemptRecord].self,
+            from: Data(contentsOf: historyURL)
+        )
+        XCTAssertEqual(fresh.map(\.word), ["moon"])
+        XCTAssertEqual(try Data(contentsOf: XCTUnwrap(quarantined.first)), corruptBytes)
+    }
+
+    @MainActor
+    func testAttemptsMadeDuringDeferredLoadMergeWithDiskHistory() async throws {
+        let suiteName = "SpellingWordImportTests.deferred-merge.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("MaxPuzzlesHistoryTests-\(UUID().uuidString)", isDirectory: true)
+        defer {
+            defaults.removePersistentDomain(forName: suiteName)
+            try? FileManager.default.removeItem(at: directory)
+        }
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let profileStore = CometLearningStore(defaults: defaults)
+        let diskRecord = spellingRecord(profileID: profileStore.activeProfileID, word: "disk")
+        try JSONEncoder().encode([diskRecord]).write(
+            to: directory.appendingPathComponent("spelling-attempts.json"),
+            options: .atomic
+        )
+
+        let store = CometLearningStore(
+            defaults: defaults,
+            detailedHistoryDirectory: directory,
+            deferDetailedHistoryLoad: true
+        )
+        store.recordSpellingAttempt(
+            word: "pending",
+            checkAttempts: 1,
+            errorCount: 0,
+            hintUses: 0,
+            wasSuccessful: true,
+            pointsEarned: 100
+        )
+        await store.waitForDetailedHistoriesToLoad()
+        XCTAssertEqual(Set(store.activeSpellingAttempts.map(\.word)), ["disk", "pending"])
+        await store.waitForPendingAttemptPersistence()
+
+        let reloaded = CometLearningStore(
+            defaults: defaults,
+            detailedHistoryDirectory: directory
+        )
+        XCTAssertEqual(Set(reloaded.activeSpellingAttempts.map(\.word)), ["disk", "pending"])
+    }
+
+    @MainActor
     func testAdaptiveRankingPerformanceAtBoundedHistoryLimit() throws {
         let suiteName = "SpellingWordImportTests.ranking.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
@@ -447,6 +855,23 @@ final class SpellingWordImportTests: XCTestCase {
         XCTAssertEqual(result.addedWords.count, CometLearningStore.maximumCustomWords)
         XCTAssertEqual(result.overflowCount, 5)
         XCTAssertEqual(store.activeCustomWords.count, CometLearningStore.maximumCustomWords)
+    }
+
+    private func spellingRecord(
+        profileID: UUID,
+        word: String
+    ) -> StarSpellerAttemptRecord {
+        StarSpellerAttemptRecord(
+            id: UUID(),
+            profileID: profileID,
+            word: word,
+            checkAttempts: 1,
+            errorCount: 0,
+            hintUses: 0,
+            wasSuccessful: true,
+            pointsEarned: 100,
+            timestamp: Date()
+        )
     }
 }
 

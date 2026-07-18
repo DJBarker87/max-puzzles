@@ -1,5 +1,24 @@
 import SwiftUI
 
+enum CometWriterWordEntry {
+    nonisolated static let maximumLength = CometLearningStore.maximumCustomWordLength
+
+    /// Preserves intentional capitals while accepting only glyphs the writing engine can draw.
+    nonisolated static func validatedWord(from rawValue: String) -> String? {
+        let word = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard (1...maximumLength).contains(word.count),
+              word.allSatisfy({ character in
+                  guard let glyph = LetterLibrary.glyph(for: String(character)) else {
+                      return false
+                  }
+                  return !glyph.isNumber
+              }) else {
+            return nil
+        }
+        return word
+    }
+}
+
 struct CometWriterMenuView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -10,6 +29,7 @@ struct CometWriterMenuView: View {
 
     @State private var destination: Destination?
     @State private var showsRecallPicker = false
+    @State private var showsWordEntry = false
     @State private var selectedRecallLetters = LetterRecallCatalog.allLetters
     @State private var showsMorePractice = false
     @State private var selectedPracticeCategory: PracticeCategory?
@@ -18,6 +38,7 @@ struct CometWriterMenuView: View {
     private enum Destination: Hashable {
         case lesson(LetterGlyph)
         case advanced(AdvancedWritingMission, recallLetters: [String])
+        case chosenWord(String)
         case quickPractice
         case dailyMission
         case flightSchool
@@ -110,6 +131,13 @@ struct CometWriterMenuView: View {
                             words: learningStore.availableWords,
                             sessionLength: mission == .wordWriting || mission == .alienMail ? 3 : 5
                         )
+                    case let .chosenWord(word):
+                        AdvancedWritingGameView(
+                            mission: .wordWriting,
+                            words: [word],
+                            sessionLength: 1,
+                            allowsShortWords: true
+                        )
                     case .quickPractice:
                         CometQuickPracticeView()
                     case .dailyMission:
@@ -137,6 +165,14 @@ struct CometWriterMenuView: View {
             )
             .presentationDetents([.large])
             .presentationDragIndicator(.hidden)
+        }
+        .sheet(isPresented: $showsWordEntry) {
+            CometWriterWordEntrySheet { word in
+                showsWordEntry = false
+                destination = .chosenWord(word)
+            }
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
         }
         // Keep the largest accessibility setting readable without allowing text to squeeze every
         // launch control off a compact iPhone screen. AX1 remains substantially enlarged.
@@ -556,10 +592,11 @@ struct CometWriterMenuView: View {
                     icon: "textformat.abc",
                     reward: "+25 bonus"
                 )
+                chooseAWordCard
                 advancedMissionCard(
                     mission: .phonics,
-                    title: "Letter Name Mission",
-                    detail: "Hear a letter name, remember it, then write it.",
+                    title: "Letter Sound Mission",
+                    detail: "Hear a letter sound, remember it, then write it.",
                     icon: "waveform.and.mic",
                     reward: "5 adaptive letters"
                 )
@@ -572,6 +609,54 @@ struct CometWriterMenuView: View {
                 )
             }
         }
+    }
+
+    private var chooseAWordCard: some View {
+        Button {
+            showsWordEntry = true
+            FeedbackManager.shared.haptic(.medium)
+            SoundEffectsService.shared.play(.cardTap)
+        } label: {
+            HStack(spacing: 14) {
+                Image(systemName: "keyboard.fill")
+                    .font(.system(size: 24, weight: .bold))
+                    .foregroundColor(AppTheme.cometGold)
+                    .frame(width: 48, height: 48)
+                    .background(Circle().fill(AppTheme.cometGold.opacity(0.18)))
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Choose a Word")
+                        .font(AppTypography.buttonLarge)
+                        .foregroundColor(AppTheme.textPrimary)
+                    Text("Type a word using 1–10 English letters, then write it straight away.")
+                        .font(AppTypography.bodySmall)
+                        .foregroundColor(AppTheme.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Text("1–10 letters")
+                        .font(AppTypography.caption)
+                        .foregroundColor(AppTheme.cometGold)
+                }
+
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right")
+                    .foregroundColor(AppTheme.textSecondary)
+                    .accessibilityHidden(true)
+            }
+            .padding(AppSpacing.md)
+            .frame(maxWidth: .infinity, minHeight: 108, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 20)
+                    .fill(AppTheme.backgroundMid.opacity(0.88))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 20)
+                    .stroke(AppTheme.cometGold.opacity(0.34), lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Choose a Word, type a word using 1–10 English letters, then write it straight away")
+        .accessibilityHint("Opens a word entry box")
+        .accessibilityIdentifier("comet-writer-choose-word")
     }
 
     private func advancedMissionCard(
@@ -953,6 +1038,115 @@ struct CometWriterMenuView: View {
     private func bestScore(for character: String) -> Int? {
         learningStore.bestScore(for: character)
             ?? (learningStore.profiles.count == 1 ? storage.bestCometWriterScore(for: character) : nil)
+    }
+}
+
+private struct CometWriterWordEntrySheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @FocusState private var isWordFieldFocused: Bool
+    @State private var enteredWord = ""
+
+    let onStart: (String) -> Void
+
+    private var validatedWord: String? {
+        CometWriterWordEntry.validatedWord(from: enteredWord)
+    }
+
+    private var hasInvalidInput: Bool {
+        !enteredWord.isEmpty && validatedWord == nil
+    }
+
+    var body: some View {
+        ZStack {
+            AppTheme.backgroundDark.ignoresSafeArea()
+
+            ScrollView {
+                VStack(alignment: .leading, spacing: AppSpacing.lg) {
+                HStack(alignment: .top, spacing: AppSpacing.md) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Choose a Word")
+                            .font(AppTypography.titleMedium)
+                            .foregroundColor(AppTheme.textPrimary)
+                        Text("Type the word you want to practise writing.")
+                            .font(AppTypography.bodySmall)
+                            .foregroundColor(AppTheme.textSecondary)
+                    }
+
+                    Spacer(minLength: 0)
+                    PremiumIconButton(
+                        icon: "xmark",
+                        action: { dismiss() },
+                        size: 44,
+                        accessibilityLabelText: "Cancel choosing a word"
+                    )
+                }
+
+                TextField("Type a word", text: $enteredWord)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .keyboardType(.alphabet)
+                    .submitLabel(.go)
+                    .font(.system(.title2, design: .rounded, weight: .heavy))
+                    .foregroundColor(AppTheme.textPrimary)
+                    .padding(.horizontal, AppSpacing.md)
+                    .frame(minHeight: 60)
+                    .background(
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(AppTheme.cometPaperTop)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16)
+                            .stroke(
+                                hasInvalidInput
+                                    ? AppTheme.cometGold
+                                    : AppTheme.cometCyan.opacity(0.55),
+                                lineWidth: 2
+                            )
+                    )
+                    .focused($isWordFieldFocused)
+                    .onSubmit(startWriting)
+                    .accessibilityIdentifier("comet-writer-word-entry-field")
+
+                if hasInvalidInput {
+                    Label("Use 1–10 letters with no spaces or punctuation.", systemImage: "exclamationmark.circle.fill")
+                        .font(AppTypography.bodySmall)
+                        .foregroundColor(AppTheme.cometGold)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("comet-writer-word-entry-error")
+                } else {
+                    Text("Use 1–10 English letters.")
+                        .font(AppTypography.caption)
+                        .foregroundColor(AppTheme.textSecondary)
+                }
+
+                PrimaryButton(
+                    "Start Writing",
+                    icon: "pencil.tip",
+                    size: .large,
+                    isDisabled: validatedWord == nil,
+                    action: startWriting
+                )
+                .frame(maxWidth: .infinity)
+                .accessibilityIdentifier("comet-writer-start-chosen-word")
+
+                    Spacer(minLength: 0)
+                }
+                .frame(maxWidth: 620)
+                .padding(AppSpacing.lg)
+            }
+        }
+        .onAppear { isWordFieldFocused = true }
+        .dynamicTypeSize(...DynamicTypeSize.accessibility1)
+        .accessibilityIdentifier("comet-writer-word-entry-sheet")
+    }
+
+    private func startWriting() {
+        guard let validatedWord else {
+            FeedbackManager.shared.haptic(.error)
+            return
+        }
+        isWordFieldFocused = false
+        onStart(validatedWord)
     }
 }
 

@@ -1,154 +1,43 @@
 import SwiftUI
-import CoreMotion
 
-/// Animated starry background with shooting stars and parallax
+/// Animated starry background with optional shooting stars.
 struct StarryBackground: View {
     let starCount: Int
-    let useHubImage: Bool
     let enableShootingStars: Bool
-    let enableParallax: Bool
     let animateStars: Bool
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     init(
         starCount: Int = 40,
-        useHubImage: Bool = false,
         enableShootingStars: Bool = false,
-        enableParallax: Bool = false,
         animateStars: Bool = true
     ) {
         self.starCount = starCount
-        self.useHubImage = useHubImage
         self.enableShootingStars = enableShootingStars
-        self.enableParallax = enableParallax
         self.animateStars = animateStars
     }
 
     var body: some View {
         GeometryReader { geometry in
             ZStack {
-                if useHubImage {
-                    // Hub/Splash background with parallax
-                    ParallaxBackground(
-                        imageName: "HubBackground",
-                        size: geometry.size,
-                        enableParallax: enableParallax && !reduceMotion
-                    )
+                AppTheme.gridBackground
 
-                    // Shooting stars overlay
-                    if enableShootingStars && !reduceMotion {
-                        ShootingStarsLayer(bounds: geometry.size)
-                    }
-                } else {
-                    // Base gradient
-                    AppTheme.gridBackground
+                // A single canvas drives the whole star field, avoiding one perpetual
+                // animation transaction per star.
+                StarFieldView(
+                    starCount: starCount,
+                    bounds: geometry.size,
+                    animate: animateStars && !reduceMotion
+                )
 
-                    // A single canvas drives the whole star field, avoiding one perpetual
-                    // animation transaction per star.
-                    StarFieldView(
-                        starCount: starCount,
-                        bounds: geometry.size,
-                        animate: animateStars && !reduceMotion
-                    )
-
-                    // Shooting stars
-                    if enableShootingStars && !reduceMotion {
-                        ShootingStarsLayer(bounds: geometry.size)
-                    }
-
-                    // Ambient green glow
-                    AppTheme.connectorGlow.opacity(0.03)
+                if enableShootingStars && !reduceMotion {
+                    ShootingStarsLayer(bounds: geometry.size)
                 }
+
+                AppTheme.connectorGlow.opacity(0.03)
             }
         }
         .ignoresSafeArea()
-    }
-}
-
-// MARK: - Parallax Background
-
-/// Background image with subtle parallax effect based on device motion
-struct ParallaxBackground: View {
-    let imageName: String
-    let size: CGSize
-    let enableParallax: Bool
-
-    @StateObject private var motionManager = MotionManager()
-
-    // Parallax intensity (how much the image moves)
-    private let parallaxIntensity: CGFloat = 20
-
-    var body: some View {
-        Image(imageName)
-            .resizable()
-            .aspectRatio(contentMode: .fill)
-            .frame(
-                width: size.width + parallaxIntensity * 2,
-                height: size.height + parallaxIntensity * 2
-            )
-            .offset(
-                x: enableParallax ? motionManager.roll * parallaxIntensity : 0,
-                y: enableParallax ? motionManager.pitch * parallaxIntensity : 0
-            )
-            .clipped()
-            .overlay(Color.black.opacity(0.3)) // Slight darkening for text readability
-            .animation(enableParallax ? .easeOut(duration: 0.1) : nil, value: motionManager.roll)
-            .animation(enableParallax ? .easeOut(duration: 0.1) : nil, value: motionManager.pitch)
-            .onAppear {
-                if enableParallax {
-                    motionManager.start()
-                }
-            }
-            .onDisappear {
-                motionManager.stop()
-            }
-            .onChange(of: enableParallax) { enabled in
-                if enabled { motionManager.start() } else { motionManager.stop() }
-            }
-    }
-}
-
-// MARK: - Motion Manager
-
-/// Manages device motion for parallax effect
-class MotionManager: ObservableObject {
-    private var motionManager: CMMotionManager?
-
-    @Published var pitch: CGFloat = 0  // Forward/backward tilt
-    @Published var roll: CGFloat = 0   // Left/right tilt
-
-    func start() {
-        #if os(iOS)
-        guard motionManager == nil else { return }
-        motionManager = CMMotionManager()
-        motionManager?.deviceMotionUpdateInterval = 1.0 / 30.0
-
-        guard let manager = motionManager, manager.isDeviceMotionAvailable else { return }
-
-        manager.startDeviceMotionUpdates(to: .main) { [weak self] motion, error in
-            guard let motion = motion, error == nil else { return }
-
-            // Normalize and clamp values (-1 to 1)
-            let newPitch = max(-1, min(1, motion.attitude.pitch))
-            let newRoll = max(-1, min(1, motion.attitude.roll))
-
-            self?.pitch = newPitch
-            self?.roll = newRoll
-        }
-        #endif
-    }
-
-    func stop() {
-        #if os(iOS)
-        motionManager?.stopDeviceMotionUpdates()
-        motionManager = nil
-        #endif
-    }
-
-    deinit {
-        #if os(iOS)
-        motionManager?.stopDeviceMotionUpdates()
-        #endif
     }
 }
 
@@ -399,8 +288,4 @@ struct SplashBackground: View {
 
 #Preview("Splash Background") {
     SplashBackground()
-}
-
-#Preview {
-    StarryBackground(useHubImage: true)
 }

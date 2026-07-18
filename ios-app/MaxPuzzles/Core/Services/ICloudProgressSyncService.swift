@@ -1,5 +1,48 @@
 import Foundation
 
+private final class ICloudMutationEpoch: @unchecked Sendable {
+    private let lock = NSLock()
+    private var value: UInt64 = 0
+
+    @discardableResult
+    func advance() -> UInt64 {
+        lock.lock()
+        defer { lock.unlock() }
+        value &+= 1
+        return value
+    }
+
+    func current() -> UInt64 {
+        lock.lock()
+        defer { lock.unlock() }
+        return value
+    }
+}
+
+private struct ICloudProfileSnapshotInput: Sendable {
+    let profile: CometChildProfile
+    let dotToDotCompletedPuzzles: [String]
+    let dotToDotInteractionMode: String
+    let dotToDotColoredRegionsData: Data?
+    let cometWriterCompletedLetters: [String]
+    let cometWriterBestScores: [String: Int]
+    let lastCometWriterLetter: String?
+    let storyData: Data?
+    let totalCoinsEarned: Int
+    let puzzlesCompletedCount: Int
+    let totalGamesPlayed: Int
+    let bestTimeByLevel: [String: Int]
+    let hasCompletedCircuitTutorial: Bool
+    let lastPlayedDifficulty: Int
+}
+
+private struct ICloudProgressSnapshotInput: Sendable {
+    let resetAt: Date?
+    let profiles: [ICloudProfileSnapshotInput]
+    let profileModifiedAt: [String: Date]
+    let deletedProfileAt: [String: Date]
+}
+
 enum ICloudProgressSyncState: Equatable {
     case checking
     case ready(Date)
@@ -16,14 +59,14 @@ enum ICloudProgressSyncState: Equatable {
     }
 }
 
-struct CloudLevelProgress: Codable, Equatable {
+struct CloudLevelProgress: Codable, Equatable, Sendable {
     var completed: Bool
     var stars: Int
     var bestTimeSeconds: Double?
     var attempts: Int
 }
 
-struct CloudProfileProgress: Codable, Equatable {
+struct CloudProfileProgress: Codable, Equatable, Sendable {
     var dotToDotCompletedPuzzles: [String] = []
     var dotToDotInteractionMode: String = DotInteractionMode.tap.rawValue
     /// Optional keeps version-one envelopes readable on devices that have not seen colouring yet.
@@ -40,7 +83,7 @@ struct CloudProfileProgress: Codable, Equatable {
     var lastPlayedDifficulty = 1
 }
 
-struct CloudProgressEnvelope: Codable, Equatable {
+struct CloudProgressEnvelope: Codable, Equatable, Sendable {
     static let currentVersion = 1
 
     var version = currentVersion
@@ -229,17 +272,18 @@ final class ICloudProgressSyncService: ObservableObject {
 
     @Published private(set) var state: ICloudProgressSyncState = .checking
 
-    static let profileModifiedAtKey = "maxpuzzles.cloud.profileModifiedAt"
-    static let deletedProfileAtKey = "maxpuzzles.cloud.deletedProfileAt"
-    static let resetAtKey = "maxpuzzles.cloud.resetAt"
+    nonisolated static let profileModifiedAtKey = "maxpuzzles.cloud.profileModifiedAt"
+    nonisolated static let deletedProfileAtKey = "maxpuzzles.cloud.deletedProfileAt"
+    nonisolated static let resetAtKey = "maxpuzzles.cloud.resetAt"
+    nonisolated private static let allowedDotPuzzleIDs = Set(DotPuzzleCatalog.all.map(\.id))
 
     private let cloudKey = "maxpuzzles.progress.envelope.v1"
     private let store: NSUbiquitousKeyValueStore
     private let defaults: UserDefaults
+    private let localMutationEpoch = ICloudMutationEpoch()
     /// The existing on-device stores use Foundation's default date representation. The iCloud
     /// envelope deliberately uses milliseconds, so local payloads need their own compatible codec.
     private let localEncoder = JSONEncoder()
-    private let localDecoder = JSONDecoder()
     private var progressObserver: NSObjectProtocol?
     private var cloudObserver: NSObjectProtocol?
     private var pendingUpload: Task<Void, Never>?
@@ -276,6 +320,7 @@ final class ICloudProgressSyncService: ObservableObject {
             object: nil,
             queue: .main
         ) { [weak self] _ in
+            self?.localMutationEpoch.advance()
             Task { @MainActor in self?.durableProgressChanged() }
         }
 
@@ -325,6 +370,8 @@ final class ICloudProgressSyncService: ObservableObject {
 
     private func durableProgressChanged() {
         guard !isApplyingCloud else { return }
+        processingTask?.cancel()
+        processingTask = nil
         pendingUpload?.cancel()
         pendingUpload = Task { @MainActor [weak self] in
             try? await Task.sleep(nanoseconds: 800_000_000)
@@ -357,6 +404,7 @@ final class ICloudProgressSyncService: ObservableObject {
     }
 
     private func receiveCloudData(_ data: Data) async {
+        let startingMutationEpoch = localMutationEpoch.current()
         guard let decodedRemote = await Self.decodeEnvelope(data),
               decodedRemote.version == CloudProgressEnvelope.currentVersion else {
             guard !Task.isCancelled else { return }
@@ -364,9 +412,11 @@ final class ICloudProgressSyncService: ObservableObject {
             return
         }
 
-        let allowedDotPuzzleIDs = Set(DotPuzzleCatalog.all.map(\.id))
+        let allowedDotPuzzleIDs = Self.allowedDotPuzzleIDs
         let remote = decodedRemote.retainingDotPuzzles(in: allowedDotPuzzleIDs)
-        let local = snapshot()
+        let local = await snapshot()
+        guard !Task.isCancelled,
+              localMutationEpoch.current() == startingMutationEpoch else { return }
         let mergeResult = await Task.detached(priority: .utility) {
             let remoteResetIsNewer = (remote.resetAt ?? .distantPast)
                 > (local.resetAt ?? .distantPast)
@@ -375,7 +425,8 @@ final class ICloudProgressSyncService: ObservableObject {
             let encoded = Self.encodeEnvelope(merged.normalized())
             return (remoteResetIsNewer, merged, encoded)
         }.value
-        guard !Task.isCancelled else { return }
+        guard !Task.isCancelled,
+              localMutationEpoch.current() == startingMutationEpoch else { return }
 
         let (remoteResetIsNewer, merged, mergedData) = mergeResult
         if remoteResetIsNewer {
@@ -395,11 +446,15 @@ final class ICloudProgressSyncService: ObservableObject {
     }
 
     private func uploadNow() async {
-        let envelope = snapshot().normalized()
+        let startingMutationEpoch = localMutationEpoch.current()
+        let envelope = await snapshot()
+        guard !Task.isCancelled,
+              localMutationEpoch.current() == startingMutationEpoch else { return }
         let data = await Task.detached(priority: .utility) {
             Self.encodeEnvelope(envelope)
         }.value
-        guard !Task.isCancelled else { return }
+        guard !Task.isCancelled,
+              localMutationEpoch.current() == startingMutationEpoch else { return }
         guard let data else {
             state = .failed
             return
@@ -437,34 +492,104 @@ final class ICloudProgressSyncService: ObservableObject {
         return try? encoder.encode(envelope)
     }
 
-    private func snapshot() -> CloudProgressEnvelope {
-        let profiles = decodeProfiles()
-        let modifiedAt = decodeDateDictionary(forKey: Self.profileModifiedAtKey)
-        let deletedAt = decodeDateDictionary(forKey: Self.deletedProfileAtKey)
-        var progress: [String: CloudProfileProgress] = [:]
+    private func snapshot() async -> CloudProgressEnvelope {
+        let input = captureSnapshotInput(profiles: CometLearningStore.shared.profiles)
+        return await Task.detached(priority: .utility) {
+            Self.snapshot(input: input)
+        }.value
+    }
 
-        for profile in profiles {
-            let id = profile.id.uuidString
-            progress[id] = snapshotProgress(profileID: profile.id)
+    /// Copies every related preference in one uninterrupted MainActor turn. The detached worker
+    /// receives immutable values rather than reading live `UserDefaults` key by key.
+    private func captureSnapshotInput(
+        profiles: [CometChildProfile]
+    ) -> ICloudProgressSnapshotInput {
+        let inputs = profiles.map { profile in
+            func key(_ suffix: String) -> String {
+                "maxpuzzles.profile.\(profile.id.uuidString).\(suffix)"
+            }
+
+            return ICloudProfileSnapshotInput(
+                profile: profile,
+                dotToDotCompletedPuzzles: defaults.stringArray(
+                    forKey: key("dotToDot.completedPuzzles")
+                ) ?? [],
+                dotToDotInteractionMode: defaults.string(
+                    forKey: key("dotToDot.interactionMode")
+                ) ?? DotInteractionMode.tap.rawValue,
+                dotToDotColoredRegionsData: defaults.data(
+                    forKey: key("dotToDot.coloredRegions")
+                ),
+                cometWriterCompletedLetters: defaults.stringArray(
+                    forKey: key("cometWriter.completedLetters")
+                ) ?? [],
+                cometWriterBestScores: Self.intDictionary(
+                    forKey: key("cometWriter.bestScores"),
+                    defaults: defaults
+                ),
+                lastCometWriterLetter: defaults.string(
+                    forKey: key("cometWriter.lastLetter")
+                ),
+                storyData: defaults.data(forKey: key("storyProgressV2")),
+                totalCoinsEarned: defaults.integer(forKey: key("stats.totalCoinsEarned")),
+                puzzlesCompletedCount: defaults.integer(forKey: key("stats.puzzlesCompleted")),
+                totalGamesPlayed: defaults.integer(forKey: key("stats.totalGamesPlayed")),
+                bestTimeByLevel: Self.intDictionary(
+                    forKey: key("stats.bestTimeByLevel"),
+                    defaults: defaults
+                ),
+                hasCompletedCircuitTutorial: defaults.bool(
+                    forKey: key("tutorial.circuitChallenge.completed")
+                ),
+                lastPlayedDifficulty: defaults.object(
+                    forKey: key("settings.lastDifficulty")
+                ) as? Int ?? 1
+            )
+        }
+
+        return ICloudProgressSnapshotInput(
+            resetAt: Self.resetDate(defaults: defaults),
+            profiles: inputs,
+            profileModifiedAt: Self.decodeDateDictionary(
+                forKey: Self.profileModifiedAtKey,
+                defaults: defaults
+            ),
+            deletedProfileAt: Self.decodeDateDictionary(
+                forKey: Self.deletedProfileAtKey,
+                defaults: defaults
+            )
+        )
+    }
+
+    private nonisolated static func snapshot(
+        input: ICloudProgressSnapshotInput
+    ) -> CloudProgressEnvelope {
+        let decoder = JSONDecoder()
+        var progress: [String: CloudProfileProgress] = [:]
+        progress.reserveCapacity(input.profiles.count)
+        for profileInput in input.profiles {
+            progress[profileInput.profile.id.uuidString] = snapshotProgress(
+                input: profileInput,
+                decoder: decoder
+            )
         }
 
         return CloudProgressEnvelope(
-            resetAt: resetDate(),
-            profiles: profiles,
-            profileModifiedAt: modifiedAt,
-            deletedProfileAt: deletedAt,
+            resetAt: input.resetAt,
+            profiles: input.profiles.map(\.profile),
+            profileModifiedAt: input.profileModifiedAt,
+            deletedProfileAt: input.deletedProfileAt,
             progressByProfile: progress
         ).normalized()
     }
 
-    private func snapshotProgress(profileID: UUID) -> CloudProfileProgress {
-        func key(_ suffix: String) -> String {
-            "maxpuzzles.profile.\(profileID.uuidString).\(suffix)"
-        }
-
+    private nonisolated static func snapshotProgress(
+        input: ICloudProfileSnapshotInput,
+        decoder: JSONDecoder
+    ) -> CloudProfileProgress {
         let story: StoryProgressData = {
-            guard let data = defaults.data(forKey: key("storyProgressV2")),
-                  let decoded = try? localDecoder.decode(StoryProgressData.self, from: data) else {
+            guard let data = input.storyData,
+                  let decoded = try? decoder.decode(StoryProgressData.self, from: data) else {
                 return StoryProgressData()
             }
             return decoded
@@ -478,31 +603,31 @@ final class ICloudProgressSyncService: ObservableObject {
             )
         }
         let coloredRegions: [String: [Int]] = {
-            guard let data = defaults.data(forKey: key("dotToDot.coloredRegions")),
-                  let decoded = try? localDecoder.decode([String: [Int]].self, from: data) else {
+            guard let data = input.dotToDotColoredRegionsData,
+                  let decoded = try? decoder.decode([String: [Int]].self, from: data) else {
                 return [:]
             }
             return decoded.mapValues { Array(Set($0)).sorted() }
         }()
 
-        let currentDotPuzzleIDs = Set(DotPuzzleCatalog.all.map(\.id))
+        let currentDotPuzzleIDs = allowedDotPuzzleIDs
         return CloudProfileProgress(
-            dotToDotCompletedPuzzles: (defaults.stringArray(forKey: key("dotToDot.completedPuzzles")) ?? [])
+            dotToDotCompletedPuzzles: input.dotToDotCompletedPuzzles
                 .filter(currentDotPuzzleIDs.contains),
-            dotToDotInteractionMode: defaults.string(forKey: key("dotToDot.interactionMode")) ?? DotInteractionMode.tap.rawValue,
+            dotToDotInteractionMode: input.dotToDotInteractionMode,
             dotToDotColoredRegions: coloredRegions.filter {
                 currentDotPuzzleIDs.contains($0.key)
             },
-            cometWriterCompletedLetters: defaults.stringArray(forKey: key("cometWriter.completedLetters")) ?? [],
-            cometWriterBestScores: intDictionary(forKey: key("cometWriter.bestScores")),
-            lastCometWriterLetter: defaults.string(forKey: key("cometWriter.lastLetter")),
+            cometWriterCompletedLetters: input.cometWriterCompletedLetters,
+            cometWriterBestScores: input.cometWriterBestScores,
+            lastCometWriterLetter: input.lastCometWriterLetter,
             storyLevels: cloudStory,
-            totalCoinsEarned: defaults.integer(forKey: key("stats.totalCoinsEarned")),
-            puzzlesCompletedCount: defaults.integer(forKey: key("stats.puzzlesCompleted")),
-            totalGamesPlayed: defaults.integer(forKey: key("stats.totalGamesPlayed")),
-            bestTimeByLevel: intDictionary(forKey: key("stats.bestTimeByLevel")),
-            hasCompletedCircuitTutorial: defaults.bool(forKey: key("tutorial.circuitChallenge.completed")),
-            lastPlayedDifficulty: defaults.object(forKey: key("settings.lastDifficulty")) as? Int ?? 1
+            totalCoinsEarned: input.totalCoinsEarned,
+            puzzlesCompletedCount: input.puzzlesCompletedCount,
+            totalGamesPlayed: input.totalGamesPlayed,
+            bestTimeByLevel: input.bestTimeByLevel,
+            hasCompletedCircuitTutorial: input.hasCompletedCircuitTutorial,
+            lastPlayedDifficulty: input.lastPlayedDifficulty
         )
     }
 
@@ -548,7 +673,7 @@ final class ICloudProgressSyncService: ObservableObject {
             "maxpuzzles.profile.\(profileID.uuidString).\(suffix)"
         }
 
-        let currentDotPuzzleIDs = Set(DotPuzzleCatalog.all.map(\.id))
+        let currentDotPuzzleIDs = Self.allowedDotPuzzleIDs
         defaults.set(
             progress.dotToDotCompletedPuzzles.filter(currentDotPuzzleIDs.contains).sorted(),
             forKey: key("dotToDot.completedPuzzles")
@@ -580,16 +705,10 @@ final class ICloudProgressSyncService: ObservableObject {
         defaults.set(try? localEncoder.encode(story), forKey: key("storyProgressV2"))
     }
 
-    private func decodeProfiles() -> [CometChildProfile] {
-        guard let data = defaults.data(forKey: "maxpuzzles.cometWriter.profiles"),
-              let profiles = try? localDecoder.decode([CometChildProfile].self, from: data),
-              !profiles.isEmpty else {
-            return CometLearningStore.shared.profiles
-        }
-        return profiles
-    }
-
-    private func intDictionary(forKey key: String) -> [String: Int] {
+    private nonisolated static func intDictionary(
+        forKey key: String,
+        defaults: UserDefaults
+    ) -> [String: Int] {
         (defaults.dictionary(forKey: key) ?? [:]).reduce(into: [:]) { result, entry in
             if let number = entry.value as? NSNumber {
                 result[entry.key] = number.intValue
@@ -597,7 +716,10 @@ final class ICloudProgressSyncService: ObservableObject {
         }
     }
 
-    private func decodeDateDictionary(forKey key: String) -> [String: Date] {
+    private nonisolated static func decodeDateDictionary(
+        forKey key: String,
+        defaults: UserDefaults
+    ) -> [String: Date] {
         (defaults.dictionary(forKey: key) ?? [:]).reduce(into: [:]) { result, entry in
             if let number = entry.value as? NSNumber {
                 result[entry.key] = Date(timeIntervalSince1970: number.doubleValue)
@@ -609,9 +731,9 @@ final class ICloudProgressSyncService: ObservableObject {
         dates.mapValues(\.timeIntervalSince1970)
     }
 
-    private func resetDate() -> Date? {
-        guard defaults.object(forKey: Self.resetAtKey) != nil else { return nil }
-        return Date(timeIntervalSince1970: defaults.double(forKey: Self.resetAtKey))
+    private nonisolated static func resetDate(defaults: UserDefaults) -> Date? {
+        guard defaults.object(forKey: resetAtKey) != nil else { return nil }
+        return Date(timeIntervalSince1970: defaults.double(forKey: resetAtKey))
     }
 
     private func clearLocalLearningHistoryForRemoteReset() {
@@ -621,6 +743,7 @@ final class ICloudProgressSyncService: ObservableObject {
                 || $0 == "maxpuzzles.cometWriter.activeProfileID"
                 || $0 == "maxpuzzles.cometWriter.customWords"
                 || $0 == "maxpuzzles.cometWriter.attempts"
+                || $0 == "maxpuzzles.starSpeller.attempts"
                 || $0 == Self.profileModifiedAtKey
                 || $0 == Self.deletedProfileAtKey
         }

@@ -23,15 +23,42 @@ enum CometCorrectionKind: String, Equatable, Hashable {
     case finish
 }
 
+/// High-frequency input state observed by the drawing surface, not by the surrounding mission UI.
+///
+/// `CometWriterViewModel` deliberately does not forward this object's change notifications. That
+/// keeps each accepted Pencil/finger sample from invalidating prompts, controls and overlays while
+/// preserving the exact point sequence used for rendering, validation and scoring.
+@MainActor
+final class CometTraceSurfaceState: ObservableObject {
+    @Published private(set) var points: [LetterPoint] = []
+
+    func begin(at point: LetterPoint) {
+        points = [point]
+    }
+
+    func append(_ point: LetterPoint) {
+        points.append(point)
+    }
+
+    func clear() {
+        guard !points.isEmpty else { return }
+        points = []
+    }
+}
+
 @MainActor
 final class CometWriterViewModel: ObservableObject {
+    /// Allows a small natural dip below the ruled baseline without relaxing Flight School or the
+    /// validator's general-purpose default.
+    private static let productionHandwritingBaselineTolerance: CGFloat = 0.08
+
     @Published private(set) var glyph: LetterGlyph
     @Published private(set) var assistance: TraceAssistance = .followTheGlow
     @Published private(set) var currentStrokeIndex = 0
     @Published private(set) var completedTraces: [[LetterPoint]] = []
-    @Published private(set) var activeTrace: [LetterPoint] = []
+    let traceSurfaceState = CometTraceSurfaceState()
     // Internal scoring state. Keeping this out of @Published avoids a second full Canvas update
-    // for every sampled touch; activeTrace already drives the one redraw we actually need.
+    // for every sampled touch; traceSurfaceState drives the one redraw we actually need.
     private(set) var strokeProgress: CGFloat = 0
     @Published private(set) var isRoundComplete = false
     @Published private(set) var isLetterComplete = false
@@ -58,6 +85,10 @@ final class CometWriterViewModel: ObservableObject {
 
     var currentStroke: LetterStroke {
         glyph.strokes[min(currentStrokeIndex, glyph.strokes.count - 1)]
+    }
+
+    var activeTrace: [LetterPoint] {
+        traceSurfaceState.points
     }
 
     var roundNumber: Int { assistance.rawValue + 1 }
@@ -100,7 +131,10 @@ final class CometWriterViewModel: ObservableObject {
         guard !isRoundComplete else { return .none }
 
         warnedDuringGesture = false
-        var nextValidator = LetterPathValidator(stroke: currentStroke)
+        var nextValidator = LetterPathValidator(
+            stroke: currentStroke,
+            baselineTolerance: Self.productionHandwritingBaselineTolerance
+        )
         let result = nextValidator.begin(at: point)
 
         guard result == .ready else {
@@ -110,7 +144,7 @@ final class CometWriterViewModel: ObservableObject {
         }
 
         validator = nextValidator
-        activeTrace = [point]
+        traceSurfaceState.begin(at: point)
         strokeProgress = 0
         correctionKind = nil
         feedbackTone = .instruction
@@ -127,7 +161,9 @@ final class CometWriterViewModel: ObservableObject {
         switch result {
         case let .advanced(progress):
             let recoveredFromCorrection = correctionKind != nil
-            correctionKind = nil
+            if recoveredFromCorrection {
+                correctionKind = nil
+            }
             strokeProgress = progress
             appendIfNeeded(point)
             if recoveredFromCorrection {
@@ -159,7 +195,7 @@ final class CometWriterViewModel: ObservableObject {
         validator = nil
 
         guard result == .complete else {
-            activeTrace = []
+            traceSurfaceState.clear()
             strokeProgress = 0
             if !warnedDuringGesture {
                 switch result {
@@ -179,7 +215,7 @@ final class CometWriterViewModel: ObservableObject {
         appendIfNeeded(point)
         completedQuality.append(Self.quality(of: activeTrace, against: currentStroke))
         completedTraces.append(activeTrace)
-        activeTrace = []
+        traceSurfaceState.clear()
         strokeProgress = 0
         correctionKind = nil
         currentStrokeIndex += 1
@@ -205,7 +241,7 @@ final class CometWriterViewModel: ObservableObject {
     func retryCurrentStroke() {
         cancelHint()
         validator = nil
-        activeTrace = []
+        traceSurfaceState.clear()
         strokeProgress = 0
         warnedDuringGesture = false
         correctionKind = nil
@@ -216,7 +252,7 @@ final class CometWriterViewModel: ObservableObject {
     /// A system touch cancellation is not a child's mistake and must not affect their score.
     func cancelActiveTrace() {
         validator = nil
-        activeTrace = []
+        traceSurfaceState.clear()
         strokeProgress = 0
         warnedDuringGesture = false
         correctionKind = nil
@@ -227,7 +263,7 @@ final class CometWriterViewModel: ObservableObject {
     func showHint(animated: Bool) {
         hintTask?.cancel()
         validator = nil
-        activeTrace = []
+        traceSurfaceState.clear()
         strokeProgress = 0
         warnedDuringGesture = false
         correctionKind = nil
@@ -278,7 +314,7 @@ final class CometWriterViewModel: ObservableObject {
         validator = nil
         currentStrokeIndex = 0
         completedTraces = []
-        activeTrace = []
+        traceSurfaceState.clear()
         strokeProgress = 0
         isRoundComplete = false
         warnedDuringGesture = false
@@ -300,7 +336,7 @@ final class CometWriterViewModel: ObservableObject {
 
     private func appendIfNeeded(_ point: LetterPoint) {
         if activeTrace.last?.distance(to: point) ?? .greatestFiniteMagnitude > 0.006 {
-            activeTrace.append(point)
+            traceSurfaceState.append(point)
         }
     }
 

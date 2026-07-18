@@ -27,13 +27,31 @@ enum LetterTraceMotionPolicy {
 struct LetterTracePad: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @ObservedObject var viewModel: CometWriterViewModel
+    @ObservedObject private var traceSurfaceState: CometTraceSurfaceState
     let letterScale: CGFloat
     let pencilOnly: Bool
     let showsWritingLines: Bool
-    var showsSurface = true
-    var contentInset: CGFloat = 24
+    var showsSurface: Bool
+    var contentInset: CGFloat
 
     @State private var correctionShake: CGFloat = 0
+
+    init(
+        viewModel: CometWriterViewModel,
+        letterScale: CGFloat,
+        pencilOnly: Bool,
+        showsWritingLines: Bool,
+        showsSurface: Bool = true,
+        contentInset: CGFloat = 24
+    ) {
+        self.viewModel = viewModel
+        _traceSurfaceState = ObservedObject(wrappedValue: viewModel.traceSurfaceState)
+        self.letterScale = letterScale
+        self.pencilOnly = pencilOnly
+        self.showsWritingLines = showsWritingLines
+        self.showsSurface = showsSurface
+        self.contentInset = contentInset
+    }
 
     var body: some View {
         GeometryReader { geometry in
@@ -60,7 +78,7 @@ struct LetterTracePad: View {
             // Resizing the surface during a live stroke changes UIKit's physical coordinates.
             // Cancel that one unfinished stroke rather than joining points from two layouts.
             .onChange(of: size) { _ in
-                if !viewModel.activeTrace.isEmpty {
+                if !traceSurfaceState.points.isEmpty {
                     viewModel.cancelActiveTrace()
                 }
             }
@@ -376,8 +394,8 @@ struct LetterTracePad: View {
     }
 
     private func drawActiveTrace(in context: inout GraphicsContext, size: CGSize) {
-        guard !viewModel.activeTrace.isEmpty else { return }
-        drawCometTrail(viewModel.activeTrace, in: &context, size: size, isActive: true)
+        guard !traceSurfaceState.points.isEmpty else { return }
+        drawCometTrail(traceSurfaceState.points, in: &context, size: size, isActive: true)
     }
 
     private func drawDemonstration(
@@ -632,7 +650,9 @@ struct WordMissionTracePad: View {
             transaction.animation = nil
         }
         .accessibilityElement(children: .contain)
-        .accessibilityLabel("Writing surface for the word \(characters.joined())")
+        .accessibilityLabel(
+            "Writing surface for \(CometWriterWordAccessibilityCopy.writingSurfaceDescription(for: characters.joined()))"
+        )
         .accessibilityIdentifier("comet-writer-word-trace-pad")
     }
 
@@ -642,7 +662,8 @@ struct WordMissionTracePad: View {
             CompletedWordLetterView(
                 attempt: attempt,
                 letterScale: letterScale,
-                contentInset: contentInset
+                contentInset: contentInset,
+                word: characters.joined()
             )
         } else if index == activeIndex {
             LetterTracePad(
@@ -653,7 +674,9 @@ struct WordMissionTracePad: View {
                 showsSurface: false,
                 contentInset: contentInset
             )
-            .accessibilityLabel("Write \(character), letter \(index + 1) of \(characters.count)")
+            .accessibilityLabel(
+                "Write \(CometWriterWordAccessibilityCopy.characterDescription(character, in: characters.joined())), letter \(index + 1) of \(characters.count)"
+            )
         } else {
             ZStack(alignment: .bottom) {
                 Color.clear
@@ -699,6 +722,7 @@ private struct CompletedWordLetterView: View {
     let attempt: WordLetterAttempt
     let letterScale: CGFloat
     let contentInset: CGFloat
+    let word: String
 
     private var displayTransform: LetterDisplayTransform {
         LetterDisplayTransform(scale: letterScale)
@@ -758,7 +782,9 @@ private struct CompletedWordLetterView: View {
                 .padding(4)
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(attempt.character), score \(attempt.reward.score) out of 100")
+        .accessibilityLabel(
+            "\(CometWriterWordAccessibilityCopy.characterDescription(attempt.character, in: word)), score \(attempt.reward.score) out of 100"
+        )
     }
 
     private func rendered(_ point: LetterPoint, in size: CGSize) -> CGPoint {

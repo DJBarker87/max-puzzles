@@ -6,9 +6,116 @@ enum CometWriterLayoutPolicy {
     }
 }
 
+enum CometWriterAutomaticSpeechPolicy {
+    nonisolated static let deferredRecordingFailureAnnouncement =
+        "The recording could not play. Choose Hear to try again."
+
+    nonisolated static func shouldSpeak(
+        isVoiceOverRunning: Bool,
+        isHearCue: Bool,
+        isWordMission: Bool
+    ) -> Bool {
+        !isVoiceOverRunning && (isHearCue || isWordMission)
+    }
+
+    nonisolated static func shouldStartDeferredRecordingFallback(
+        isVoiceOverRunning: Bool
+    ) -> Bool {
+        !isVoiceOverRunning
+    }
+}
+
+enum CometWriterRecallCuePolicy {
+    nonisolated static func startsWithHearCue(for mission: AdvancedWritingMission) -> Bool {
+        mission == .phonics
+    }
+}
+
+enum CometWriterFeedbackAccessibilityCopy {
+    nonisolated static func label(
+        visibleMessage: String,
+        isLetterComplete: Bool
+    ) -> String {
+        isLetterComplete ? "Letter complete." : visibleMessage
+    }
+}
+
+struct CometWriterRecallSpeechRecovery: Equatable {
+    let shouldRevealCue: Bool
+    let shouldShowRetry: Bool
+
+    nonisolated static func afterPlaybackAttempt(started: Bool) -> Self {
+        Self(shouldRevealCue: !started, shouldShowRetry: !started)
+    }
+}
+
+enum CometWriterWordAccessibilityCopy {
+    nonisolated static func spokenWordDescription(for word: String) -> String {
+        let cleaned = word.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard cleaned.count > 1, cleaned == cleaned.uppercased() else {
+            return cleaned
+        }
+
+        return cleaned.prefix(1).uppercased() + cleaned.dropFirst().lowercased()
+    }
+
+    nonisolated static func oneLetterSoundDescription(for word: String) -> String? {
+        let cleaned = word.trimmingCharacters(in: .whitespacesAndNewlines)
+        let lowercased = cleaned.lowercased()
+        guard cleaned.count == 1,
+              lowercased != "a",
+              lowercased != "i",
+              LetterSpeechService.phonemeIDs(forLetter: cleaned) != nil,
+              let glyph = LetterLibrary.glyph(for: cleaned) else { return nil }
+        let location = lowercased == "x" ? "at the end of" : "at the start of"
+        return "the one-letter sound \(location) \(glyph.exampleWord)"
+    }
+
+    nonisolated static func targetDescription(for word: String) -> String {
+        oneLetterSoundDescription(for: word)
+            ?? spokenWordDescription(for: word)
+    }
+
+    nonisolated static func writingSurfaceDescription(for word: String) -> String {
+        if let soundDescription = oneLetterSoundDescription(for: word) {
+            return soundDescription
+        }
+        return "the word \(spokenWordDescription(for: word))"
+    }
+
+    nonisolated static func characterDescription(_ character: String, in word: String) -> String {
+        oneLetterSoundDescription(for: word)
+            ?? oneLetterSoundDescription(for: character)
+            ?? character
+    }
+
+    nonisolated static func writingPromptLabel(
+        for word: String,
+        activeCharacter: String,
+        activeIndex: Int,
+        characterCount: Int
+    ) -> String {
+        let target = targetDescription(for: word)
+        let position = "letter \(activeIndex + 1) of \(characterCount)"
+        if oneLetterSoundDescription(for: word) != nil {
+            return "Write \(target) on one writing surface, \(position)"
+        }
+        let activeDescription = characterDescription(activeCharacter, in: word)
+        return "Write \(target) on one writing surface, \(position), \(activeDescription)"
+    }
+
+    nonisolated static func hearLabel(for word: String) -> String {
+        if let soundDescription = oneLetterSoundDescription(for: word) {
+            return "Hear \(soundDescription)"
+        }
+        return "Hear the word \(spokenWordDescription(for: word))"
+    }
+}
+
 struct CometWriterGameView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.accessibilityVoiceOverEnabled) private var voiceOverEnabled
     @EnvironmentObject private var musicService: MusicService
     @StateObject private var viewModel: CometWriterViewModel
     @ObservedObject private var learningStore = CometLearningStore.shared
@@ -22,8 +129,13 @@ struct CometWriterGameView: View {
     @State private var showsExitConfirmation = false
     @State private var latestReward: CometReward?
     @State private var requiredAudioToken: UUID?
+    @State private var didSpeechFail = false
 
     private let speech = LetterSpeechService.shared
+
+    private var isVoiceOverRunning: Bool {
+        voiceOverEnabled || UIAccessibility.isVoiceOverRunning
+    }
 
     init(startingGlyph: LetterGlyph) {
         _viewModel = StateObject(wrappedValue: CometWriterViewModel(glyph: startingGlyph))
@@ -102,8 +214,8 @@ struct CometWriterGameView: View {
                 supportsApplePencil: UIDevice.current.userInterfaceIdiom == .pad
             )
             StorageService.shared.setLastCometWriterLetter(viewModel.glyph.character)
-            if StorageService.shared.isVoiceEnabled {
-                speech.speak(viewModel.glyph)
+            if StorageService.shared.isVoiceEnabled && !isVoiceOverRunning {
+                speakCurrentGlyph()
             }
         }
         .onDisappear {
@@ -112,6 +224,16 @@ struct CometWriterGameView: View {
             if let requiredAudioToken {
                 musicService.endRequiredAudioSession(requiredAudioToken)
                 self.requiredAudioToken = nil
+            }
+        }
+        .onReceive(speech.$playbackState) { state in
+            switch state {
+            case .idle:
+                break
+            case .playing:
+                didSpeechFail = false
+            case .failed:
+                didSpeechFail = true
             }
         }
         .onChange(of: viewModel.isLetterComplete) { isComplete in
@@ -159,7 +281,7 @@ struct CometWriterGameView: View {
 
             PremiumIconButton(
                 icon: "speaker.wave.2.fill",
-                action: { speech.speak(viewModel.glyph) },
+                action: speakCurrentGlyph,
                 size: 48,
                 iconColor: AppTheme.cometCyan,
                 accessibilityLabelText: "Hear the letter instructions"
@@ -227,7 +349,7 @@ struct CometWriterGameView: View {
         HStack(spacing: 8) {
             Image(systemName: feedbackIcon)
                 .foregroundColor(feedbackColor)
-            Text(viewModel.feedbackMessage)
+            Text(currentFeedbackMessage)
                 .font(AppTypography.buttonSmall)
                 .foregroundColor(AppTheme.textPrimary)
                 .lineLimit(1)
@@ -238,13 +360,25 @@ struct CometWriterGameView: View {
         .background(Capsule().fill(AppTheme.backgroundMid.opacity(0.92)))
         .overlay(
             Capsule()
-                .stroke(feedbackColor.opacity(viewModel.feedbackTone == .correction ? 0.72 : 0.18), lineWidth: 1.5)
+                .stroke(
+                    feedbackColor.opacity(
+                        didSpeechFail || viewModel.feedbackTone == .correction ? 0.72 : 0.18
+                    ),
+                    lineWidth: 1.5
+                )
         )
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(viewModel.feedbackMessage)
+        .accessibilityLabel(currentFeedbackMessage)
+    }
+
+    private var currentFeedbackMessage: String {
+        didSpeechFail
+            ? "The voice could not play. Tap the speaker to try again."
+            : viewModel.feedbackMessage
     }
 
     private var feedbackIcon: String {
+        if didSpeechFail { return "speaker.slash.fill" }
         switch viewModel.feedbackTone {
         case .instruction: return "paperplane.fill"
         case .success: return "star.fill"
@@ -253,6 +387,7 @@ struct CometWriterGameView: View {
     }
 
     private var feedbackColor: Color {
+        if didSpeechFail { return AppTheme.cometGold }
         switch viewModel.feedbackTone {
         case .instruction: return AppTheme.cometCyan
         case .success: return AppTheme.accentPrimary
@@ -357,7 +492,7 @@ struct CometWriterGameView: View {
 
             PremiumIconButton(
                 icon: "speaker.wave.2.fill",
-                action: { speech.speak(viewModel.glyph) },
+                action: speakCurrentGlyph,
                 size: 44,
                 iconColor: AppTheme.cometCyan,
                 accessibilityLabelText: "Hear the letter instructions"
@@ -432,9 +567,12 @@ struct CometWriterGameView: View {
                     if let next = LetterLibrary.next(after: viewModel.glyph) {
                         PrimaryButton("Next: \(next.character)", icon: "arrow.right", size: .large) {
                             latestReward = nil
+                            didSpeechFail = false
                             viewModel.load(next)
                             StorageService.shared.setLastCometWriterLetter(next.character)
-                            speech.speak(next)
+                            if !isVoiceOverRunning {
+                                speakCurrentGlyph()
+                            }
                         }
                         .accessibilityIdentifier("comet-writer-next-letter")
                     } else {
@@ -480,6 +618,13 @@ struct CometWriterGameView: View {
     private var nextRoundCopy: String {
         let next = TraceAssistance(rawValue: viewModel.assistance.rawValue + 1)
         return next.map { "Next: \($0.title.lowercased())." } ?? "Wonderful writing."
+    }
+
+    private func speakCurrentGlyph() {
+        didSpeechFail = false
+        if !speech.speak(viewModel.glyph) {
+            didSpeechFail = true
+        }
     }
 
     private func awardCompletedLetter() {
@@ -588,6 +733,7 @@ private enum RecallCueStyle: String, CaseIterable {
 struct AdvancedWritingGameView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.accessibilityVoiceOverEnabled) private var voiceOverEnabled
     @EnvironmentObject private var musicService: MusicService
 
     let mission: AdvancedWritingMission
@@ -619,6 +765,7 @@ struct AdvancedWritingGameView: View {
     @State private var isSessionComplete = false
     @State private var showsExitConfirmation = false
     @State private var requiredAudioToken: UUID?
+    @State private var didSpeechFail = false
 
     private let speech = LetterSpeechService.shared
     init(
@@ -685,33 +832,36 @@ struct AdvancedWritingGameView: View {
                 AppTheme.backgroundDark.ignoresSafeArea()
                 StarryBackground(starCount: 28, animateStars: false)
 
-                if isWide {
-                    HStack(spacing: AppSpacing.lg) {
-                        if learningStore.activeWritingHand == .left {
-                            traceArea
-                                .frame(maxHeight: geometry.size.height - AppSpacing.md * 2)
-                            challengeSidebar
-                                .frame(width: min(310, geometry.size.width * 0.34))
-                        } else {
-                            challengeSidebar
-                                .frame(width: min(310, geometry.size.width * 0.34))
-                            traceArea
-                                .frame(maxHeight: geometry.size.height - AppSpacing.md * 2)
+                Group {
+                    if isWide {
+                        HStack(spacing: AppSpacing.lg) {
+                            if learningStore.activeWritingHand == .left {
+                                traceArea
+                                    .frame(maxHeight: geometry.size.height - AppSpacing.md * 2)
+                                challengeSidebar
+                                    .frame(width: min(310, geometry.size.width * 0.34))
+                            } else {
+                                challengeSidebar
+                                    .frame(width: min(310, geometry.size.width * 0.34))
+                                traceArea
+                                    .frame(maxHeight: geometry.size.height - AppSpacing.md * 2)
+                            }
                         }
+                        .padding(.horizontal, AppSpacing.lg)
+                        .padding(.vertical, AppSpacing.md)
+                    } else {
+                        VStack(spacing: 10) {
+                            challengeHeader
+                            challengePrompt
+                            traceArea
+                            feedbackPill
+                            actionRow
+                        }
+                        .padding(.horizontal, AppSpacing.md)
+                        .padding(.bottom, AppSpacing.md)
                     }
-                    .padding(.horizontal, AppSpacing.lg)
-                    .padding(.vertical, AppSpacing.md)
-                } else {
-                    VStack(spacing: 10) {
-                        challengeHeader
-                        challengePrompt
-                        traceArea
-                        feedbackPill
-                        actionRow
-                    }
-                    .padding(.horizontal, AppSpacing.md)
-                    .padding(.bottom, AppSpacing.md)
                 }
+                .accessibilityHidden(isBlockingOverlayPresented)
 
                 if isSessionComplete {
                     sessionSummaryOverlay
@@ -743,17 +893,33 @@ struct AdvancedWritingGameView: View {
             if UIDevice.current.userInterfaceIdiom != .pad {
                 pencilOnly = false
             }
-            if isWordMission {
+            if shouldAutomaticallySpeakCurrentTarget {
                 speakCurrentTarget()
             }
         }
         .onDisappear {
             autoAdvanceTask?.cancel()
+            viewModel.stopHint()
             speech.stop()
             CustomPromptAudioService.shared.stopPlayback()
             if let requiredAudioToken {
                 musicService.endRequiredAudioSession(requiredAudioToken)
                 self.requiredAudioToken = nil
+            }
+        }
+        .onReceive(speech.$playbackState) { state in
+            switch state {
+            case .idle:
+                break
+            case .playing:
+                didSpeechFail = false
+            case .failed:
+                didSpeechFail = true
+                if isRecallMission {
+                    // A hidden target with failed audio is impossible. Reveal the letter for both
+                    // recall modes while leaving Hear available for an explicit retry.
+                    cueStyle = .see
+                }
             }
         }
         .onChange(of: viewModel.isLetterComplete) { complete in
@@ -847,6 +1013,13 @@ struct AdvancedWritingGameView: View {
                     .font(AppTypography.bodySmall)
                     .foregroundColor(AppTheme.textSecondary)
 
+                if didSpeechFail {
+                    Text(recallSpeechFailureMessage)
+                        .font(AppTypography.caption)
+                        .foregroundColor(AppTheme.cometGold)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
                 HStack(spacing: 8) {
                     if mission != .phonics {
                         cueButton(.see, icon: "eye.fill")
@@ -913,7 +1086,21 @@ struct AdvancedWritingGameView: View {
                     }
                 }
                 .accessibilityElement(children: .ignore)
-                .accessibilityLabel("Write \(currentWord) on one writing surface, letter \(characterIndex + 1) of \(wordCharacters.count), \(viewModel.glyph.character)")
+                .accessibilityLabel(
+                    CometWriterWordAccessibilityCopy.writingPromptLabel(
+                        for: currentWord,
+                        activeCharacter: viewModel.glyph.character,
+                        activeIndex: characterIndex,
+                        characterCount: wordCharacters.count
+                    )
+                )
+
+                if didSpeechFail {
+                    Text("The word could not play. Tap Hear to try again.")
+                        .font(AppTypography.caption)
+                        .foregroundColor(AppTheme.cometGold)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
 
             Spacer(minLength: 0)
@@ -923,7 +1110,9 @@ struct AdvancedWritingGameView: View {
                 action: { speakCurrentTarget() },
                 size: 48,
                 iconColor: AppTheme.cometCyan,
-                accessibilityLabelText: "Hear the word \(currentWord)"
+                accessibilityLabelText: CometWriterWordAccessibilityCopy.hearLabel(
+                    for: currentWord
+                )
             )
         }
         .padding(.horizontal, AppSpacing.md)
@@ -978,7 +1167,12 @@ struct AdvancedWritingGameView: View {
         .background(Capsule().fill(AppTheme.backgroundMid.opacity(0.92)))
         .overlay(Capsule().stroke(feedbackColor.opacity(0.55), lineWidth: 1))
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(viewModel.feedbackMessage)
+        .accessibilityLabel(
+            CometWriterFeedbackAccessibilityCopy.label(
+                visibleMessage: viewModel.feedbackMessage,
+                isLetterComplete: viewModel.isLetterComplete
+            )
+        )
     }
 
     private var feedbackIcon: String {
@@ -998,16 +1192,34 @@ struct AdvancedWritingGameView: View {
     }
 
     private var actionRow: some View {
-        HStack(spacing: 10) {
-            challengeAction(title: "Restart", icon: "arrow.counterclockwise") {
-                viewModel.retryCurrentStroke()
+        VStack(spacing: 10) {
+            if isWordMission {
+                challengeAction(title: "Show Comet Example", icon: "play.fill") {
+                    CustomPromptAudioService.shared.stopPlayback()
+                    viewModel.showHint(animated: !reduceMotion)
+                    speech.speakPathPrompt(for: viewModel.glyph, animated: !reduceMotion)
+                }
+                .accessibilityIdentifier("comet-writer-show-comet-example")
+                .accessibilityValue(
+                    viewModel.isDemonstrating
+                        ? "Playing"
+                        : viewModel.isHintVisible ? "Shown" : "Ready"
+                )
+                .accessibilityHint("Shows how the comet forms the highlighted letter")
             }
-            challengeAction(title: "Hear", icon: "speaker.wave.2.fill") {
-                speakCurrentTarget()
-            }
-            challengeAction(title: "Tools", icon: "slider.horizontal.3") {
-                viewModel.cancelActiveTrace()
-                showsWritingTools = true
+
+            HStack(spacing: 10) {
+                challengeAction(title: "Restart", icon: "arrow.counterclockwise") {
+                    viewModel.retryCurrentStroke()
+                }
+                challengeAction(title: "Hear", icon: "speaker.wave.2.fill") {
+                    speakCurrentTarget()
+                }
+                challengeAction(title: "Tools", icon: "slider.horizontal.3") {
+                    viewModel.stopHint()
+                    viewModel.cancelActiveTrace()
+                    showsWritingTools = true
+                }
             }
         }
     }
@@ -1059,6 +1271,7 @@ struct AdvancedWritingGameView: View {
                 Text(completionTitle)
                     .font(AppTypography.titleMedium)
                     .foregroundColor(AppTheme.textPrimary)
+                    .accessibilityLabel(accessibleCompletionTitle)
 
                 if let latestReward {
                     advancedRewardSummary(latestReward)
@@ -1174,9 +1387,13 @@ struct AdvancedWritingGameView: View {
         characterIndex = 0
         wordAttempts = []
         latestReward = nil
+        didSpeechFail = false
+        resetCueStyleForCurrentMission()
         let firstCharacter = isRecallMission ? recallCharacters[0] : String(missionWords[0].first!)
         viewModel.load(LetterLibrary.glyph(for: firstCharacter)!, assistance: .flySolo)
-        if cueStyle == .hear || isWordMission { speakCurrentTarget() }
+        if shouldAutomaticallySpeakCurrentTarget {
+            speakCurrentTarget()
+        }
     }
 
     private func requestExit() {
@@ -1208,6 +1425,11 @@ struct AdvancedWritingGameView: View {
         return "\(currentWord) complete!"
     }
 
+    private var accessibleCompletionTitle: String {
+        guard isWordMission else { return completionTitle }
+        return "\(CometWriterWordAccessibilityCopy.targetDescription(for: currentWord)) complete!"
+    }
+
     private var nextButtonTitle: String {
         if sessionItemsCompleted + 1 >= sessionTarget {
             return completionButtonTitle ?? "Finish mission"
@@ -1219,15 +1441,42 @@ struct AdvancedWritingGameView: View {
         mission == .letterRecall || mission == .phonics
     }
 
+    private var isBlockingOverlayPresented: Bool {
+        isSessionComplete
+            || (viewModel.isLetterComplete && (isRecallMission || isCurrentWordComplete))
+    }
+
+    private func resetCueStyleForCurrentMission() {
+        cueStyle = CometWriterRecallCuePolicy.startsWithHearCue(for: mission) ? .hear : .see
+    }
+
     private var isWordMission: Bool {
         mission == .wordWriting || mission == .alienMail
+    }
+
+    private var recallSpeechFailureMessage: String {
+        mission == .phonics
+            ? "The sound could not play, so the letter is shown. Tap Hear to try again."
+            : "The voice could not play, so the letter is shown. Tap Hear to try again."
+    }
+
+    private var isVoiceOverRunning: Bool {
+        voiceOverEnabled || UIAccessibility.isVoiceOverRunning
+    }
+
+    private var shouldAutomaticallySpeakCurrentTarget: Bool {
+        CometWriterAutomaticSpeechPolicy.shouldSpeak(
+            isVoiceOverRunning: isVoiceOverRunning,
+            isHearCue: cueStyle == .hear,
+            isWordMission: isWordMission
+        )
     }
 
     private var missionTitle: String {
         switch mission {
         case .letterRecall: return "Letter Recall"
         case .wordWriting: return "Word Mission"
-        case .phonics: return "Letter Name Mission"
+        case .phonics: return "Letter Sound Mission"
         case .alienMail: return "Alien Mail"
         }
     }
@@ -1239,26 +1488,83 @@ struct AdvancedWritingGameView: View {
     }
 
     private func speakCurrentTarget() {
+        didSpeechFail = false
+        speech.stop()
+        CustomPromptAudioService.shared.stopPlayback()
+
         if isRecallMission {
+            let started: Bool
             if mission == .phonics {
-                speech.speakLetterNamePrompt(for: viewModel.glyph)
+                cueStyle = .hear
+                started = speech.speakLetterSoundPrompt(for: viewModel.glyph)
             } else {
-                speech.speakRecallPrompt(for: viewModel.glyph)
+                started = speech.speakRecallPrompt(for: viewModel.glyph)
+            }
+            let recovery = CometWriterRecallSpeechRecovery.afterPlaybackAttempt(
+                started: started
+            )
+            didSpeechFail = recovery.shouldShowRetry
+            if recovery.shouldRevealCue {
+                cueStyle = .see
             }
         } else {
+            let requestedWord = currentWord
+            let requestedCharacterIndex = characterIndex
+            let requestedGlyphCharacter = viewModel.glyph.character
+            let prefix = mission == .alienMail ? "Send this word to Nova." : "Write the word."
+            let contextSentence = learningStore.contextSentence(forWord: requestedWord)
+            let requestedTargetIsCurrent = {
+                isWordMission
+                    && !isSessionComplete
+                    && !viewModel.isLetterComplete
+                    && currentWord == requestedWord
+                    && characterIndex == requestedCharacterIndex
+                    && viewModel.glyph.character == requestedGlyphCharacter
+            }
+            let speakBuiltInPrompt = {
+                guard requestedTargetIsCurrent() else { return }
+                if !speech.speakWordPrompt(
+                    for: viewModel.glyph,
+                    word: requestedWord,
+                    introduction: prefix,
+                    contextSentence: contextSentence
+                ) {
+                    didSpeechFail = true
+                }
+            }
+
             if characterIndex == 0,
-               let filename = learningStore.recordingFilename(forWord: currentWord) {
-                speech.stop()
-                CustomPromptAudioService.shared.play(filename: filename)
+               let filename = learningStore.recordingFilename(forWord: requestedWord) {
+                Task { @MainActor in
+                    let started = await CustomPromptAudioService.shared.playAsync(
+                        filename: filename,
+                        onCompletion: { outcome in
+                            guard outcome == .failed else { return }
+                            guard requestedTargetIsCurrent() else { return }
+                            guard CometWriterAutomaticSpeechPolicy
+                                .shouldStartDeferredRecordingFallback(
+                                    isVoiceOverRunning: isVoiceOverRunning
+                                ) else {
+                                didSpeechFail = true
+                                UIAccessibility.post(
+                                    notification: .announcement,
+                                    argument: CometWriterAutomaticSpeechPolicy
+                                        .deferredRecordingFailureAnnouncement
+                                )
+                                return
+                            }
+                            speakBuiltInPrompt()
+                        }
+                    )
+                    guard requestedTargetIsCurrent() else {
+                        if started { CustomPromptAudioService.shared.stopPlayback() }
+                        return
+                    }
+                    if !started { speakBuiltInPrompt() }
+                }
                 return
             }
-            let prefix = mission == .alienMail ? "Send this word to Nova." : "Write the word."
-            speech.speakWordPrompt(
-                for: viewModel.glyph,
-                word: currentWord,
-                introduction: prefix,
-                contextSentence: learningStore.contextSentence(forWord: currentWord)
-            )
+            speakBuiltInPrompt()
         }
     }
 
@@ -1331,6 +1637,8 @@ struct AdvancedWritingGameView: View {
             }
         }
         latestReward = nil
+        didSpeechFail = false
+        resetCueStyleForCurrentMission()
 
         if isRecallMission {
             recallIndex = (recallIndex + 1) % recallCharacters.count
@@ -1348,7 +1656,7 @@ struct AdvancedWritingGameView: View {
             viewModel.load(next, assistance: .flySolo)
         }
 
-        if cueStyle == .hear || isWordMission {
+        if shouldAutomaticallySpeakCurrentTarget {
             speakCurrentTarget()
         }
     }
@@ -1377,7 +1685,9 @@ struct AdvancedWritingGameView: View {
                                 .foregroundColor(AppTheme.accentPrimary)
                         }
                         .accessibilityElement(children: .combine)
-                        .accessibilityLabel("\(attempt.character), score \(attempt.reward.score)")
+                        .accessibilityLabel(
+                            "\(CometWriterWordAccessibilityCopy.characterDescription(attempt.character, in: currentWord)), score \(attempt.reward.score)"
+                        )
                     }
                 }
 

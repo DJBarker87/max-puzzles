@@ -336,4 +336,212 @@ final class PuzzleGeneratorTests: XCTestCase {
             .cancel
         )
     }
+
+    func testCircuitActiveCellUsesTheOriginalSharedAnimationFormulas() {
+        let initial = CircuitCellAnimationFrame.values(
+            at: 0,
+            size: 42,
+            compact: false,
+            reduceMotion: false
+        )
+        XCTAssertEqual(initial.fastFlowPhase, 0, accuracy: 0.0001)
+        XCTAssertEqual(initial.slowFlowPhase, 0, accuracy: 0.0001)
+        XCTAssertEqual(initial.electricGlowOpacity, 0.65, accuracy: 0.0001)
+        XCTAssertEqual(initial.shadowGlowAmount, 0.70, accuracy: 0.0001)
+
+        let halfFastCycle = CircuitCellAnimationFrame.values(
+            at: 0.4,
+            size: 42,
+            compact: false,
+            reduceMotion: false
+        )
+        XCTAssertEqual(halfFastCycle.fastFlowPhase, -18, accuracy: 0.0001)
+        XCTAssertEqual(halfFastCycle.slowFlowPhase, -12, accuracy: 0.0001)
+
+        let compactElectricPeak = CircuitCellAnimationFrame.values(
+            at: 0.375,
+            size: 42,
+            compact: true,
+            reduceMotion: false
+        )
+        XCTAssertEqual(compactElectricPeak.electricGlowOpacity, 0.60, accuracy: 0.0001)
+    }
+
+    func testCircuitActiveCellReduceMotionUsesAStaticFrame() {
+        let frame = CircuitCellAnimationFrame.values(
+            at: 123.456,
+            size: 63,
+            compact: false,
+            reduceMotion: true
+        )
+
+        XCTAssertEqual(frame.fastFlowPhase, 0)
+        XCTAssertEqual(frame.slowFlowPhase, 0)
+        XCTAssertEqual(frame.electricGlowOpacity, 0.55)
+        XCTAssertEqual(frame.shadowGlowAmount, 0.45)
+    }
+
+    func testConfettiGenerationIsStableForASeedAndPreservesIntensityCounts() {
+        let size = CGSize(width: 768, height: 1_024)
+        var firstGenerator = TestSeededRandomNumberGenerator(seed: 0xC0FFEE)
+        var secondGenerator = TestSeededRandomNumberGenerator(seed: 0xC0FFEE)
+
+        let firstParticles = ConfettiParticleFactory.makeParticles(
+            count: 150,
+            in: size,
+            burstFromCenter: true,
+            colorCount: 7,
+            using: &firstGenerator
+        )
+        let repeatedParticles = ConfettiParticleFactory.makeParticles(
+            count: 150,
+            in: size,
+            burstFromCenter: true,
+            colorCount: 7,
+            using: &secondGenerator
+        )
+        let firstSparkles = ConfettiParticleFactory.makeSparkles(
+            count: 80,
+            in: size,
+            using: &firstGenerator
+        )
+        let repeatedSparkles = ConfettiParticleFactory.makeSparkles(
+            count: 80,
+            in: size,
+            using: &secondGenerator
+        )
+
+        XCTAssertEqual(firstParticles, repeatedParticles)
+        XCTAssertEqual(firstSparkles, repeatedSparkles)
+        XCTAssertEqual(firstParticles.count, 150)
+        XCTAssertEqual(firstSparkles.count, 80)
+        XCTAssertEqual(Set(firstParticles.map(\.shape)), Set(ConfettiShape.allCases))
+        XCTAssertTrue(firstParticles.allSatisfy { $0.x == size.width / 2 })
+        XCTAssertTrue(firstParticles.allSatisfy { $0.y == size.height * 0.4 })
+        XCTAssertTrue(firstParticles.allSatisfy { (0..<7).contains($0.colorIndex) })
+    }
+
+    func testConfettiSimulationKeepsTheBurstAndFadeTrajectory() {
+        let particle = ConfettiParticle(
+            id: 0,
+            x: 100,
+            y: 200,
+            targetY: 900,
+            colorIndex: 0,
+            size: 12,
+            rotation: 90,
+            delay: 0,
+            duration: 3,
+            horizontalDrift: 300,
+            verticalVelocity: -100,
+            shape: .rectangle
+        )
+
+        let start = ConfettiSimulation.frame(
+            for: particle,
+            elapsed: 0,
+            burstFromCenter: true
+        )
+        XCTAssertEqual(start.position, CGPoint(x: 100, y: 200))
+        XCTAssertEqual(start.opacity, 0, accuracy: 0.0001)
+        XCTAssertEqual(start.scale, 0, accuracy: 0.0001)
+
+        let endOfBurst = ConfettiSimulation.frame(
+            for: particle,
+            elapsed: 0.3,
+            burstFromCenter: true
+        )
+        XCTAssertEqual(endOfBurst.position.x, 190, accuracy: 0.01)
+        XCTAssertEqual(endOfBurst.position.y, 100, accuracy: 0.01)
+        XCTAssertEqual(endOfBurst.opacity, 1, accuracy: 0.001)
+        XCTAssertEqual(endOfBurst.scale, 1, accuracy: 0.001)
+        XCTAssertEqual(endOfBurst.rotation, 81, accuracy: 0.001)
+
+        let faded = ConfettiSimulation.frame(
+            for: particle,
+            elapsed: particle.visibleDuration,
+            burstFromCenter: true
+        )
+        XCTAssertEqual(faded.opacity, 0, accuracy: 0.0001)
+    }
+
+    func testConfettiRetainsSystemSymbolsAndSwiftUIThreeDProjection() {
+        XCTAssertEqual(ConfettiSymbolGeometry.starSystemName, "star.fill")
+        XCTAssertEqual(ConfettiSymbolGeometry.sparkleSystemName, "sparkle")
+
+        let projection = ConfettiParticleProjection.threeDRotation(
+            rotationDegrees: 60,
+            layoutSize: CGSize(width: 10, height: 10),
+            anchor: CGPoint(x: 5, y: 5)
+        )
+
+        // Reference values from SwiftUI's former rotation3DEffect at the same angle, axis,
+        // centre anchor, default perspective and layout size.
+        XCTAssertEqual(projection.m11, 1.0936491673103708, accuracy: 0.0000001)
+        XCTAssertEqual(projection.m12, 0.39364916731037075, accuracy: 0.0000001)
+        XCTAssertEqual(projection.m13, 0.03872983346207417, accuracy: 0.0000001)
+        XCTAssertEqual(projection.m21, -0.18729833462074172, accuracy: 0.0000001)
+        XCTAssertEqual(projection.m22, 0.21270166537925844, accuracy: 0.0000001)
+        XCTAssertEqual(projection.m23, -0.07745966692414834, accuracy: 0.0000001)
+        XCTAssertEqual(projection.m31, 0.4682458365518548, accuracy: 0.0000001)
+        XCTAssertEqual(projection.m32, 1.9682458365518543, accuracy: 0.0000001)
+        XCTAssertEqual(projection.m33, 1.1936491673103709, accuracy: 0.0000001)
+
+        let fullTransform = ConfettiParticleProjection.transform(
+            rotationDegrees: 30,
+            scale: 0.75,
+            layoutSize: CGSize(width: 10, height: 10),
+            anchor: CGPoint(x: 5, y: 5)
+        )
+        // Reference composition of SwiftUI's old rotationEffect(30),
+        // rotation3DEffect(60, axis: (1, 0.5, 0)) and outer scaleEffect(0.75).
+        XCTAssertEqual(fullTransform.m11, 0.6336230785566095, accuracy: 0.0000001)
+        XCTAssertEqual(fullTransform.m21, -0.639830969712488, accuracy: 0.0000001)
+        XCTAssertEqual(fullTransform.m31, 5.031039455779393, accuracy: 0.0000001)
+        XCTAssertEqual(fullTransform.m12, 0.32895974156977914, accuracy: 0.0000001)
+        XCTAssertEqual(fullTransform.m22, -0.11752334857715632, accuracy: 0.0000001)
+        XCTAssertEqual(fullTransform.m32, 3.942818035036886, accuracy: 0.0000001)
+        XCTAssertEqual(fullTransform.m13, -0.0051888137995773145, accuracy: 0.0000001)
+        XCTAssertEqual(fullTransform.m23, -0.08644695605603078, accuracy: 0.0000001)
+        XCTAssertEqual(fullTransform.m33, 1.4581788492780405, accuracy: 0.0000001)
+
+        let star = ConfettiParticle(
+            id: 0,
+            x: 0,
+            y: 0,
+            targetY: 100,
+            colorIndex: 0,
+            size: 15,
+            rotation: 0,
+            delay: 0,
+            duration: 2,
+            horizontalDrift: 0,
+            verticalVelocity: 0,
+            shape: .star
+        )
+        XCTAssertEqual(
+            ConfettiSymbolGeometry.layoutSize(
+                for: star,
+                starSourceSize: CGSize(width: 80, height: 100)
+            ),
+            CGSize(width: 9.6, height: 12),
+            "The SF Symbol must be uniformly font-scaled without square stretching"
+        )
+    }
+}
+
+private struct TestSeededRandomNumberGenerator: RandomNumberGenerator {
+    private var state: UInt64
+
+    init(seed: UInt64) {
+        state = seed
+    }
+
+    mutating func next() -> UInt64 {
+        state &+= 0x9E3779B97F4A7C15
+        var value = state
+        value = (value ^ (value >> 30)) &* 0xBF58476D1CE4E5B9
+        value = (value ^ (value >> 27)) &* 0x94D049BB133111EB
+        return value ^ (value >> 31)
+    }
 }

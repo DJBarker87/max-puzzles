@@ -152,23 +152,75 @@ enum StarSpellerWordLibrary {
 
     static func displayForm(for word: String) -> String {
         let normalized = word.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        // Weekdays are proper nouns. Keep their conventional English capitalisation even when
-        // the stored/imported spelling was lowercased for case-insensitive answer checking.
-        return englandYearOneDays.first { $0.lowercased() == normalized } ?? word
+        // The spelling game deliberately presents weekdays in capitals while answer checking
+        // remains case-insensitive, matching the parent-facing product requirement.
+        guard englandYearOneDays.contains(where: { $0.lowercased() == normalized }) else {
+            return word
+        }
+        return normalized.uppercased()
     }
 
     static func contextSentence(for word: String) -> String? {
         contextSentences[CometLearningStore.normalizedCustomWord(word)]
     }
 
+    static func oneLetterSoundDescription(for word: String) -> String? {
+        CometWriterWordAccessibilityCopy.oneLetterSoundDescription(for: word)
+    }
+
     static func spokenPrompt(
         for word: String,
         contextSentence customContext: String? = nil
     ) -> String {
-        if let context = customContext ?? Self.contextSentence(for: word) {
+        if let soundDescription = oneLetterSoundDescription(for: word) {
+            // Never append parent-authored context here: a context such as "c" would make
+            // VoiceOver say the letter name after the safe example-word prompt.
+            return "Spell \(soundDescription)."
+        }
+        let candidateContext = customContext ?? Self.contextSentence(for: word)
+        if let context = SpokenPromptContextSanitizer.sanitized(candidateContext) {
             return "Spell the word \(word). \(context)"
         }
         return "Spell the word \(word)."
+    }
+}
+
+enum StarSpellerAccessibilityCopy {
+    static func practiceWordLabel(for word: String) -> String {
+        if let soundDescription = StarSpellerWordLibrary.oneLetterSoundDescription(for: word) {
+            return "Practice \(soundDescription)"
+        }
+        return StarSpellerWordLibrary.displayForm(for: word)
+    }
+
+    static func readyWordLabel(for word: String) -> String {
+        if let soundDescription = StarSpellerWordLibrary.oneLetterSoundDescription(for: word) {
+            return "Spelled \(soundDescription)."
+        }
+        return StarSpellerWordLibrary.displayForm(for: word)
+    }
+
+    static func handwritingActionLabel(for word: String) -> String {
+        if let soundDescription = StarSpellerWordLibrary.oneLetterSoundDescription(for: word) {
+            return "Correct. You spelled \(soundDescription). Choose Handwrite to continue."
+        }
+        let displayedWord = StarSpellerWordLibrary.displayForm(for: word)
+        return "Correct. \(displayedWord). Choose Handwrite to continue."
+    }
+
+    static func spellAloudCompletionLabel(for word: String) -> String {
+        if let soundDescription = StarSpellerWordLibrary.oneLetterSoundDescription(for: word) {
+            return "Say \(soundDescription) aloud. "
+                + "When you finish, choose Done spelling aloud."
+        }
+        let displayedWord = StarSpellerWordLibrary.displayForm(for: word)
+        // This is an explicit alternative spelling exercise, so individual letter names are the
+        // intended instruction for real words rather than an accidental speech-synthesis fallback.
+        let letters = CometLearningStore.normalizedCustomWord(word)
+            .map { String($0).uppercased() }
+            .joined(separator: ", ")
+        return "Spell \(displayedWord) aloud, letter by letter: \(letters). "
+            + "When you finish, choose Done spelling aloud."
     }
 }
 
@@ -296,12 +348,43 @@ enum StarSpellerPromptAudioPlayback {
     /// immediately supplies the same hidden-word prompt.
     static func play(
         customRecordingFilename: String?,
-        customPlayback: (String) -> Bool,
-        voicePlayback: () -> Bool
+        customPlayback: (
+            String,
+            @escaping (CustomPromptAudioPlaybackOutcome) -> Void
+        ) -> Bool,
+        voicePlayback: @escaping () -> Bool,
+        onDeferredFallback: ((Bool) -> Void)? = nil
     ) -> Bool {
-        if let customRecordingFilename,
-           customPlayback(customRecordingFilename) {
-            return true
+        if let customRecordingFilename {
+            let started = customPlayback(customRecordingFilename) { outcome in
+                guard outcome == .failed else { return }
+                let fallbackSucceeded = voicePlayback()
+                onDeferredFallback?(fallbackSucceeded)
+            }
+            if started { return true }
+        }
+        return voicePlayback()
+    }
+
+    /// Async equivalent used by the app so opening and priming a family recording never blocks
+    /// keyboard input or animation. The synchronous helper remains for pure policy tests.
+    @MainActor
+    static func playAsync(
+        customRecordingFilename: String?,
+        customPlayback: (
+            String,
+            @escaping (CustomPromptAudioPlaybackOutcome) -> Void
+        ) async -> Bool,
+        voicePlayback: @escaping () -> Bool,
+        onDeferredFallback: ((Bool) -> Void)? = nil
+    ) async -> Bool {
+        if let customRecordingFilename {
+            let started = await customPlayback(customRecordingFilename) { outcome in
+                guard outcome == .failed else { return }
+                let fallbackSucceeded = voicePlayback()
+                onDeferredFallback?(fallbackSucceeded)
+            }
+            if started { return true }
         }
         return voicePlayback()
     }
@@ -967,6 +1050,9 @@ private struct FlexibleWordChips: View {
                     .padding(.horizontal, 12)
                     .frame(maxWidth: .infinity, minHeight: 36)
                     .background(Capsule().fill(AppTheme.cometPaperTop))
+                    .accessibilityLabel(
+                        StarSpellerAccessibilityCopy.practiceWordLabel(for: word)
+                    )
             }
         }
     }
@@ -1152,6 +1238,13 @@ struct StarSpellerGameView: View {
                 speakCurrentWord(after: 0.35)
                 focusSpellingField(after: 0.55)
             }
+        }
+        .onReceive(speech.$playbackState) { state in
+            guard state == .failed,
+                  !showsHandwriting,
+                  stage == .typing else { return }
+            promptAudioState = .failed
+            feedbackMessage = "The word could not play. Use Try voice prompt again."
         }
         .onDisappear {
             promptTask?.cancel()
@@ -1489,6 +1582,9 @@ struct StarSpellerGameView: View {
                 Text(displayedCurrentWord)
                     .font(.system(.largeTitle, design: .rounded, weight: .heavy))
                     .foregroundColor(AppTheme.cometCyan)
+                    .accessibilityLabel(
+                        StarSpellerAccessibilityCopy.readyWordLabel(for: currentWord)
+                    )
                 Text("Now handwrite the whole word in Comet Writer.")
                     .font(AppTypography.bodyMedium)
                     .foregroundColor(AppTheme.textSecondary)
@@ -1508,6 +1604,9 @@ struct StarSpellerGameView: View {
                     )
             }
             .buttonStyle(.plain)
+            .accessibilityLabel(
+                StarSpellerAccessibilityCopy.handwritingActionLabel(for: currentWord)
+            )
             .accessibilityHint("Opens the Comet Writer handwriting surface")
             .accessibilityIdentifier("star-speller-open-handwriting")
             .accessibilityFocused($handwritingActionFocused)
@@ -1533,6 +1632,11 @@ struct StarSpellerGameView: View {
                                 )
                         }
                         .buttonStyle(.plain)
+                        .accessibilityLabel(
+                            StarSpellerAccessibilityCopy.spellAloudCompletionLabel(
+                                for: currentWord
+                            )
+                        )
                         .accessibilityHint("Completes the accessible alternative to drawing")
                         .accessibilityIdentifier("star-speller-voiceover-done")
                         .accessibilityFocused($voiceOverAlternativeDoneFocused)
@@ -1834,6 +1938,27 @@ struct StarSpellerGameView: View {
         let action = {
             speech.stop()
             customAudio.stopPlayback()
+            let requestedWord = currentWord
+            let requestedContext = wordStore.contextSentence(forWord: requestedWord)
+            let voicePlayback = {
+                guard stage == .typing,
+                      currentWord == requestedWord,
+                      !showsHandwriting else { return true }
+                if isVoiceOverRunning {
+                    UIAccessibility.post(
+                        notification: .announcement,
+                        argument: StarSpellerWordLibrary.spokenPrompt(
+                            for: requestedWord,
+                            contextSentence: requestedContext
+                        )
+                    )
+                    return true
+                }
+                return speech.speakSpellingPrompt(
+                    for: requestedWord,
+                    contextSentence: requestedContext
+                )
+            }
             let succeeded: Bool
             if forcesPromptAudioFailureForUITesting {
                 succeeded = false
@@ -1842,28 +1967,35 @@ struct StarSpellerGameView: View {
                 // simulator speech daemon, which can stall or terminate a test runner. Unit and
                 // device tests still exercise the real audio-session result path.
                 succeeded = true
-            } else {
-                succeeded = StarSpellerPromptAudioPlayback.play(
-                    customRecordingFilename: wordStore.recordingFilename(forWord: currentWord),
-                    customPlayback: { filename in
-                        customAudio.play(filename: filename)
-                    },
-                    voicePlayback: {
-                        speech.speakSpellingPrompt(
-                            for: currentWord,
-                            contextSentence: wordStore.contextSentence(forWord: currentWord)
-                        )
+            } else if let filename = wordStore.recordingFilename(forWord: requestedWord) {
+                promptTask = Task { @MainActor in
+                    let started = await StarSpellerPromptAudioPlayback.playAsync(
+                        customRecordingFilename: filename,
+                        customPlayback: { filename, completion in
+                            await customAudio.playAsync(
+                                filename: filename,
+                                onCompletion: completion
+                            )
+                        },
+                        voicePlayback: voicePlayback,
+                        onDeferredFallback: { fallbackSucceeded in
+                            updatePromptAudioState(afterPlaybackAttempt: fallbackSucceeded)
+                        }
+                    )
+                    guard !Task.isCancelled,
+                          stage == .typing,
+                          currentWord == requestedWord,
+                          !showsHandwriting else {
+                        if started { customAudio.stopPlayback() }
+                        return
                     }
-                )
+                    updatePromptAudioState(afterPlaybackAttempt: started)
+                }
+                return
+            } else {
+                succeeded = voicePlayback()
             }
-            promptAudioState = .afterPlaybackAttempt(succeeded: succeeded)
-            if !succeeded {
-                feedbackMessage = "The word could not play. Use Try voice prompt again."
-                UIAccessibility.post(
-                    notification: .announcement,
-                    argument: "The spelling word could not play. Try the voice prompt again."
-                )
-            }
+            updatePromptAudioState(afterPlaybackAttempt: succeeded)
         }
 
         if delay <= 0 {
@@ -1879,6 +2011,16 @@ struct StarSpellerGameView: View {
                 action()
             }
         }
+    }
+
+    private func updatePromptAudioState(afterPlaybackAttempt succeeded: Bool) {
+        promptAudioState = .afterPlaybackAttempt(succeeded: succeeded)
+        guard !succeeded else { return }
+        feedbackMessage = "The word could not play. Use Try voice prompt again."
+        UIAccessibility.post(
+            notification: .announcement,
+            argument: "The spelling word could not play. Try the voice prompt again."
+        )
     }
 
     private func focusSpellingField(after delay: TimeInterval) {
@@ -1996,8 +2138,6 @@ struct StarSpellerGameView: View {
     }
 
     private func announceHandwritingStep() {
-        let message = "Correct. \(displayedCurrentWord). Choose Handwrite to continue."
-        UIAccessibility.post(notification: .announcement, argument: message)
         Task { @MainActor in
             await Task.yield()
             handwritingActionFocused = true
@@ -2006,13 +2146,6 @@ struct StarSpellerGameView: View {
 
     private func activateVoiceOverAlternative() {
         isVoiceOverAlternativeActive = true
-        let letters = CometLearningStore.normalizedCustomWord(currentWord)
-            .map { String($0).uppercased() }
-            .joined(separator: ", ")
-        UIAccessibility.post(
-            notification: .announcement,
-            argument: "Spell \(displayedCurrentWord) aloud, letter by letter: \(letters)."
-        )
         Task { @MainActor in
             await Task.yield()
             voiceOverAlternativeDoneFocused = true

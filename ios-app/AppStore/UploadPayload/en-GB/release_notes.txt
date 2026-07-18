@@ -8,4 +8,4 @@ Meet Dot-to-Dot Discovery:
 • Build subitising confidence with standard 1–5 dot patterns and quick star patterns
 • Occasionally practise writing a number in Comet Writer between pictures
 
-This update also adds Star Speller, private iCloud progress sync for family profiles and spoken letter-name practice. Comet Writer works with a finger, with a stylus remaining optional.
+This update also adds Star Speller, private iCloud progress sync for family profiles and British-English letter-sound practice. Comet Writer works with a finger, with a stylus remaining optional.

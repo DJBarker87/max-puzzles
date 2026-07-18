@@ -1,0 +1,21 @@
+{
+  "images": [
+    {
+      "filename": "dot_colour_mask_d5_5_tile_r1_c2.png",
+      "idiom": "universal",
+      "scale": "1x"
+    },
+    {
+      "idiom": "universal",
+      "scale": "2x"
+    },
+    {
+      "idiom": "universal",
+      "scale": "3x"
+    }
+  ],
+  "info": {
+    "author": "xcode",
+    "version": 1
+  }
+}

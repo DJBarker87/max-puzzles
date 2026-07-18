@@ -7,6 +7,7 @@ struct MaxPuzzlesApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 
     @StateObject private var appState: AppState
+    @StateObject private var playTimer: ParentPlayTimer
     private var musicService: MusicService { MusicService.shared }
     @Environment(\.scenePhase) var scenePhase
 
@@ -29,6 +30,7 @@ struct MaxPuzzlesApp: App {
             // Reset its in-memory published values as well as the persistent domain.
             StorageService.shared.clearAllData()
             CometLearningStore.shared.resetAfterDataClear()
+            ParentPlayTimer.shared.resetAll()
         }
         if launchArguments.contains("-ui-testing-skip-onboarding") {
             StorageService.shared.setPlayerName("Test Player")
@@ -40,8 +42,13 @@ struct MaxPuzzlesApp: App {
         if launchArguments.contains("-ui-testing-disable-voice") {
             StorageService.shared.setVoiceEnabled(false)
         }
+        if launchArguments.contains("-ui-testing-expired-play-timer") {
+            ParentPlayTimer.shared.setPasscodeForUITesting("2468")
+            ParentPlayTimer.shared.expireForUITesting()
+        }
         #endif
 
+        _playTimer = StateObject(wrappedValue: ParentPlayTimer.shared)
         _appState = StateObject(wrappedValue: AppState())
     }
 
@@ -50,9 +57,27 @@ struct MaxPuzzlesApp: App {
             ContentView()
                 .environmentObject(appState)
                 .environmentObject(MusicService.shared)
+                .environmentObject(playTimer)
                 .preferredColorScheme(.dark)
+                .onAppear {
+                    playTimer.setMonitoringActive(true)
+                    handlePlayTimerLockChange(playTimer.isLocked)
+                }
+                .onChange(of: playTimer.isLocked) { isLocked in
+                    handlePlayTimerLockChange(isLocked)
+                }
                 .task {
+                    // These services are not needed to draw or use the first frame.
+                    await Task.yield()
+                    playTimer.loadPasscodeAvailabilityAfterLaunch()
+                    CometLearningStore.shared.preloadDetailedHistoriesAfterLaunch()
                     guard !isRunningUITests else { return }
+                    do {
+                        try await Task.sleep(nanoseconds: 150_000_000)
+                    } catch {
+                        return
+                    }
+                    guard !Task.isCancelled, scenePhase == .active else { return }
                     ICloudProgressSyncService.shared.start()
                 }
         }
@@ -65,31 +90,75 @@ struct MaxPuzzlesApp: App {
         switch phase {
         case .active:
             // App returned to foreground
-            appState.resumeSession()
+            playTimer.loadPasscodeAvailabilityAfterLaunch()
+            playTimer.setMonitoringActive(true)
             musicService.setSceneActive(true)
-            musicService.resume()
+            if playTimer.isLocked {
+                handlePlayTimerLockChange(true)
+            } else {
+                appState.resumeSession()
+                musicService.resume()
+            }
             if !isRunningUITests {
                 ICloudProgressSyncService.shared.refresh()
             }
         case .inactive:
             // App is about to go to background or user switched apps
+            playTimer.setMonitoringActive(false)
             appState.pauseSession()
             musicService.setSceneActive(false)
         case .background:
             // App is in background - save state and pause music
+            playTimer.setMonitoringActive(false)
             appState.saveState()
             musicService.setSceneActive(false)
             musicService.pause()
-            LetterSpeechService.shared.stop()
+            LetterSpeechService.shared.stop(preservingPreparedAudio: false)
             NumeralSpeechService.shared.stop()
-            CustomPromptAudioService.shared.stopPlayback()
+            PhonemeAudioService.shared.stop(preservingPreparedAudio: false)
+            CustomPromptAudioService.shared.stopPlayback(preservingPreparedAudio: false)
             SoundEffectsService.shared.suspend()
-            CometLearningStore.shared.flushPendingAttemptPersistence()
+            persistLearningHistoriesInBackground()
             if !isRunningUITests {
                 ICloudProgressSyncService.shared.flush()
             }
         @unknown default:
             break
+        }
+    }
+
+    private func handlePlayTimerLockChange(_ isLocked: Bool) {
+        ParentPlayTimerOverlayCoordinator.shared.update(isLocked: isLocked)
+
+        if isLocked {
+            appState.pauseSession()
+            musicService.pause()
+            LetterSpeechService.shared.stop(preservingPreparedAudio: false)
+            NumeralSpeechService.shared.stop()
+            PhonemeAudioService.shared.stop(preservingPreparedAudio: false)
+            CustomPromptAudioService.shared.stopPlayback(preservingPreparedAudio: false)
+            SoundEffectsService.shared.suspend()
+        } else if scenePhase == .active {
+            appState.resumeSession()
+            musicService.resume()
+        }
+    }
+
+    private func persistLearningHistoriesInBackground() {
+        var backgroundTask = UIBackgroundTaskIdentifier.invalid
+        backgroundTask = UIApplication.shared.beginBackgroundTask(
+            withName: "Finish learning history"
+        ) {
+            guard backgroundTask != .invalid else { return }
+            UIApplication.shared.endBackgroundTask(backgroundTask)
+            backgroundTask = .invalid
+        }
+
+        Task { @MainActor in
+            await CometLearningStore.shared.waitForPendingAttemptPersistence()
+            guard backgroundTask != .invalid else { return }
+            UIApplication.shared.endBackgroundTask(backgroundTask)
+            backgroundTask = .invalid
         }
     }
 }

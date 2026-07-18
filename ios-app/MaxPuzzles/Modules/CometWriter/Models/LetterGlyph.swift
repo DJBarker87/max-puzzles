@@ -443,15 +443,11 @@ struct LetterGlyph: Identifiable, Hashable, Sendable {
     }
 
     var promptTitle: String {
-        isNumber ? "\(character) is \(exampleWord)" : "\(character) is for \(exampleWord)"
+        if isNumber { return "\(character) is \(exampleWord)" }
+        if character.lowercased() == "x" { return "\(character) is in \(exampleWord)" }
+        return "\(character) is for \(exampleWord)"
     }
 
-    var spokenPrompt: String {
-        if isNumber {
-            return "Number \(character). \(promptTitle)."
-        }
-        return "Letter \(character). \(promptTitle)."
-    }
 }
 
 enum TraceAssistance: Int, CaseIterable, Sendable {

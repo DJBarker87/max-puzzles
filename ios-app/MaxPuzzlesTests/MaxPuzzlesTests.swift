@@ -1,6 +1,8 @@
 import XCTest
 import SwiftUI
 import UIKit
+import Combine
+import Security
 @testable import MaxPuzzles
 
 @MainActor
@@ -166,11 +168,12 @@ final class MaxPuzzlesTests: XCTestCase {
                 XCTAssertTrue((0..<mask.columns).contains(mask.column), puzzle.id)
                 XCTAssertTrue((0..<mask.rows).contains(mask.row), puzzle.id)
                 XCTAssertTrue(mask.assetName.hasPrefix("dot_colour_mask_"), mask.assetName)
+                let maskTileName = DotSemanticMaskHitTester.tileAssetName(for: mask)
                 let maskImage = try XCTUnwrap(
-                    UIImage(named: mask.assetName),
-                    "Missing colour-mask asset \(mask.assetName) for \(puzzle.id)"
+                    UIImage(named: maskTileName),
+                    "Missing colour-mask tile \(maskTileName) for \(puzzle.id)"
                 )
-                let coverage = try sampledAlphaCoverage(of: maskImage, tile: mask)
+                let coverage = try sampledAlphaCoverage(of: maskImage)
                 XCTAssertGreaterThan(coverage.visible, 0, "\(puzzle.id) \(name) has an empty mask")
                 XCTAssertLessThan(
                     coverage.visible,
@@ -377,11 +380,14 @@ final class MaxPuzzlesTests: XCTestCase {
     func testPencilCoverageAndPersistenceAreBounded() async throws {
         let plan = try XCTUnwrap(DownloadedDotPuzzleColourArtwork.plan(sheet: "D1/D2", slot: 1))
         let swatch = try XCTUnwrap(plan.swatches.first)
-        let atlas = try XCTUnwrap(UIImage(named: swatch.maskArt.assetName)?.cgImage)
+        let tileAssetName = DotSemanticMaskHitTester.tileAssetName(for: swatch.maskArt)
+        let shippedTile = try XCTUnwrap(UIImage(named: tileAssetName)?.cgImage)
         let cropped = try XCTUnwrap(DotSemanticMaskHitTester.croppedImage(for: swatch.maskArt)?.cgImage)
-        XCTAssertEqual(cropped.width, atlas.width / swatch.maskArt.columns)
-        XCTAssertEqual(cropped.height, atlas.height / swatch.maskArt.rows)
-        XCTAssertLessThan(cropped.width, atlas.width, "Runtime should retain a tile, not the full atlas")
+        XCTAssertNotEqual(tileAssetName, swatch.maskArt.assetName)
+        XCTAssertEqual(shippedTile.width, 512)
+        XCTAssertEqual(shippedTile.height, 512)
+        XCTAssertEqual(cropped.width, shippedTile.width)
+        XCTAssertEqual(cropped.height, shippedTile.height)
         XCTAssertLessThanOrEqual(DotSemanticMaskHitTester.maximumCacheCostBytes, 24 * 1_024 * 1_024)
         XCTAssertTrue(DotSemanticMaskHitTester.hasCachedImage(for: swatch.maskArt))
         DotSemanticMaskHitTester.release(plan, referenceArt: nil)
@@ -411,8 +417,15 @@ final class MaxPuzzlesTests: XCTestCase {
 
         let suiteName = "MaxPuzzlesTests.dotColourSnapshot.\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
-        defer { defaults.removePersistentDomain(forName: suiteName) }
-        let store = DotColouringSnapshotStore(defaults: defaults)
+        let storageDirectory = temporaryTestDirectory(named: "dot-colouring-snapshots")
+        defer {
+            defaults.removePersistentDomain(forName: suiteName)
+            try? FileManager.default.removeItem(at: storageDirectory)
+        }
+        let store = DotColouringSnapshotStore(
+            defaults: defaults,
+            storageDirectory: storageDirectory
+        )
         let profile = UUID()
         let snapshot = DotColouringSnapshot(tapFilledRegionIDs: [2], strokes: [tinyStroke, sampled])
         let session = await store.beginSession(puzzleID: "picture", profileID: profile)
@@ -424,9 +437,21 @@ final class MaxPuzzlesTests: XCTestCase {
             revision: 1
         )
         XCTAssertTrue(savedInitialSnapshot)
-        let reloaded = await DotColouringSnapshotStore(defaults: defaults)
+        let reloaded = await DotColouringSnapshotStore(
+            defaults: defaults,
+            storageDirectory: storageDirectory
+        )
             .beginSession(puzzleID: "picture", profileID: profile)
         assertColouringSnapshot(reloaded.snapshot, equals: snapshot)
+        let v2Key = "maxpuzzles.profile.\(profile.uuidString).dotToDot.colouringSnapshot.v2.picture"
+        XCTAssertNil(defaults.data(forKey: v2Key), "Large v3 snapshots belong in Application Support")
+        XCTAssertFalse(
+            try FileManager.default.contentsOfDirectory(
+                at: storageDirectory,
+                includingPropertiesForKeys: nil
+            ).isEmpty,
+            "A successful save must create an atomic v3 snapshot file"
+        )
         let otherProfile = await store.beginSession(puzzleID: "picture", profileID: UUID())
         XCTAssertEqual(otherProfile.snapshot, .empty)
 
@@ -473,6 +498,192 @@ final class MaxPuzzlesTests: XCTestCase {
         let recovered = await store.beginSession(puzzleID: "picture", profileID: corruptProfile)
         XCTAssertTrue(recovered.recoveredFromCorruptData)
         XCTAssertEqual(recovered.snapshot, .empty)
+        XCTAssertNil(defaults.data(forKey: corruptKey))
+    }
+
+    func testEveryColouringMaskAndReferenceUsesAShippedPrecroppedTile() throws {
+        var uniqueArtwork: [String: DotPuzzleReferenceArt] = [:]
+
+        for puzzle in DotPuzzleCatalog.downloadedReferencePuzzles {
+            let reference = try XCTUnwrap(puzzle.referenceArt, puzzle.id)
+            let referenceName = DotSemanticMaskHitTester.tileAssetName(for: reference)
+            uniqueArtwork[referenceName] = reference
+
+            let sheet = try XCTUnwrap(puzzle.sourceSheet, puzzle.id)
+            let slot = reference.row * reference.columns + reference.column + 1
+            let plan = try XCTUnwrap(
+                DownloadedDotPuzzleColourArtwork.plan(sheet: sheet, slot: slot),
+                puzzle.id
+            )
+            for swatch in plan.swatches {
+                let name = DotSemanticMaskHitTester.tileAssetName(for: swatch.maskArt)
+                uniqueArtwork[name] = swatch.maskArt
+            }
+        }
+
+        XCTAssertEqual(uniqueArtwork.count, 490, "The direct-tile inventory must cover all shipped art")
+        let retiredAtlasNames = Set(uniqueArtwork.values.map(\.assetName))
+        for atlasName in retiredAtlasNames {
+            XCTAssertNil(
+                UIImage(named: atlasName),
+                "Unused full atlas \(atlasName) must not remain in the shipping asset catalog"
+            )
+        }
+        for (assetName, art) in uniqueArtwork {
+            let image = try XCTUnwrap(UIImage(named: assetName), "Missing direct tile \(assetName)")
+            let source = try XCTUnwrap(image.cgImage, assetName)
+            XCTAssertEqual(source.width, 512, assetName)
+            XCTAssertEqual(source.height, 512, assetName)
+            XCTAssertNotEqual(assetName, art.assetName, "Production must not fall back to an atlas")
+        }
+
+        let giraffePlan = try XCTUnwrap(
+            DownloadedDotPuzzleColourArtwork.plan(sheet: "D1/D2", slot: 1)
+        )
+        for swatch in giraffePlan.swatches {
+            try assertRuntimeTileMatchesShippedAsset(swatch.maskArt)
+        }
+        let lastReference = try XCTUnwrap(
+            DotPuzzleCatalog.downloadedReferencePuzzles.last?.referenceArt
+        )
+        try assertRuntimeTileMatchesShippedAsset(lastReference)
+    }
+
+    func testIncrementalPencilCoverageMatchesFreshEvaluationThroughHistoryEviction() throws {
+        let plan = try XCTUnwrap(DownloadedDotPuzzleColourArtwork.plan(sheet: "D1/D2", slot: 1))
+        let swatch = try XCTUnwrap(plan.swatches.first)
+        var accumulator = try XCTUnwrap(
+            DotColourCoverageEvaluator.makeAccumulator(in: swatch.maskArt)
+        )
+        var retainedStrokes: [DotColourStroke] = []
+
+        for index in 0..<(DotColourStrokeSampler.maximumStrokesPerRegion + 8) {
+            let y = CGFloat((index * 7) % 29 + 1) / 30
+            let stroke = DotColourStroke(
+                regionID: swatch.id,
+                swatchID: swatch.id,
+                points: [
+                    CGPoint(x: 0.03, y: y),
+                    CGPoint(x: 0.28, y: y),
+                    CGPoint(x: 0.54, y: min(y + 0.018, 0.98))
+                ]
+            )
+            retainedStrokes.append(stroke)
+            retainedStrokes = DotColourStrokeSampler.bounded(retainedStrokes)
+
+            let incremental = accumulator.replaceStrokes(retainedStrokes)
+            let fresh = DotColourCoverageEvaluator.coverage(
+                of: retainedStrokes,
+                in: swatch.maskArt
+            )
+            XCTAssertEqual(incremental, fresh, accuracy: 0.000_000_001, "stroke \(index)")
+            XCTAssertEqual(
+                accumulator.replaceStrokes(retainedStrokes),
+                incremental,
+                accuracy: 0.000_000_001,
+                "An unchanged vector history must return cached coverage"
+            )
+        }
+        XCTAssertEqual(
+            retainedStrokes.count,
+            DotColourStrokeSampler.maximumStrokesPerRegion,
+            "The test must exercise the accumulator's eviction/rebuild path"
+        )
+    }
+
+    func testColouringSnapshotMigratesV2ToFileAndRetainsLegacyDataWhenFileWriteFails() async throws {
+        struct LegacyV2Envelope: Codable {
+            let token: UUID
+            let revision: Int
+            let snapshot: DotColouringSnapshot
+        }
+
+        let suiteName = "MaxPuzzlesTests.dotColourV2Migration.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        let storageDirectory = temporaryTestDirectory(named: "dot-colouring-v2-migration")
+        defer {
+            defaults.removePersistentDomain(forName: suiteName)
+            try? FileManager.default.removeItem(at: storageDirectory)
+        }
+
+        let profile = UUID()
+        let v2Key = "maxpuzzles.profile.\(profile.uuidString).dotToDot.colouringSnapshot.v2.picture"
+        let snapshot = DotColouringSnapshot(
+            tapFilledRegionIDs: [1, 3],
+            strokes: [
+                DotColourStroke(
+                    regionID: 2,
+                    swatchID: 2,
+                    points: [CGPoint(x: 0.2, y: 0.3), CGPoint(x: 0.6, y: 0.7)]
+                )
+            ]
+        )
+        defaults.set(
+            try JSONEncoder().encode(
+                LegacyV2Envelope(token: UUID(), revision: 7, snapshot: snapshot)
+            ),
+            forKey: v2Key
+        )
+
+        let store = DotColouringSnapshotStore(
+            defaults: defaults,
+            storageDirectory: storageDirectory
+        )
+        let migrated = await store.beginSession(puzzleID: "picture", profileID: profile)
+        assertColouringSnapshot(migrated.snapshot, equals: snapshot)
+        XCTAssertNil(defaults.data(forKey: v2Key))
+        XCTAssertEqual(
+            try FileManager.default.contentsOfDirectory(
+                at: storageDirectory,
+                includingPropertiesForKeys: nil
+            ).filter { $0.pathExtension == "json" }.count,
+            1
+        )
+
+        let reopened = await DotColouringSnapshotStore(
+            defaults: defaults,
+            storageDirectory: storageDirectory
+        ).beginSession(puzzleID: "picture", profileID: profile)
+        assertColouringSnapshot(reopened.snapshot, equals: snapshot)
+
+        let v3File = try XCTUnwrap(
+            FileManager.default.contentsOfDirectory(
+                at: storageDirectory,
+                includingPropertiesForKeys: nil
+            ).first { $0.pathExtension == "json" }
+        )
+        try Data("corrupt-v3".utf8).write(to: v3File, options: .atomic)
+        let recoveredV3 = await DotColouringSnapshotStore(
+            defaults: defaults,
+            storageDirectory: storageDirectory
+        ).beginSession(puzzleID: "picture", profileID: profile)
+        XCTAssertTrue(recoveredV3.recoveredFromCorruptData)
+        XCTAssertEqual(recoveredV3.snapshot, .empty)
+
+        let blockedProfile = UUID()
+        let blockedLegacyKey = "maxpuzzles.profile.\(blockedProfile.uuidString).dotToDot.colouringSnapshot.v1.picture"
+        defaults.set(try JSONEncoder().encode(snapshot), forKey: blockedLegacyKey)
+        let blockedPath = temporaryTestDirectory(named: "dot-colouring-blocked-file")
+        try FileManager.default.createDirectory(
+            at: blockedPath.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+        try Data("not-a-directory".utf8).write(to: blockedPath, options: .atomic)
+        defer { try? FileManager.default.removeItem(at: blockedPath) }
+
+        let blockedStore = DotColouringSnapshotStore(
+            defaults: defaults,
+            storageDirectory: blockedPath
+        )
+        let unsavedMigration = await blockedStore.beginSession(
+            puzzleID: "picture",
+            profileID: blockedProfile
+        )
+        assertColouringSnapshot(unsavedMigration.snapshot, equals: snapshot)
+        XCTAssertNotNil(
+            defaults.data(forKey: blockedLegacyKey),
+            "Legacy data may be removed only after its atomic v3 file succeeds"
+        )
     }
 
     func testDotToDotConnectionProgressPersistsByProfilePuzzleAndPlayStyle() async throws {
@@ -671,9 +882,16 @@ final class MaxPuzzlesTests: XCTestCase {
     func testDotToDotColouringQueueDrainsFinalEditBeforeReopenRotatesToken() async throws {
         let suiteName = "MaxPuzzlesTests.dotColourCloseRace.\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
-        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let storageDirectory = temporaryTestDirectory(named: "dot-colouring-close-race")
+        defer {
+            defaults.removePersistentDomain(forName: suiteName)
+            try? FileManager.default.removeItem(at: storageDirectory)
+        }
         let profile = UUID()
-        let store = DotColouringSnapshotStore(defaults: defaults)
+        let store = DotColouringSnapshotStore(
+            defaults: defaults,
+            storageDirectory: storageDirectory
+        )
         let queue = DotToDotPersistenceQueue()
         let resource = DotToDotPersistenceQueue.Resource.colouring(
             puzzleID: "race-picture",
@@ -706,6 +924,26 @@ final class MaxPuzzlesTests: XCTestCase {
         await queue.drain(resource)
         let reopened = await store.beginSession(puzzleID: "race-picture", profileID: profile)
         XCTAssertEqual(reopened.snapshot, final)
+    }
+
+    func testDotToDotColouringAnnouncementPolicyDoesNotReplaceFastOpeningInstruction() {
+        XCTAssertEqual(
+            DotColouringAccessibilityAnnouncementPolicy.opening(for: .tapToFill),
+            "Colouring opened. Choose a colour pot, then tap a space with the same number."
+        )
+        XCTAssertNil(
+            DotColouringAccessibilityAnnouncementPolicy.ready(
+                afterPrewarm: DotColouringAccessibilityAnnouncementPolicy.minimumReadyStatusDelay - 0.01,
+                mode: .tapToFill
+            )
+        )
+        XCTAssertEqual(
+            DotColouringAccessibilityAnnouncementPolicy.ready(
+                afterPrewarm: DotColouringAccessibilityAnnouncementPolicy.minimumReadyStatusDelay,
+                mode: .tapToFill
+            ),
+            "Colours ready. Choose a colour pot, then tap a space with the same number."
+        )
     }
 
     func testFreshDotToDotLoadChangesAutomaticHintTaskIdentityAtIndexZero() {
@@ -770,6 +1008,7 @@ final class MaxPuzzlesTests: XCTestCase {
             NumeralSpeechService.promptText(for: 7),
             NumeralSpeechService.numberText(for: 7),
             NumeralSpeechService.celebrationText(for: "rocket"),
+            NumeralSpeechService.completionText(finalNumber: 20, picture: "rocket"),
             NumeralSpeechService.starCountText(for: 4)
         ]
 
@@ -816,6 +1055,20 @@ final class MaxPuzzlesTests: XCTestCase {
                 )
             }
         }
+    }
+
+    func testDotToDotCompletionSpeechKeepsFinalNumberBeforeCelebration() {
+        let finalNumber = NumeralSpeechService.numberText(for: 20)
+        let celebration = NumeralSpeechService.celebrationText(for: "rocket")
+
+        XCTAssertEqual(
+            NumeralSpeechService.completionText(finalNumber: 20, picture: "rocket"),
+            "\(finalNumber). \(celebration)"
+        )
+        XCTAssertEqual(
+            NumeralSpeechService.completionText(finalNumber: 20, picture: "rocket"),
+            "20. Well done! You found the rocket."
+        )
     }
 
     func testSubitizingBonusUsesDistinctChoicesAndStandardOneToFivePatterns() {
@@ -978,6 +1231,224 @@ final class MaxPuzzlesTests: XCTestCase {
         )
     }
 
+    func testParentPlayTimerRequiresPasscodeAndLocksAcrossRelaunch() throws {
+        let suiteName = "ParentPlayTimerTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        var now = Date(timeIntervalSince1970: 1_800_000_000)
+        let passcodeStore = InMemoryParentPasscodeStore()
+        let storageKey = "timer-deadline"
+        let timer = ParentPlayTimer(
+            defaults: defaults,
+            storageKey: storageKey,
+            nowProvider: { now },
+            passcodeStore: passcodeStore
+        )
+
+        XCTAssertFalse(timer.start(minutes: 30), "A child timer must never start without a parent passcode")
+        XCTAssertFalse(timer.setPasscode("123"))
+        XCTAssertFalse(timer.setPasscode("12a4"))
+        XCTAssertTrue(timer.setPasscode("2468"))
+        XCTAssertTrue(timer.verifyPasscode("2468"))
+        XCTAssertFalse(timer.verifyPasscode("1357"))
+        XCTAssertTrue(timer.start(minutes: 30))
+        XCTAssertEqual(timer.remainingSeconds, 1_800)
+        XCTAssertEqual(timer.statusText, "30 min remaining")
+
+        let relaunchedTimer = ParentPlayTimer(
+            defaults: defaults,
+            storageKey: storageKey,
+            nowProvider: { now },
+            passcodeStore: passcodeStore
+        )
+        XCTAssertTrue(relaunchedTimer.hasLimit)
+        XCTAssertTrue(relaunchedTimer.hasPasscode)
+        XCTAssertFalse(relaunchedTimer.isLocked)
+        XCTAssertEqual(relaunchedTimer.remainingSeconds, 1_800)
+
+        now = now.addingTimeInterval(1_801)
+        relaunchedTimer.refresh()
+        XCTAssertTrue(relaunchedTimer.isLocked)
+        XCTAssertEqual(relaunchedTimer.remainingSeconds, 0)
+        XCTAssertEqual(relaunchedTimer.statusText, "Time is up")
+    }
+
+    func testParentPlayTimerRemovalKeepsPasscodeAndFullResetClearsIt() throws {
+        let suiteName = "ParentPlayTimerResetTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let passcodeStore = InMemoryParentPasscodeStore()
+        let timer = ParentPlayTimer(
+            defaults: defaults,
+            storageKey: "timer-deadline",
+            nowProvider: { Date(timeIntervalSince1970: 1_800_000_000) },
+            passcodeStore: passcodeStore
+        )
+
+        XCTAssertTrue(timer.setPasscode("8042"))
+        XCTAssertTrue(timer.start(minutes: 15))
+        timer.removeLimit()
+        XCTAssertFalse(timer.hasLimit)
+        XCTAssertFalse(timer.isLocked)
+        XCTAssertTrue(timer.hasPasscode, "Removing one limit should keep future timer changes protected")
+        XCTAssertTrue(timer.verifyPasscode("8042"))
+
+        timer.resetAll()
+        XCTAssertFalse(timer.hasLimit)
+        XCTAssertFalse(timer.hasPasscode)
+        XCTAssertFalse(timer.verifyPasscode("8042"))
+        XCTAssertNil(defaults.object(forKey: "timer-deadline"))
+    }
+
+    func testParentPlayTimerClampsParentDurationToSupportedRange() throws {
+        let suiteName = "ParentPlayTimerRangeTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        var now = Date(timeIntervalSince1970: 1_800_000_000)
+        let timer = ParentPlayTimer(
+            defaults: defaults,
+            storageKey: "timer-deadline",
+            nowProvider: { now },
+            passcodeStore: InMemoryParentPasscodeStore(passcode: "2468")
+        )
+
+        XCTAssertTrue(timer.start(minutes: 1))
+        XCTAssertEqual(timer.remainingSeconds, ParentPlayTimer.minimumMinutes * 60)
+        timer.removeLimit()
+
+        XCTAssertTrue(timer.start(minutes: 999))
+        XCTAssertEqual(timer.remainingSeconds, ParentPlayTimer.maximumMinutes * 60)
+        now = now.addingTimeInterval(TimeInterval(61 * 60))
+        timer.refresh()
+        XCTAssertEqual(timer.statusText, "59 min remaining")
+    }
+
+    func testParentPlayTimerPublishesAtMinuteBoundariesInsteadOfEverySecond() throws {
+        let suiteName = "ParentPlayTimerPublicationTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        var now = Date(timeIntervalSince1970: 1_800_000_000)
+        let timer = ParentPlayTimer(
+            defaults: defaults,
+            storageKey: "timer-deadline",
+            nowProvider: { now },
+            passcodeStore: InMemoryParentPasscodeStore(passcode: "2468")
+        )
+        XCTAssertTrue(timer.start(minutes: 15))
+
+        var publications = 0
+        let observation = timer.objectWillChange.sink { publications += 1 }
+        now = now.addingTimeInterval(1)
+        timer.refresh()
+        XCTAssertEqual(timer.remainingSeconds, 899)
+        XCTAssertEqual(timer.statusText, "15 min remaining")
+        XCTAssertEqual(publications, 0)
+
+        now = now.addingTimeInterval(59)
+        timer.refresh()
+        XCTAssertEqual(timer.remainingSeconds, 840)
+        XCTAssertEqual(timer.statusText, "14 min remaining")
+        XCTAssertEqual(publications, 1)
+        withExtendedLifetime(observation) {}
+    }
+
+    func testDeferredParentPasscodeNeverTreatsLoadingOrKeychainFailureAsAbsent() throws {
+        let suiteName = "ParentPlayTimerDeferredPasscodeTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let existingStore = InMemoryParentPasscodeStore(passcode: "2468")
+        let existingTimer = ParentPlayTimer(
+            defaults: defaults,
+            storageKey: "existing-deadline",
+            passcodeStore: existingStore,
+            deferPasscodeLoad: true
+        )
+        XCTAssertEqual(existingTimer.passcodeAvailability, .loading)
+        XCTAssertEqual(existingTimer.resolvePasscodeAvailabilityForParentAccess(), .present)
+        XCTAssertTrue(existingTimer.hasPasscode)
+
+        let unavailableStore = InMemoryParentPasscodeStore(
+            passcode: "2468",
+            unavailableStatus: errSecInteractionNotAllowed
+        )
+        let unavailableTimer = ParentPlayTimer(
+            defaults: defaults,
+            storageKey: "unavailable-deadline",
+            passcodeStore: unavailableStore,
+            deferPasscodeLoad: true
+        )
+        XCTAssertEqual(
+            unavailableTimer.resolvePasscodeAvailabilityForParentAccess(),
+            .unavailable
+        )
+        XCTAssertFalse(unavailableTimer.hasPasscode)
+        XCTAssertFalse(unavailableTimer.start(minutes: 30))
+    }
+
+    private func temporaryTestDirectory(named name: String) -> URL {
+        FileManager.default.temporaryDirectory
+            .appendingPathComponent("MaxPuzzlesTests", isDirectory: true)
+            .appendingPathComponent("\(name)-\(UUID().uuidString)", isDirectory: true)
+    }
+
+    private func assertRuntimeTileMatchesShippedAsset(
+        _ art: DotPuzzleReferenceArt,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) throws {
+        let tileName = DotSemanticMaskHitTester.tileAssetName(for: art)
+        let shippedTile = try XCTUnwrap(
+            UIImage(named: tileName)?.cgImage,
+            "Missing direct tile \(tileName)",
+            file: file,
+            line: line
+        )
+        let runtimeTile = try XCTUnwrap(
+            DotSemanticMaskHitTester.croppedImage(for: art)?.cgImage,
+            "Runtime could not decode direct tile \(tileName)",
+            file: file,
+            line: line
+        )
+        XCTAssertEqual(
+            try rgbaPixels(of: runtimeTile, file: file, line: line),
+            try rgbaPixels(of: shippedTile, file: file, line: line),
+            "Runtime decode changed direct-tile pixels: \(tileName)",
+            file: file,
+            line: line
+        )
+    }
+
+    private func rgbaPixels(
+        of image: CGImage,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) throws -> [UInt8] {
+        var rgba = [UInt8](repeating: 0, count: image.width * image.height * 4)
+        try rgba.withUnsafeMutableBytes { bytes in
+            let context = try XCTUnwrap(
+                CGContext(
+                    data: bytes.baseAddress,
+                    width: image.width,
+                    height: image.height,
+                    bitsPerComponent: 8,
+                    bytesPerRow: image.width * 4,
+                    space: CGColorSpaceCreateDeviceRGB(),
+                    bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+                ),
+                file: file,
+                line: line
+            )
+            context.interpolationQuality = .none
+            context.draw(image, in: CGRect(x: 0, y: 0, width: image.width, height: image.height))
+        }
+        return rgba
+    }
+
     private func semanticSwatch(
         containing token: String,
         in plan: DotSemanticColourPlan,
@@ -1039,25 +1510,10 @@ final class MaxPuzzlesTests: XCTestCase {
 
     private func sampledAlphaCoverage(
         of image: UIImage,
-        tile: DotPuzzleReferenceArt,
         file: StaticString = #filePath,
         line: UInt = #line
     ) throws -> (visible: Int, total: Int) {
         let source = try XCTUnwrap(image.cgImage, "Mask asset has no CGImage", file: file, line: line)
-        let tileWidth = source.width / tile.columns
-        let tileHeight = source.height / tile.rows
-        let cropRect = CGRect(
-            x: tile.column * tileWidth,
-            y: tile.row * tileHeight,
-            width: tileWidth,
-            height: tileHeight
-        )
-        let cropped = try XCTUnwrap(
-            source.cropping(to: cropRect),
-            "Could not crop mask tile \(tile.assetName):\(tile.column):\(tile.row)",
-            file: file,
-            line: line
-        )
 
         // A small render is enough to catch empty or accidentally opaque tiles while keeping this
         // exhaustive 84-picture check quick on CI and the simulator.
@@ -1079,11 +1535,36 @@ final class MaxPuzzlesTests: XCTestCase {
                 line: line
             )
             context.interpolationQuality = .high
-            context.draw(cropped, in: CGRect(x: 0, y: 0, width: sampleSide, height: sampleSide))
+            context.draw(source, in: CGRect(x: 0, y: 0, width: sampleSide, height: sampleSide))
         }
         let visible = stride(from: 3, to: rgba.count, by: 4).reduce(into: 0) { count, index in
             if rgba[index] > 8 { count += 1 }
         }
         return (visible, sampleSide * sampleSide)
+    }
+}
+
+private final class InMemoryParentPasscodeStore: ParentPasscodeStoring {
+    private var passcode: String?
+    var unavailableStatus: OSStatus?
+
+    init(passcode: String? = nil, unavailableStatus: OSStatus? = nil) {
+        self.passcode = passcode
+        self.unavailableStatus = unavailableStatus
+    }
+
+    func loadPasscode() -> ParentPasscodeLoadResult {
+        if let unavailableStatus { return .unavailable(unavailableStatus) }
+        if let passcode { return .found(passcode) }
+        return .missing
+    }
+
+    func savePasscode(_ passcode: String) -> Bool {
+        self.passcode = passcode
+        return true
+    }
+
+    func removePasscode() {
+        passcode = nil
     }
 }
