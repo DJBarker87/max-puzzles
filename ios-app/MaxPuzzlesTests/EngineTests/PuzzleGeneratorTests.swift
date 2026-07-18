@@ -248,6 +248,40 @@ final class PuzzleGeneratorTests: XCTestCase {
         XCTAssertFalse(progress.isLevelUnlocked(chapter: 1, level: 2))
     }
 
+    func testBossRequiresEveryEarlierLevelEvenWithSparsePersistedProgress() {
+        let suiteName = "PuzzleGeneratorTests.storyBossUnlock.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let progress = StoryProgress(defaults: defaults)
+        progress.recordAttempt(
+            chapter: 1,
+            level: 6,
+            won: true,
+            livesLost: 0,
+            timeSeconds: 60,
+            tileCount: 8
+        )
+
+        XCTAssertFalse(
+            progress.isLevelUnlocked(chapter: 1, level: 7),
+            "A sparse legacy or cloud record for level 6 must not expose the boss"
+        )
+
+        for level in 1...5 {
+            progress.recordAttempt(
+                chapter: 1,
+                level: level,
+                won: true,
+                livesLost: 0,
+                timeSeconds: 60,
+                tileCount: 8
+            )
+        }
+
+        XCTAssertTrue(progress.isLevelUnlocked(chapter: 1, level: 7))
+    }
+
     func testStoryStarsRewardAccuracyWithoutSpeedPressure() {
         XCTAssertEqual(StoryDifficulty.calculateStars(livesLost: 0), 3)
         XCTAssertEqual(StoryDifficulty.calculateStars(livesLost: 1), 2)
@@ -290,7 +324,61 @@ final class PuzzleGeneratorTests: XCTestCase {
                 hasPendingSummary: true
             ),
             .keepPending,
-            "Publishing won after hidden reveal must not install a second delayed callback"
+            "Publishing a pass after hidden reveal must not install a second delayed callback"
+        )
+
+        XCTAssertEqual(
+            CircuitSummarySchedulingPolicy.decision(
+                for: .lost,
+                isHiddenMode: true,
+                isShowingSolution: false,
+                hasPendingSummary: true
+            ),
+            .keepPending,
+            "A failed hidden attempt must keep the reveal's existing summary callback"
+        )
+    }
+
+    func testHiddenModeOnlyPassesACompletePerfectRoute() {
+        let start = Coordinate(row: 0, col: 0)
+        let middle = Coordinate(row: 0, col: 1)
+        let finish = Coordinate(row: 0, col: 2)
+        let correctMove = GameMoveResult(
+            correct: true,
+            fromCell: start,
+            toCell: middle,
+            connectorValue: 4,
+            cellAnswer: 4
+        )
+        let wrongMove = GameMoveResult(
+            correct: false,
+            fromCell: middle,
+            toCell: finish,
+            connectorValue: 9,
+            cellAnswer: 5
+        )
+
+        XCTAssertEqual(HiddenModeOutcome.status(for: HiddenModeResults()), .lost)
+        XCTAssertEqual(
+            HiddenModeOutcome.status(
+                for: HiddenModeResults(
+                    moves: [correctMove],
+                    correctCount: 1,
+                    mistakeCount: 0
+                )
+            ),
+            .won
+        )
+        XCTAssertEqual(
+            HiddenModeOutcome.status(
+                for: HiddenModeResults(
+                    moves: [correctMove, wrongMove],
+                    correctCount: 1,
+                    mistakeCount: 1
+                )
+            ),
+            .lost,
+            "Reaching FINISH after any wrong move must not complete a hidden story level"
         )
     }
 

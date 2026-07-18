@@ -146,12 +146,18 @@ class StoryProgress: ObservableObject {
         // Chapter must be unlocked
         guard isChapterUnlocked(chapter) else { return false }
 
+        guard (1...7).contains(level) else { return false }
+
         // Level 1 (A) is always unlocked if chapter is unlocked
         if level == 1 { return true }
 
-        // Completing a level always opens the next one. Stars are a replay and
-        // mastery reward; they must never block a child who needed another try.
-        return isLevelCompleted(chapter: chapter, level: level - 1)
+        // Require the complete preceding sequence, not just the immediately
+        // previous level. This prevents sparse legacy or merged iCloud progress
+        // (for example, only level 6 being marked complete) from exposing the boss.
+        // Stars remain a replay and mastery reward; completion alone unlocks progress.
+        return (1..<level).allSatisfy {
+            isLevelCompleted(chapter: chapter, level: $0)
+        }
     }
 
     /// Check if a specific level is completed

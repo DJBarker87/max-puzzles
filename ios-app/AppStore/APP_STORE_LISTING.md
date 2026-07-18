@@ -1,6 +1,6 @@
 # App Store listing — English (UK)
 
-This is the draft replacement listing for iOS and iPadOS version 1.4 (build 7). Build 6 remains in Apple's review queue and predates the phoneme-audio integration; replacing it requires a separate withdrawal and submission decision.
+This is the replacement listing for iOS and iPadOS version 1.4 (build 8). Build 7 was withdrawn after a Hidden-mode progression defect was found; build 8 contains the corrected pass and boss-unlock rules.
 
 ## App information
 
@@ -8,7 +8,7 @@ This is the draft replacement listing for iOS and iPadOS version 1.4 (build 7). 
 - Subtitle (25/30): `Handwriting & maths games`
 - Bundle ID: `com.maxpuzzles.app`
 - Version: `1.4`
-- Build: `7`
+- Build: `8`
 - Primary category: Education
 - Secondary category: Games
 - Games subcategories: Family and Puzzle
@@ -146,7 +146,7 @@ Apple says data it collects through an Apple framework is not the developer's di
 
 ## Export compliance
 
-Version 1.4 build 7 contains no custom cryptography and declares `ITSAppUsesNonExemptEncryption = false`. Its only off-device data path is Apple's system-provided iCloud key-value service. If App Store Connect asks, answer that the app does not use non-exempt encryption. Re-audit before any release that adds custom cryptography, a developer backend or a third-party SDK.
+Version 1.4 build 8 contains no custom cryptography and declares `ITSAppUsesNonExemptEncryption = false`. Its only off-device data path is Apple's system-provided iCloud key-value service. If App Store Connect asks, answer that the app does not use non-exempt encryption. Re-audit before any release that adds custom cryptography, a developer backend or a third-party SDK.
 
 ## Screenshot upload order
 

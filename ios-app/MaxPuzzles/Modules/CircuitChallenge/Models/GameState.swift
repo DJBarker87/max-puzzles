@@ -74,6 +74,18 @@ struct HiddenModeResults {
     var mistakeCount: Int = 0
 }
 
+/// Hidden mode withholds feedback until the finish, but it must not turn simply
+/// reaching the finish into a win. A successful attempt is a complete, perfect
+/// route: every recorded move was correct and at least one move was made.
+enum HiddenModeOutcome {
+    static func status(for results: HiddenModeResults) -> GameStatus {
+        let completedPerfectRoute = !results.moves.isEmpty
+            && results.mistakeCount == 0
+            && results.correctCount == results.moves.count
+        return completedPerfectRoute ? .won : .lost
+    }
+}
+
 // MARK: - Game State
 
 /// Complete game state

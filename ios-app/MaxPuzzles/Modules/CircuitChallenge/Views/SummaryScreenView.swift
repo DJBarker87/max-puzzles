@@ -492,13 +492,14 @@ struct SummaryScreenView: View {
 
                 // Results Card
                 VStack(spacing: 20) {
-                    Text("Puzzle Complete!")
+                    Text(data.won ? "Perfect Route!" : "Try That Route Again")
                         .font(.scaledSystem(size: 28, weight: .bold))
                         .foregroundColor(.white)
 
-                    Text("Results")
+                    Text(data.won ? "Every move was correct." : "Reach FINISH without a mistake to pass.")
                         .font(.scaledSystem(size: 18, weight: .semibold))
                         .foregroundColor(AppTheme.textSecondary)
+                        .multilineTextAlignment(.center)
 
                     if let results = data.hiddenModeResults {
                         VStack(spacing: 12) {

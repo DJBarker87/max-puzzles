@@ -582,11 +582,17 @@ struct GameScreenView: View {
                     Image(systemName: viewModel.state.status == .won ? "checkmark.circle.fill" : "xmark.circle.fill")
                         .font(.scaledSystem(size: 64))
                         .foregroundColor(viewModel.state.status == .won ? AppTheme.accentPrimary : AppTheme.accentSecondary)
-                    Text(viewModel.state.status == .won ? "Puzzle Complete!" : "Out of Lives")
+                    Text(gameOverTitle)
                         .font(.scaledSystem(size: 24, weight: .bold))
                         .foregroundColor(.white)
                 }
             }
+    }
+
+    private var gameOverTitle: String {
+        if viewModel.state.status == .won { return "Puzzle Complete!" }
+        if viewModel.state.isHiddenMode { return "Check Your Route" }
+        return "Out of Lives"
     }
 
     private var exitConfirmationOverlay: some View {
@@ -837,7 +843,7 @@ struct GameScreenView: View {
         switch decision {
         case .revealHiddenAndSchedule(let delayNanoseconds):
             // Install the one authoritative task before `.revealing` synchronously publishes
-            // `.won`; the follow-up status notification then keeps this task instead of adding one.
+            // its pass/fail result; the follow-up notification keeps this task instead of adding one.
             scheduleSummary(afterNanoseconds: delayNanoseconds)
             viewModel.revealHiddenResults()
         case .schedule(let delayNanoseconds):

@@ -240,7 +240,7 @@ class GameViewModel: ObservableObject {
 
         case .revealHiddenResults:
             guard let results = newState.hiddenModeResults else { break }
-            newState.status = .won
+            newState.status = HiddenModeOutcome.status(for: results)
             newState.puzzleCoins = CircuitReward.points(correctMoves: results.correctCount)
 
         case .clearCoinAnimation(let id):

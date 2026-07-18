@@ -10,7 +10,7 @@ enum CircuitNewPuzzleSafeguard {
 }
 
 /// Keeps terminal-state UI transitions deterministic. Hidden mode briefly enters `.revealing`
-/// before publishing `.won`; that second publication must not schedule another summary.
+/// before publishing its pass/fail result; that second publication must not schedule another summary.
 enum CircuitSummarySchedulingPolicy {
     enum Decision: Equatable {
         case revealHiddenAndSchedule(delayNanoseconds: UInt64)
@@ -35,7 +35,7 @@ enum CircuitSummarySchedulingPolicy {
         }
 
         if (status == .won || status == .lost), !isShowingSolution {
-            if status == .won, isHiddenMode, hasPendingSummary {
+            if isHiddenMode, hasPendingSummary {
                 return .keepPending
             }
             return .schedule(delayNanoseconds: standardDelayNanoseconds)
