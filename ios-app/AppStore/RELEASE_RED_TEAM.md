@@ -4,9 +4,9 @@ Reviewed: 18 July 2026
 
 ## Verdict
 
-Version 1.3 (build 5) is submitted to App Review with status `WAITING_FOR_REVIEW`. Apple processed the uploaded build as `VALID`; the build is attached, both screenshot sets are complete, and the listing, categories, age rating and review information match the release payload. The pre-submission read-only API audit passed, then the current review-submission API flow created the submission, added version 1.3 and submitted it at 16:42 UTC on 16 July 2026. Release remains manual.
+Version 1.3 (build 5) was withdrawn from App Review on 18 July 2026. The guarded replacement verified it was the sole iOS review item in `WAITING_FOR_REVIEW`, canceled that submission, waited for `DEVELOPER_REJECTED`, detached build 5 and renamed the same editable version record to 1.4. No delete fallback was used.
 
-Version 1.4 (build 6) is the next prepared payload and had not yet been uploaded at the time this implementation evidence was committed. Its local app changes have been red-teamed for UX and performance across all four games: Dot-to-Dot has 84 audited D1–D7 designs and durable per-child play/colouring recovery; Star Speller adds the England Year 1 starter curriculum, contextual prompts, adaptive 3/5/10-word sessions and immediate built-in speech fallback; Comet Writer supports ordinary finger input and explicit two-utterance letter teaching; Circuit Challenge has accuracy-only stars, child-safe confirmations and reliable progression. Compact family progress can sync through Apple's private iCloud key-value store. No claim in the historical 1.3 evidence below should be read as a completed 1.4 physical-device or TestFlight check.
+Version 1.4 (build 6) is now submitted to App Review with status `WAITING_FOR_REVIEW`. The signed archive matches bundle `com.maxpuzzles.app`, version 1.4, build 6 and iOS 16.0 minimum; Xcode uploaded it successfully and Apple processed it as `VALID`. A pre-submission read-only audit byte-matched all 16 screenshots and verified the listing, categories, Kids band, review details, free pricing and attached build. A separate post-submission query confirms that 1.3 no longer exists, the sole active iOS review item is 1.4, build 6 remains valid and attached, and release is manual. Physical-device and TestFlight checks remain outstanding residual risks.
 
 ## Version 1.4 implementation evidence
 
@@ -20,6 +20,8 @@ Version 1.4 (build 6) is the next prepared payload and had not yet been uploaded
 - The iCloud payload is compact and excludes detailed attempts, handwriting traces, custom words and recordings. Removed legacy Dot-to-Dot IDs are filtered from both local and cloud progress.
 - The serial simulator UI suite covers all integrated product flows and launch configurations, including semantic-colouring close and Finished → More Pictures paths.
 - Sixteen fresh native Simulator screenshots from the final source were visually inspected, then converted to opaque upload-ready JPEGs at 1320×2868 and 2048×2732.
+- A generic-device App Store archive was signed and uploaded from pushed commit `19443dd`; Apple processed build 6 as `VALID` with no non-exempt encryption.
+- The guarded 1.3 replacement, authenticated metadata/screenshot sync, independent read-only audit and review submission all completed successfully. The final App Store version and sole active review submission both report `WAITING_FOR_REVIEW`.
 
 ## Version 1.3 submission evidence (historical)
 
@@ -60,7 +62,7 @@ Version 1.4 (build 6) is the next prepared payload and had not yet been uploaded
 | Resolved | The old app icon was JPEG data named `.png` and included a baked rounded mask. | Replaced with a true RGB PNG whose artwork reaches every edge; regenerated every assigned size and preserved the previous icon files in `AppStore/LegacyAppIcon`. |
 | Resolved | Word Mission could start as a one-letter recall task and produce an excessively tall writing surface. | Word missions now select genuine three-or-more-letter words and place the complete word on one continuous writing surface. |
 | Resolved | Writing size, line controls, handedness and Pencil mode could be hidden in a partially expanded sheet. | Writing Tools now opens at the full-height detent; iPhone accurately says Finger drawing, while iPad exposes and tests Pencil-only mode. |
-| Resolved | App Store Connect previously inherited stale 6.5-inch, 6.1-inch and 11-inch screenshot sets, causing older images to override newer media on those devices. | The 1.3 version contains only the managed 6.9-inch iPhone and 13-inch iPad sets; the audit verifies the exact display types and MD5 checksum of every uploaded image. |
+| Resolved | App Store Connect previously inherited stale 6.5-inch, 6.1-inch and 11-inch screenshot sets, causing older images to override newer media on those devices. | Version 1.4 contains only the managed 6.9-inch iPhone and 13-inch iPad sets; the audit verifies the exact display types and MD5 checksum of every uploaded image. |
 | P1 | iPadOS 26 launches the app as a resizable window by default. The UI adapted in the capture audit, but this materially increases the number of supported sizes. | Manually test narrow, wide, portrait, landscape, full-screen and side-by-side windows, especially writing-pad coordinate transforms and Circuit Challenge rotation. |
 | P1 | The app contains generated/commissioned character art, icons, music and sound files. Code cannot establish their licence. | Keep provenance and commercial-use rights for every bundled visual and audio asset in the review file. |
 | P1 | App Store privacy answers must match the exact 1.4 binary. | Apple says developers are not responsible for data collected by Apple, and “collect” means off-device transmission that the developer or a third-party partner can access beyond servicing the request. Reconfirm the Data Not Collected answer in App Store Connect because private Apple iCloud progress is now implemented; change it before adding any developer backend, analytics or third-party SDK. |
@@ -87,7 +89,7 @@ Version 1.4 (build 6) is the next prepared payload and had not yet been uploaded
 - Upload-ready files are JPEG, opaque and within Apple's one-to-ten screenshot limit.
 - The Debug-only screenshot router is excluded from Release builds and presents real production views.
 - Do not upload the raw PNG captures because Simulator PNGs contain an alpha channel.
-- Do not upload `Screenshots/iPad-13`; those are retained iPadOS 26 windowing audit captures and include the Home Screen. Use only `Screenshots/Upload-Ready`.
+- Do not upload `Screenshots/iPad-13`; those are retained iPadOS 26 windowing audit captures and include the Home Screen. Version 1.4 uses only `Screenshots/Prepared-1.4`.
 - The first three screenshots show real Dot-to-Dot play, its Tap dots/Trace lines choice and the equal four-game hub rather than a splash or login screen.
 - The screenshots contain no fake scores, reviews, rankings, prices or unavailable features.
 
@@ -118,12 +120,16 @@ Version 1.4 (build 6) is the next prepared payload and had not yet been uploaded
 - [ ] Run VoiceOver, Reduce Motion, Larger Text, silent-mode and interrupted-audio checks.
 - [x] Archive version 1.3 build 5, export for App Store distribution and upload it successfully.
 - [x] Confirm build 5 is `VALID` and attached to version 1.3.
+- [x] Archive version 1.4 build 6 from pushed commit `19443dd`, upload it, and confirm Apple reports `VALID`.
+- [x] Withdraw the sole version 1.3 review item, detach build 5 and reuse the editable record as version 1.4 without deleting it.
 - [ ] Complete a clean-install smoke test from TestFlight with no developer settings or seeded data.
 - [x] Enter the Review Notes and upload only the opaque files in `Screenshots/Upload-Ready`.
 - [x] Confirm the inherited Free price, availability record, export-compliance flag, content-rights declaration and complete review contact.
 - [ ] Confirm DSA trader status, agreements, asset rights and the App Privacy preview in the web interface.
 - [x] Use manual release for version 1.3.
 - [x] Submit version 1.3 build 5 to App Review and verify `WAITING_FOR_REVIEW`.
+- [x] Keep manual release for version 1.4, attach build 6, sync/audit both screenshot sets and submit to App Review.
+- [x] Verify version 1.4, build 6 and the sole active iOS review submission are `WAITING_FOR_REVIEW`.
 
 ## Prepared App Store Connect sync
 
@@ -133,13 +139,13 @@ The release sync validates the bundle/app IDs, creates or updates the version an
 ASC_ISSUER_ID="<team issuer UUID>" ruby ios-app/AppStore/sync_app_store_connect.rb
 ```
 
-The companion audit is read-only and verifies the stored listing, pricing, Kids enrollment, review contact, build, screenshot delivery state and absence of a submission:
+The companion audit is read-only and verifies the stored listing, pricing, Kids enrollment, review contact, build, screenshot delivery state and absence of a submission before submission:
 
 ```sh
 ASC_ISSUER_ID="<team issuer UUID>" ruby ios-app/AppStore/audit_app_store_connect.rb
 ```
 
-After that audit passes—and only after the current 1.3 review is resolved—the guarded submission command creates or reuses the iOS review submission, adds the version declared in the payload and submits it. It refuses to reuse an active submission targeting another version:
+After that audit passes, the guarded submission command creates or reuses the iOS review submission, adds the version declared in the payload and submits it. It refuses to reuse an active submission targeting another version. For this release, 1.3 was first canceled and safely renamed with `withdraw_app_store_review.rb`; the final post-submission query then verified the sole active item is 1.4:
 
 ```sh
 ASC_ISSUER_ID="<team issuer UUID>" ruby ios-app/AppStore/submit_app_store_review.rb
